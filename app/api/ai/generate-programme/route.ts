@@ -24,12 +24,14 @@ export async function POST(request: Request) {
 
   const r = onboarding.responses as Record<string, string>
 
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-5',
-    max_tokens: 2048,
-    messages: [{
-      role: 'user',
-      content: `Based on this client's onboarding information, generate an appropriate training programme.
+  let message
+  try {
+    message = await client.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 2048,
+      messages: [{
+        role: 'user',
+        content: `Based on this client's onboarding information, generate an appropriate training programme.
 
 Client details:
 - Goal: ${r.goal}
@@ -43,8 +45,11 @@ Return a JSON training programme with this structure:
 { "name": string, "days": [{ "day_label": string, "exercises": [{ "name": string, "sets": number, "reps": string, "rest_seconds": number | null, "notes": string | null }] }] }
 
 Return only valid JSON.`
-    }]
-  })
+      }]
+    })
+  } catch {
+    return NextResponse.json({ error: 'AI service unavailable' }, { status: 503 })
+  }
 
   const content = message.content[0]
   if (content.type !== 'text') {

@@ -3,9 +3,10 @@ import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import type { WeeklyCheckin, DailyLog, Client } from '@/lib/types'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL
 
 async function fetchJson<T>(path: string): Promise<T | null> {
+  if (!APP_URL) return null
   try {
     const res = await fetch(`${APP_URL}${path}`, { cache: 'no-store' })
     if (!res.ok) return null

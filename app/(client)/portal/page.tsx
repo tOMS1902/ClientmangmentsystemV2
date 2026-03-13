@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
 import type { Client, DailyLog, WeeklyCheckin, Habit, HabitLog, NutritionTargets } from '@/lib/types'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL
 
 async function fetchJson<T>(path: string): Promise<T | null> {
+  if (!APP_URL) return null
   try {
     const res = await fetch(`${APP_URL}${path}`, { cache: 'no-store' })
     if (!res.ok) return null

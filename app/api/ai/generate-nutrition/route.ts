@@ -24,12 +24,14 @@ export async function POST(request: Request) {
 
   const r = onboarding.responses as Record<string, string>
 
-  const message = await client.messages.create({
-    model: 'claude-sonnet-4-5',
-    max_tokens: 1024,
-    messages: [{
-      role: 'user',
-      content: `Generate nutrition targets for a fitness coaching client.
+  let message
+  try {
+    message = await client.messages.create({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: `Generate nutrition targets for a fitness coaching client.
 
 Client details:
 - Goal: ${r.goal}
@@ -53,8 +55,11 @@ Return JSON with these fields:
 }
 
 Return only valid JSON.`
-    }]
-  })
+      }]
+    })
+  } catch {
+    return NextResponse.json({ error: 'AI service unavailable' }, { status: 503 })
+  }
 
   const content = message.content[0]
   if (content.type !== 'text') {

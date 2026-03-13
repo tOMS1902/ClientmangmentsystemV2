@@ -37,10 +37,10 @@ export async function POST(request: Request) {
       .select()
       .single()
 
-    if (dayError) continue
+    if (dayError) return NextResponse.json({ error: dayError.message }, { status: 500 })
 
     if (day.exercises?.length) {
-      await supabase.from('exercises').insert(
+      const { error: exerciseError } = await supabase.from('exercises').insert(
         day.exercises.map((ex: { name: string; sets: number; reps: string; rest_seconds: number | null; notes: string | null }, j: number) => ({
           day_id: progDay.id,
           name: ex.name,
@@ -51,6 +51,7 @@ export async function POST(request: Request) {
           sort_order: j + 1,
         }))
       )
+      if (exerciseError) return NextResponse.json({ error: exerciseError.message }, { status: 500 })
     }
   }
 
