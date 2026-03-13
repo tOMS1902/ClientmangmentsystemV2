@@ -1,0 +1,682 @@
+import type { Client, NutritionTargets, DailyLog, WeeklyCheckin, Programme, Habit, HabitLog, OnboardingResponses, MealPlan } from './types'
+
+// Coach
+export const SEED_COACH = {
+  id: 'coach-001',
+  role: 'coach' as const,
+  full_name: 'Calum Fraser',
+  email: 'calum@legaledge.fit',
+  onboarding_complete: true,
+  created_at: '2025-01-01T00:00:00Z',
+}
+
+// Clients
+export const SEED_CLIENTS: Client[] = [
+  {
+    id: 'client-001',
+    user_id: 'user-001',
+    coach_id: 'coach-001',
+    full_name: 'David Lawlor',
+    email: 'david@lawfirm.ie',
+    phone: '+353 87 123 4567',
+    start_date: '2025-01-06',
+    goal_weight: 82,
+    start_weight: 96,
+    current_weight: 89.5,
+    goal_text: 'Lose body fat, build strength for the courtroom presence.',
+    check_in_day: 'Monday',
+    is_active: true,
+    portal_access: true,
+    created_at: '2025-01-06T00:00:00Z',
+  },
+  {
+    id: 'client-002',
+    user_id: 'user-002',
+    coach_id: 'coach-001',
+    full_name: 'Aoife Brennan',
+    email: 'aoife@legalpractice.ie',
+    phone: '+353 86 987 6543',
+    start_date: '2025-01-27',
+    goal_weight: 62,
+    start_weight: 71,
+    current_weight: 67.8,
+    goal_text: 'Body recomposition — lose fat, maintain muscle.',
+    check_in_day: 'Wednesday',
+    is_active: true,
+    portal_access: true,
+    created_at: '2025-01-27T00:00:00Z',
+  },
+  {
+    id: 'client-003',
+    user_id: 'user-003',
+    coach_id: 'coach-001',
+    full_name: 'James Doyle',
+    email: 'james@barristers.ie',
+    phone: '+353 85 456 7890',
+    start_date: '2025-02-17',
+    goal_weight: 78,
+    start_weight: 84,
+    current_weight: 82.5,
+    goal_text: 'General fitness improvement and stress management through exercise.',
+    check_in_day: 'Friday',
+    is_active: true,
+    portal_access: true,
+    created_at: '2025-02-17T00:00:00Z',
+  },
+]
+
+// Nutrition targets
+export const SEED_TARGETS: NutritionTargets[] = [
+  {
+    id: 'target-001',
+    client_id: 'client-001',
+    td_calories: 2400,
+    td_protein: 185,
+    td_carbs: 280,
+    td_fat: 70,
+    ntd_calories: 2000,
+    ntd_protein: 185,
+    ntd_carbs: 180,
+    ntd_fat: 75,
+    daily_steps: 10000,
+    sleep_target_hours: 7.5,
+    updated_at: '2025-01-10T00:00:00Z',
+  },
+  {
+    id: 'target-002',
+    client_id: 'client-002',
+    td_calories: 1900,
+    td_protein: 135,
+    td_carbs: 200,
+    td_fat: 60,
+    ntd_calories: 1650,
+    ntd_protein: 135,
+    ntd_carbs: 140,
+    ntd_fat: 65,
+    daily_steps: 8000,
+    sleep_target_hours: 8,
+    updated_at: '2025-02-01T00:00:00Z',
+  },
+  {
+    id: 'target-003',
+    client_id: 'client-003',
+    td_calories: 2200,
+    td_protein: 160,
+    td_carbs: 240,
+    td_fat: 65,
+    ntd_calories: 1900,
+    ntd_protein: 160,
+    ntd_carbs: 160,
+    ntd_fat: 70,
+    daily_steps: 9000,
+    sleep_target_hours: 7,
+    updated_at: '2025-02-20T00:00:00Z',
+  },
+]
+
+// Generate daily logs for last 4 weeks for a client
+function generateLogs(clientId: string, startOffset: number): DailyLog[] {
+  const logs: DailyLog[] = []
+  const today = new Date('2026-03-12')
+
+  for (let i = 0; i < 28; i++) {
+    const date = new Date(today)
+    date.setDate(today.getDate() - i - startOffset)
+    const dateStr = date.toISOString().split('T')[0]
+
+    // Skip some days to simulate missed logs
+    if (i === 3 || i === 11 || i === 20) continue
+
+    logs.push({
+      id: `log-${clientId}-${i}`,
+      client_id: clientId,
+      log_date: dateStr,
+      calories: 1800 + Math.floor(Math.random() * 600),
+      protein: 120 + Math.floor(Math.random() * 60),
+      steps: 6000 + Math.floor(Math.random() * 6000),
+      sleep_hours: 5.5 + Math.random() * 3,
+      hunger_score: Math.floor(Math.random() * 3) + 2,
+      energy_score: Math.floor(Math.random() * 3) + 2,
+      stress_score: Math.floor(Math.random() * 3) + 1,
+      training_done: Math.random() > 0.4,
+      training_notes: null,
+      notes: null,
+      created_at: dateStr + 'T20:00:00Z',
+    })
+  }
+
+  return logs
+}
+
+export const SEED_LOGS: DailyLog[] = [
+  ...generateLogs('client-001', 0),
+  ...generateLogs('client-002', 0),
+  ...generateLogs('client-003', 0),
+]
+
+// Weekly check-ins (4 per client)
+export const SEED_CHECKINS: WeeklyCheckin[] = [
+  // David Lawlor — week 7-10
+  {
+    id: 'checkin-001-07',
+    client_id: 'client-001',
+    week_number: 7,
+    check_in_date: '2026-02-16',
+    weight: 91.2,
+    sleep_summary: 'Averaging about 6.5 hours. Late nights in the office.',
+    biggest_win: 'Hit protein target 5 out of 7 days.',
+    diet_summary: 'Mostly on track. Had a client dinner on Thursday — went over.',
+    main_challenge: 'Late-night snacking after long days.',
+    focus_next_week: 'Prep evening snacks in advance.',
+    avg_steps: '7,800',
+    coach_notes: null,
+    created_at: '2026-02-16T09:00:00Z',
+  },
+  {
+    id: 'checkin-001-08',
+    client_id: 'client-001',
+    week_number: 8,
+    check_in_date: '2026-02-23',
+    weight: 90.8,
+    sleep_summary: '7 hours most nights — better this week.',
+    biggest_win: 'Completed all 4 training sessions.',
+    diet_summary: 'Solid. Prepped lunches on Sunday.',
+    main_challenge: 'Energy dip Wednesday afternoon.',
+    focus_next_week: 'Add a post-workout meal.',
+    avg_steps: '8,200',
+    coach_notes: 'Great progress. Down 0.4kg. Keep the lunch prep going.',
+    created_at: '2026-02-23T09:00:00Z',
+  },
+  {
+    id: 'checkin-001-09',
+    client_id: 'client-001',
+    week_number: 9,
+    check_in_date: '2026-03-02',
+    weight: 90.1,
+    sleep_summary: '6-7 hours. Stress affecting sleep quality.',
+    biggest_win: 'Turned down the office birthday cake — proud of that.',
+    diet_summary: 'Good. Some extra calories on the weekend.',
+    main_challenge: 'Court hearing Thursday threw the whole day off.',
+    focus_next_week: 'Maintain training even on high-stress days.',
+    avg_steps: '8,600',
+    coach_notes: null,
+    created_at: '2026-03-02T09:00:00Z',
+  },
+  {
+    id: 'checkin-001-10',
+    client_id: 'client-001',
+    week_number: 10,
+    check_in_date: '2026-03-09',
+    weight: 89.5,
+    sleep_summary: 'Best week yet — 7.5 hours consistently.',
+    biggest_win: 'Down 6.5kg from start. Suit fits better.',
+    diet_summary: 'Hit all targets 6/7 days.',
+    main_challenge: 'Still finding it hard to eat enough protein at lunch.',
+    focus_next_week: 'Add a chicken or tuna option to lunch prep.',
+    avg_steps: '9,100',
+    coach_notes: 'Excellent week David. 6.5kg down from start. Keep this momentum.',
+    created_at: '2026-03-09T09:00:00Z',
+  },
+  // Aoife Brennan — week 3-6
+  {
+    id: 'checkin-002-03',
+    client_id: 'client-002',
+    week_number: 3,
+    check_in_date: '2026-02-09',
+    weight: 69.8,
+    sleep_summary: '7.5 hours average.',
+    biggest_win: 'Logged every day this week.',
+    diet_summary: 'On track. Enjoyed the meal plan.',
+    main_challenge: 'Cravings in the evening.',
+    focus_next_week: 'Add a high-protein evening snack.',
+    avg_steps: '7,200',
+    coach_notes: null,
+    created_at: '2026-02-09T10:00:00Z',
+  },
+  {
+    id: 'checkin-002-04',
+    client_id: 'client-002',
+    week_number: 4,
+    check_in_date: '2026-02-16',
+    weight: 69.2,
+    sleep_summary: '8 hours. Feeling much better.',
+    biggest_win: 'First time doing all 3 training sessions.',
+    diet_summary: 'Protein targets hit. Calories slightly under on rest days.',
+    main_challenge: 'Coordination between work events and training.',
+    focus_next_week: 'Block out training times in calendar like meetings.',
+    avg_steps: '7,500',
+    coach_notes: 'Solid week. Strength improving noticeably.',
+    created_at: '2026-02-16T10:00:00Z',
+  },
+  {
+    id: 'checkin-002-05',
+    client_id: 'client-002',
+    week_number: 5,
+    check_in_date: '2026-02-23',
+    weight: 68.5,
+    sleep_summary: '7-8 hours.',
+    biggest_win: 'Set new PB on hip thrust.',
+    diet_summary: 'Very consistent this week.',
+    main_challenge: 'Conference on Friday — difficult to stay on track.',
+    focus_next_week: 'Plan for the conference meal.',
+    avg_steps: '8,000',
+    coach_notes: null,
+    created_at: '2026-02-23T10:00:00Z',
+  },
+  {
+    id: 'checkin-002-06',
+    client_id: 'client-002',
+    week_number: 6,
+    check_in_date: '2026-03-02',
+    weight: 67.8,
+    sleep_summary: '7.5 hours.',
+    biggest_win: 'Down 3.2kg from start. Feeling strong.',
+    diet_summary: 'Best week yet for adherence.',
+    main_challenge: 'Training energy lower on court days.',
+    focus_next_week: 'Increase training day calories slightly.',
+    avg_steps: '8,300',
+    coach_notes: 'Excellent progress Aoife. Adjusting training day targets slightly.',
+    created_at: '2026-03-02T10:00:00Z',
+  },
+  // James Doyle — week 1-3
+  {
+    id: 'checkin-003-01',
+    client_id: 'client-003',
+    week_number: 1,
+    check_in_date: '2026-02-24',
+    weight: 83.5,
+    sleep_summary: '6 hours average. Very stressed.',
+    biggest_win: 'Got through 2 sessions despite a brutal week.',
+    diet_summary: 'Not great — relied on takeaways twice.',
+    main_challenge: 'Time management. Brief is consuming everything.',
+    focus_next_week: 'Prep at least 3 days of food in advance.',
+    avg_steps: '6,100',
+    coach_notes: null,
+    created_at: '2026-02-24T11:00:00Z',
+  },
+  {
+    id: 'checkin-003-02',
+    client_id: 'client-003',
+    week_number: 2,
+    check_in_date: '2026-03-02',
+    weight: 83.1,
+    sleep_summary: '6.5 hours.',
+    biggest_win: 'Hit steps target 4 days.',
+    diet_summary: 'Better. Prepped Monday-Wednesday.',
+    main_challenge: 'Brief deadline on Thursday meant skipping gym.',
+    focus_next_week: 'Morning sessions to avoid deadline conflicts.',
+    avg_steps: '7,200',
+    coach_notes: 'Good adaptation James. Morning training is the right call.',
+    created_at: '2026-03-02T11:00:00Z',
+  },
+  {
+    id: 'checkin-003-03',
+    client_id: 'client-003',
+    week_number: 3,
+    check_in_date: '2026-03-09',
+    weight: 82.5,
+    sleep_summary: '7 hours average — improving.',
+    biggest_win: 'Completed all 3 morning sessions.',
+    diet_summary: 'Solid. Protein still a bit low.',
+    main_challenge: 'Eating enough during busy mornings.',
+    focus_next_week: 'Protein shake at 9am after morning session.',
+    avg_steps: '8,100',
+    coach_notes: null,
+    created_at: '2026-03-09T11:00:00Z',
+  },
+]
+
+// Programmes
+export const SEED_PROGRAMMES: Programme[] = [
+  {
+    id: 'prog-001',
+    client_id: 'client-001',
+    name: 'David — 4 Day Strength Programme',
+    is_active: true,
+    created_at: '2025-01-10T00:00:00Z',
+    days: [
+      {
+        id: 'day-001-1',
+        programme_id: 'prog-001',
+        day_number: 1,
+        day_label: 'Day 1 — Upper Push',
+        sort_order: 1,
+        exercises: [
+          { id: 'ex-001', day_id: 'day-001-1', name: 'Flat Barbell Bench Press', sets: 4, reps: '6-8', rest_seconds: 120, video_url: null, notes: 'Control the descent', sort_order: 1 },
+          { id: 'ex-002', day_id: 'day-001-1', name: 'Incline Dumbbell Press', sets: 3, reps: '10-12', rest_seconds: 90, video_url: null, notes: null, sort_order: 2 },
+          { id: 'ex-003', day_id: 'day-001-1', name: 'Seated Dumbbell Shoulder Press', sets: 3, reps: '10-12', rest_seconds: 90, video_url: null, notes: null, sort_order: 3 },
+          { id: 'ex-004', day_id: 'day-001-1', name: 'Cable Lateral Raises', sets: 3, reps: '15-20', rest_seconds: 60, video_url: null, notes: null, sort_order: 4 },
+          { id: 'ex-005', day_id: 'day-001-1', name: 'Tricep Pushdowns', sets: 3, reps: '12-15', rest_seconds: 60, video_url: null, notes: null, sort_order: 5 },
+        ],
+      },
+      {
+        id: 'day-001-2',
+        programme_id: 'prog-001',
+        day_number: 2,
+        day_label: 'Day 2 — Lower',
+        sort_order: 2,
+        exercises: [
+          { id: 'ex-006', day_id: 'day-001-2', name: 'Barbell Back Squat', sets: 4, reps: '6-8', rest_seconds: 150, video_url: null, notes: 'Depth: thighs parallel to floor', sort_order: 1 },
+          { id: 'ex-007', day_id: 'day-001-2', name: 'Romanian Deadlift', sets: 3, reps: '8-10', rest_seconds: 120, video_url: null, notes: null, sort_order: 2 },
+          { id: 'ex-008', day_id: 'day-001-2', name: 'Leg Press', sets: 3, reps: '12-15', rest_seconds: 90, video_url: null, notes: null, sort_order: 3 },
+          { id: 'ex-009', day_id: 'day-001-2', name: 'Leg Curl', sets: 3, reps: '12-15', rest_seconds: 60, video_url: null, notes: null, sort_order: 4 },
+          { id: 'ex-010', day_id: 'day-001-2', name: 'Standing Calf Raises', sets: 4, reps: '15-20', rest_seconds: 60, video_url: null, notes: null, sort_order: 5 },
+        ],
+      },
+      {
+        id: 'day-001-3',
+        programme_id: 'prog-001',
+        day_number: 3,
+        day_label: 'Day 3 — Upper Pull',
+        sort_order: 3,
+        exercises: [
+          { id: 'ex-011', day_id: 'day-001-3', name: 'Pull-Ups', sets: 4, reps: 'Max', rest_seconds: 120, video_url: null, notes: 'Add weight if doing more than 12', sort_order: 1 },
+          { id: 'ex-012', day_id: 'day-001-3', name: 'Barbell Row', sets: 4, reps: '6-8', rest_seconds: 120, video_url: null, notes: null, sort_order: 2 },
+          { id: 'ex-013', day_id: 'day-001-3', name: 'Seated Cable Row', sets: 3, reps: '10-12', rest_seconds: 90, video_url: null, notes: null, sort_order: 3 },
+          { id: 'ex-014', day_id: 'day-001-3', name: 'Face Pulls', sets: 3, reps: '15-20', rest_seconds: 60, video_url: null, notes: null, sort_order: 4 },
+          { id: 'ex-015', day_id: 'day-001-3', name: 'EZ Bar Curl', sets: 3, reps: '10-12', rest_seconds: 60, video_url: null, notes: null, sort_order: 5 },
+        ],
+      },
+      {
+        id: 'day-001-4',
+        programme_id: 'prog-001',
+        day_number: 4,
+        day_label: 'Day 4 — Lower Power',
+        sort_order: 4,
+        exercises: [
+          { id: 'ex-016', day_id: 'day-001-4', name: 'Deadlift', sets: 4, reps: '5', rest_seconds: 180, video_url: null, notes: 'Focus on bracing', sort_order: 1 },
+          { id: 'ex-017', day_id: 'day-001-4', name: 'Bulgarian Split Squat', sets: 3, reps: '8-10 each', rest_seconds: 90, video_url: null, notes: null, sort_order: 2 },
+          { id: 'ex-018', day_id: 'day-001-4', name: 'Hip Thrust', sets: 4, reps: '12-15', rest_seconds: 90, video_url: null, notes: null, sort_order: 3 },
+          { id: 'ex-019', day_id: 'day-001-4', name: 'Leg Extension', sets: 3, reps: '15-20', rest_seconds: 60, video_url: null, notes: null, sort_order: 4 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'prog-002',
+    client_id: 'client-002',
+    name: 'Aoife — 3 Day Full Body Programme',
+    is_active: true,
+    created_at: '2025-02-01T00:00:00Z',
+    days: [
+      {
+        id: 'day-002-1',
+        programme_id: 'prog-002',
+        day_number: 1,
+        day_label: 'Day 1 — Full Body A',
+        sort_order: 1,
+        exercises: [
+          { id: 'ex-020', day_id: 'day-002-1', name: 'Goblet Squat', sets: 3, reps: '10-12', rest_seconds: 90, video_url: null, notes: null, sort_order: 1 },
+          { id: 'ex-021', day_id: 'day-002-1', name: 'Dumbbell Row', sets: 3, reps: '10-12 each', rest_seconds: 90, video_url: null, notes: null, sort_order: 2 },
+          { id: 'ex-022', day_id: 'day-002-1', name: 'Dumbbell Shoulder Press', sets: 3, reps: '12-15', rest_seconds: 60, video_url: null, notes: null, sort_order: 3 },
+          { id: 'ex-023', day_id: 'day-002-1', name: 'Hip Thrust', sets: 4, reps: '12-15', rest_seconds: 90, video_url: null, notes: null, sort_order: 4 },
+          { id: 'ex-024', day_id: 'day-002-1', name: 'Plank', sets: 3, reps: '30-45 sec', rest_seconds: 60, video_url: null, notes: null, sort_order: 5 },
+        ],
+      },
+      {
+        id: 'day-002-2',
+        programme_id: 'prog-002',
+        day_number: 2,
+        day_label: 'Day 2 — Full Body B',
+        sort_order: 2,
+        exercises: [
+          { id: 'ex-025', day_id: 'day-002-2', name: 'Romanian Deadlift', sets: 3, reps: '10-12', rest_seconds: 90, video_url: null, notes: null, sort_order: 1 },
+          { id: 'ex-026', day_id: 'day-002-2', name: 'Incline Dumbbell Press', sets: 3, reps: '10-12', rest_seconds: 90, video_url: null, notes: null, sort_order: 2 },
+          { id: 'ex-027', day_id: 'day-002-2', name: 'Lat Pulldown', sets: 3, reps: '10-12', rest_seconds: 90, video_url: null, notes: null, sort_order: 3 },
+          { id: 'ex-028', day_id: 'day-002-2', name: 'Lateral Raises', sets: 3, reps: '15-20', rest_seconds: 60, video_url: null, notes: null, sort_order: 4 },
+          { id: 'ex-029', day_id: 'day-002-2', name: 'Cable Kickback', sets: 3, reps: '15 each', rest_seconds: 60, video_url: null, notes: null, sort_order: 5 },
+        ],
+      },
+      {
+        id: 'day-002-3',
+        programme_id: 'prog-002',
+        day_number: 3,
+        day_label: 'Day 3 — Full Body C',
+        sort_order: 3,
+        exercises: [
+          { id: 'ex-030', day_id: 'day-002-3', name: 'Leg Press', sets: 3, reps: '12-15', rest_seconds: 90, video_url: null, notes: null, sort_order: 1 },
+          { id: 'ex-031', day_id: 'day-002-3', name: 'Pull-Ups / Assisted Pull-Ups', sets: 3, reps: '6-10', rest_seconds: 120, video_url: null, notes: null, sort_order: 2 },
+          { id: 'ex-032', day_id: 'day-002-3', name: 'Arnold Press', sets: 3, reps: '12-15', rest_seconds: 60, video_url: null, notes: null, sort_order: 3 },
+          { id: 'ex-033', day_id: 'day-002-3', name: 'Leg Curl', sets: 3, reps: '12-15', rest_seconds: 60, video_url: null, notes: null, sort_order: 4 },
+          { id: 'ex-034', day_id: 'day-002-3', name: 'Russian Twist', sets: 3, reps: '20 each side', rest_seconds: 60, video_url: null, notes: null, sort_order: 5 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'prog-003',
+    client_id: 'client-003',
+    name: 'James — 3 Day Strength Programme',
+    is_active: true,
+    created_at: '2025-02-20T00:00:00Z',
+    days: [
+      {
+        id: 'day-003-1',
+        programme_id: 'prog-003',
+        day_number: 1,
+        day_label: 'Day 1 — Push',
+        sort_order: 1,
+        exercises: [
+          { id: 'ex-035', day_id: 'day-003-1', name: 'Bench Press', sets: 4, reps: '8-10', rest_seconds: 120, video_url: null, notes: null, sort_order: 1 },
+          { id: 'ex-036', day_id: 'day-003-1', name: 'Overhead Press', sets: 3, reps: '8-10', rest_seconds: 90, video_url: null, notes: null, sort_order: 2 },
+          { id: 'ex-037', day_id: 'day-003-1', name: 'Incline DB Press', sets: 3, reps: '10-12', rest_seconds: 90, video_url: null, notes: null, sort_order: 3 },
+          { id: 'ex-038', day_id: 'day-003-1', name: 'Tricep Dips', sets: 3, reps: '10-15', rest_seconds: 60, video_url: null, notes: null, sort_order: 4 },
+        ],
+      },
+      {
+        id: 'day-003-2',
+        programme_id: 'prog-003',
+        day_number: 2,
+        day_label: 'Day 2 — Pull',
+        sort_order: 2,
+        exercises: [
+          { id: 'ex-039', day_id: 'day-003-2', name: 'Deadlift', sets: 4, reps: '5-6', rest_seconds: 180, video_url: null, notes: null, sort_order: 1 },
+          { id: 'ex-040', day_id: 'day-003-2', name: 'Lat Pulldown', sets: 3, reps: '10-12', rest_seconds: 90, video_url: null, notes: null, sort_order: 2 },
+          { id: 'ex-041', day_id: 'day-003-2', name: 'Cable Row', sets: 3, reps: '10-12', rest_seconds: 90, video_url: null, notes: null, sort_order: 3 },
+          { id: 'ex-042', day_id: 'day-003-2', name: 'Face Pulls', sets: 3, reps: '15-20', rest_seconds: 60, video_url: null, notes: null, sort_order: 4 },
+          { id: 'ex-043', day_id: 'day-003-2', name: 'Hammer Curls', sets: 3, reps: '12-15', rest_seconds: 60, video_url: null, notes: null, sort_order: 5 },
+        ],
+      },
+      {
+        id: 'day-003-3',
+        programme_id: 'prog-003',
+        day_number: 3,
+        day_label: 'Day 3 — Legs',
+        sort_order: 3,
+        exercises: [
+          { id: 'ex-044', day_id: 'day-003-3', name: 'Squat', sets: 4, reps: '6-8', rest_seconds: 150, video_url: null, notes: null, sort_order: 1 },
+          { id: 'ex-045', day_id: 'day-003-3', name: 'Leg Press', sets: 3, reps: '12-15', rest_seconds: 90, video_url: null, notes: null, sort_order: 2 },
+          { id: 'ex-046', day_id: 'day-003-3', name: 'Hip Thrust', sets: 3, reps: '12-15', rest_seconds: 90, video_url: null, notes: null, sort_order: 3 },
+          { id: 'ex-047', day_id: 'day-003-3', name: 'Leg Curl', sets: 3, reps: '12-15', rest_seconds: 60, video_url: null, notes: null, sort_order: 4 },
+        ],
+      },
+    ],
+  },
+]
+
+// Habits
+export const SEED_HABITS: Habit[] = [
+  { id: 'habit-001', client_id: 'client-001', name: 'Drink 3L water', description: 'Track with a 1L bottle — 3 refills', is_active: true, created_at: '2025-01-10T00:00:00Z' },
+  { id: 'habit-002', client_id: 'client-001', name: 'No phone after 10pm', description: 'Sleep quality improvement', is_active: true, created_at: '2025-01-10T00:00:00Z' },
+  { id: 'habit-003', client_id: 'client-001', name: 'Log food before 8pm', description: 'Consistency in tracking', is_active: true, created_at: '2025-01-10T00:00:00Z' },
+  { id: 'habit-004', client_id: 'client-002', name: 'Morning walk 20 mins', description: 'Step count & morning cortisol', is_active: true, created_at: '2025-02-01T00:00:00Z' },
+  { id: 'habit-005', client_id: 'client-002', name: 'Protein with every meal', description: 'At least 30g per meal', is_active: true, created_at: '2025-02-01T00:00:00Z' },
+  { id: 'habit-006', client_id: 'client-002', name: 'Stretch 10 mins post-workout', description: 'Recovery & flexibility', is_active: true, created_at: '2025-02-01T00:00:00Z' },
+  { id: 'habit-007', client_id: 'client-003', name: 'No alcohol on weeknights', description: 'Sleep & recovery quality', is_active: true, created_at: '2025-02-20T00:00:00Z' },
+  { id: 'habit-008', client_id: 'client-003', name: 'Pack gym bag night before', description: 'Removes friction for morning sessions', is_active: true, created_at: '2025-02-20T00:00:00Z' },
+  { id: 'habit-009', client_id: 'client-003', name: '10 min walk after lunch', description: 'Blood sugar & step count', is_active: true, created_at: '2025-02-20T00:00:00Z' },
+]
+
+// Generate habit logs for last 14 days
+function generateHabitLogs(habitId: string, clientId: string): HabitLog[] {
+  const logs: HabitLog[] = []
+  const today = new Date('2026-03-12')
+
+  for (let i = 0; i < 14; i++) {
+    const date = new Date(today)
+    date.setDate(today.getDate() - i)
+    const dateStr = date.toISOString().split('T')[0]
+
+    logs.push({
+      id: `hl-${habitId}-${i}`,
+      habit_id: habitId,
+      client_id: clientId,
+      log_date: dateStr,
+      completed: Math.random() > 0.3,
+    })
+  }
+
+  return logs
+}
+
+export const SEED_HABIT_LOGS: HabitLog[] = [
+  ...generateHabitLogs('habit-001', 'client-001'),
+  ...generateHabitLogs('habit-002', 'client-001'),
+  ...generateHabitLogs('habit-003', 'client-001'),
+  ...generateHabitLogs('habit-004', 'client-002'),
+  ...generateHabitLogs('habit-005', 'client-002'),
+  ...generateHabitLogs('habit-006', 'client-002'),
+  ...generateHabitLogs('habit-007', 'client-003'),
+  ...generateHabitLogs('habit-008', 'client-003'),
+  ...generateHabitLogs('habit-009', 'client-003'),
+]
+
+// Onboarding responses
+export const SEED_ONBOARDING: OnboardingResponses[] = [
+  {
+    id: 'onboard-001',
+    client_id: 'client-001',
+    responses: {
+      goal: 'Fat Loss',
+      current_weight: '96',
+      goal_weight: '82',
+      height: '183',
+      age: '38',
+      activity_level: 'Moderately Active',
+      training_experience: 'Intermediate 1-3yrs',
+      training_days: '4',
+      equipment: 'Full Gym',
+      injuries: 'Lower back tightness from desk work. No acute injuries.',
+      daily_schedule: 'Up at 6:30. In office by 8:30. Court 2-3 days per week. Home by 7pm.',
+      dietary_preferences: 'No restrictions. Prefer simple meals. Client dinners 1-2 per week.',
+      what_worked: 'Calorie counting worked before. Fell off during a big case. Never found a sustainable routine.',
+    },
+    created_at: '2025-01-06T00:00:00Z',
+  },
+  {
+    id: 'onboard-002',
+    client_id: 'client-002',
+    responses: {
+      goal: 'Body Recomposition',
+      current_weight: '71',
+      goal_weight: '62',
+      height: '168',
+      age: '32',
+      activity_level: 'Lightly Active',
+      training_experience: 'Beginner <1yr',
+      training_days: '3',
+      equipment: 'Full Gym',
+      injuries: 'None.',
+      daily_schedule: 'Up at 7am. Office 9-6. Some late nights. Weekend easier for training.',
+      dietary_preferences: "Vegetarian-leaning but eats some fish. Dislikes protein shakes.",
+      what_worked: "Pilates helped but didn't see body composition changes. Haven't done structured strength training.",
+    },
+    created_at: '2025-01-27T00:00:00Z',
+  },
+  {
+    id: 'onboard-003',
+    client_id: 'client-003',
+    responses: {
+      goal: 'General Health',
+      current_weight: '84',
+      goal_weight: '78',
+      height: '178',
+      age: '45',
+      activity_level: 'Sedentary',
+      training_experience: 'Beginner <1yr',
+      training_days: '3',
+      equipment: 'Full Gym',
+      injuries: 'Right shoulder impingement — cleared by physio. Avoid overhead pressing initially.',
+      daily_schedule: '5:30am start most days. In chambers by 7:30. Long sedentary days. Home by 8-9pm.',
+      dietary_preferences: 'Eats everything. Relies too heavily on canteen food and quick lunches.',
+      what_worked: 'Nothing sustained. Have started and stopped multiple times. Stress is the main trigger for quitting.',
+    },
+    created_at: '2025-02-17T00:00:00Z',
+  },
+]
+
+// Meal plans
+export const SEED_MEAL_PLANS: MealPlan[] = [
+  {
+    id: 'mp-001',
+    client_id: 'client-001',
+    day_type: 'training',
+    name: 'David — Training Day',
+    is_active: true,
+    meals: [
+      {
+        name: 'Breakfast',
+        items: [
+          { name: 'Greek Yoghurt', description: '200g full-fat', calories: 190, protein: 18, carbs: 8, fat: 10 },
+          { name: 'Granola', description: '50g', calories: 220, protein: 5, carbs: 38, fat: 6 },
+          { name: 'Mixed Berries', description: '100g frozen, defrosted', calories: 40, protein: 1, carbs: 9, fat: 0 },
+        ],
+      },
+      {
+        name: 'Lunch',
+        items: [
+          { name: 'Chicken Breast', description: '180g cooked', calories: 280, protein: 54, carbs: 0, fat: 6 },
+          { name: 'Brown Rice', description: '150g cooked', calories: 180, protein: 4, carbs: 38, fat: 1 },
+          { name: 'Broccoli & Peppers', description: '200g mixed', calories: 60, protein: 4, carbs: 10, fat: 1 },
+        ],
+      },
+      {
+        name: 'Pre-Workout Snack',
+        items: [
+          { name: 'Banana', description: '1 medium', calories: 90, protein: 1, carbs: 23, fat: 0 },
+          { name: 'Rice Cakes with Peanut Butter', description: '2 cakes, 1 tbsp PB', calories: 180, protein: 5, carbs: 26, fat: 8 },
+        ],
+      },
+      {
+        name: 'Dinner',
+        items: [
+          { name: 'Salmon Fillet', description: '200g', calories: 350, protein: 40, carbs: 0, fat: 20 },
+          { name: 'Sweet Potato', description: '200g roasted', calories: 170, protein: 3, carbs: 38, fat: 0 },
+          { name: 'Green Beans', description: '150g', calories: 40, protein: 2, carbs: 8, fat: 0 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'mp-002',
+    client_id: 'client-001',
+    day_type: 'rest',
+    name: 'David — Rest Day',
+    is_active: true,
+    meals: [
+      {
+        name: 'Breakfast',
+        items: [
+          { name: 'Eggs Scrambled', description: '3 large eggs', calories: 210, protein: 18, carbs: 2, fat: 14 },
+          { name: 'Sourdough Toast', description: '2 slices', calories: 200, protein: 7, carbs: 38, fat: 2 },
+        ],
+      },
+      {
+        name: 'Lunch',
+        items: [
+          { name: 'Tuna', description: '150g tinned in water, drained', calories: 150, protein: 33, carbs: 0, fat: 1 },
+          { name: 'Wholemeal Wrap', description: '1 large', calories: 180, protein: 6, carbs: 32, fat: 3 },
+          { name: 'Salad Leaves & Cucumber', description: 'mixed', calories: 30, protein: 2, carbs: 5, fat: 0 },
+        ],
+      },
+      {
+        name: 'Dinner',
+        items: [
+          { name: 'Lean Beef Mince', description: '200g 5% fat', calories: 280, protein: 42, carbs: 0, fat: 12 },
+          { name: 'Tomato Pasta Sauce', description: '150g jar', calories: 90, protein: 3, carbs: 16, fat: 2 },
+          { name: 'Wholemeal Pasta', description: '80g dry weight', calories: 290, protein: 11, carbs: 56, fat: 2 },
+        ],
+      },
+    ],
+  },
+]
