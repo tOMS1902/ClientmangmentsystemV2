@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -15,6 +15,15 @@ export function AddClientModal() {
   const [error, setError] = useState<string | null>(null)
 
   const today = new Date().toISOString().split('T')[0]
+
+  useEffect(() => {
+    if (!open) return
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [open])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -72,7 +81,11 @@ export function AddClientModal() {
               >
                 New Client
               </h2>
-              <button onClick={() => setOpen(false)} className="text-grey-muted hover:text-white transition-colors">
+              <button
+                onClick={() => setOpen(false)}
+                aria-label="Close dialog"
+                className="text-grey-muted hover:text-white transition-colors"
+              >
                 <X size={18} />
               </button>
             </div>

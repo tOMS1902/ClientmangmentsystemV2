@@ -31,6 +31,8 @@ export function useKeyInit() {
       })
     }
 
-    init().catch(() => {}) // non-blocking, silent failure
+    init().catch((err) => {
+      console.error('[useKeyInit] Encryption key initialisation failed:', err)
+    })
   }, [])
 }
