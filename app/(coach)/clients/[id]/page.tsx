@@ -21,6 +21,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     { data: habits },
     { data: trainingMealPlan },
     { data: restMealPlan },
+    { count: unreadMessages },
   ] = await Promise.all([
     supabase.from('clients').select('*').eq('id', id).single<Client>(),
     supabase.from('weekly_checkins').select('*').eq('client_id', id).order('check_in_date', { ascending: false }),
@@ -37,6 +38,12 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     supabase.from('habits').select('*').eq('client_id', id).eq('is_active', true).order('created_at'),
     supabase.from('meal_plans').select('*').eq('client_id', id).eq('day_type', 'training').eq('is_active', true).maybeSingle<MealPlan>(),
     supabase.from('meal_plans').select('*').eq('client_id', id).eq('day_type', 'rest').eq('is_active', true).maybeSingle<MealPlan>(),
+    supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('client_id', id)
+      .eq('sender_role', 'client')
+      .eq('is_read', false),
   ])
 
   if (!client) {
@@ -80,6 +87,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         trainingMealPlan={trainingMealPlan as MealPlan | null}
         restMealPlan={restMealPlan as MealPlan | null}
         weekNumber={weekNumber}
+        unreadMessages={unreadMessages ?? 0}
       />
     </div>
   )

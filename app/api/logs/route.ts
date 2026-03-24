@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { DailyLogSchema, parseBody } from '@/lib/validation'
 
 export async function POST(request: Request) {
   const supabase = await createServerSupabaseClient()
@@ -9,10 +10,11 @@ export async function POST(request: Request) {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'client') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const body = await request.json()
-  const today = new Date().toISOString().split('T')[0]
+  const parsed = parseBody(DailyLogSchema, await request.json())
+  if (!parsed.success) return NextResponse.json({ error: parsed.error }, { status: 400 })
 
-  if (body.log_date > today) {
+  const today = new Date().toISOString().split('T')[0]
+  if (parsed.data.log_date > today) {
     return NextResponse.json({ error: 'Cannot log future dates' }, { status: 400 })
   }
 
@@ -26,7 +28,7 @@ export async function POST(request: Request) {
 
   const { data: log, error: upsertError } = await supabase
     .from('daily_logs')
-    .upsert({ ...body, client_id: clientRecord.id }, { onConflict: 'client_id,log_date' })
+    .upsert({ ...parsed.data, client_id: clientRecord.id }, { onConflict: 'client_id,log_date' })
     .select()
     .single()
 
@@ -42,8 +44,8 @@ export async function PATCH(request: Request) {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'client') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const body = await request.json()
-  const today = new Date().toISOString().split('T')[0]
+  const parsed = parseBody(DailyLogSchema, await request.json())
+  if (!parsed.success) return NextResponse.json({ error: parsed.error }, { status: 400 })
 
   const { data: clientRecord } = await supabase
     .from('clients')
@@ -55,9 +57,9 @@ export async function PATCH(request: Request) {
 
   const { data: log, error: updateError } = await supabase
     .from('daily_logs')
-    .update(body)
+    .update(parsed.data)
     .eq('client_id', clientRecord.id)
-    .eq('log_date', today)
+    .eq('log_date', parsed.data.log_date ?? new Date().toISOString().split('T')[0])
     .select()
     .single()
 

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClientSupabaseClient } from '@/lib/supabase/client'
+import { useKeyInit } from '@/hooks/useKeyInit'
 
 const navLinks = [
   { href: '/portal', label: 'Home' },
@@ -11,11 +12,13 @@ const navLinks = [
   { href: '/portal/programme', label: 'Programme' },
   { href: '/portal/meals', label: 'Meals' },
   { href: '/portal/progress', label: 'Progress' },
+  { href: '/portal/messages', label: 'Messages' },
 ]
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
+  useKeyInit()
 
   async function handleSignOut() {
     const supabase = createClientSupabaseClient()

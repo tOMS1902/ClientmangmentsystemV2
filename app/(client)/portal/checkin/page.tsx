@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import { Button } from '@/components/ui/Button'
+import { ProgressPhotoUpload } from '@/components/photos/ProgressPhotoUpload'
 import type { WeeklyCheckin } from '@/lib/types'
 
 export default function CheckInPage() {
@@ -20,6 +21,8 @@ export default function CheckInPage() {
   const [avgSteps, setAvgSteps] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [submittedCheckinId, setSubmittedCheckinId] = useState<string | null>(null)
+  const [clientId, setClientId] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -68,6 +71,8 @@ export default function CheckInPage() {
     if (res.ok) {
       const newCheckin = await res.json()
       setCheckins([newCheckin, ...checkins])
+      setSubmittedCheckinId(newCheckin.id)
+      setClientId(newCheckin.client_id)
       setSubmitted(true)
     }
     setSubmitting(false)
@@ -87,6 +92,16 @@ export default function CheckInPage() {
             Next check-in: next {new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-IE', { weekday: 'long' })}
           </p>
         </div>
+
+        {submittedCheckinId && clientId && (
+          <div className="mb-8">
+            <ProgressPhotoUpload
+              clientId={clientId}
+              weekNumber={checkins.length}
+              checkInId={submittedCheckinId}
+            />
+          </div>
+        )}
 
         {checkins.length > 0 && (
           <div>
@@ -180,6 +195,7 @@ export default function CheckInPage() {
             type="text"
             value={avgSteps}
             onChange={e => setAvgSteps(e.target.value)}
+            required
             placeholder="e.g. 8,500"
             className="bg-navy-mid border border-white/20 text-white/85 px-3 py-2.5 text-sm focus:outline-none focus:border-gold w-full"
           />

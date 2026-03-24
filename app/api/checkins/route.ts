@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { CheckInSchema, parseBody } from '@/lib/validation'
 
 export async function POST(request: Request) {
   const supabase = await createServerSupabaseClient()
@@ -9,7 +10,9 @@ export async function POST(request: Request) {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'client') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const body = await request.json()
+  const parsed = parseBody(CheckInSchema, await request.json())
+  if (!parsed.success) return NextResponse.json({ error: parsed.error }, { status: 400 })
+  const body = parsed.data
 
   const { data: clientRecord } = await supabase
     .from('clients')
@@ -18,11 +21,12 @@ export async function POST(request: Request) {
     .single()
 
   if (!clientRecord) return NextResponse.json({ error: 'Client record not found' }, { status: 404 })
+  if (!clientRecord.start_date) return NextResponse.json({ error: 'Client has no start date set' }, { status: 422 })
 
   // Calculate week number from start_date
   const startDate = new Date(clientRecord.start_date)
   const today = new Date()
-  const weekNumber = Math.ceil((today.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000))
+  const weekNumber = Math.max(1, Math.ceil((today.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)))
 
   // Check for duplicate
   const { data: existing } = await supabase
@@ -45,6 +49,9 @@ export async function POST(request: Request) {
     .select()
     .single()
 
-  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+  if (insertError) {
+    console.error('[checkins] insert error:', insertError)
+    return NextResponse.json({ error: 'Failed to save check-in' }, { status: 500 })
+  }
   return NextResponse.json(checkin, { status: 201 })
 }

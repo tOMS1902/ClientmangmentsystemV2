@@ -1,4 +1,5 @@
 import { CoachSidebar } from '@/components/coach/CoachSidebar'
+import { KeyInitializer } from '@/components/KeyInitializer'
 
 export default function CoachLayout({ children }: { children: React.ReactNode }) {
   const today = new Date().toLocaleDateString('en-IE', {
@@ -10,6 +11,7 @@ export default function CoachLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex min-h-screen bg-navy-deep">
+      <KeyInitializer />
       <CoachSidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <header className="px-8 py-4 border-b border-white/8 flex justify-end">

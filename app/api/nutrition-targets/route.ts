@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { NutritionTargetsSchema, parseBody } from '@/lib/validation'
 
 export async function POST(request: Request) {
   const supabase = await createServerSupabaseClient()
@@ -9,10 +10,16 @@ export async function POST(request: Request) {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'coach') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const body = await request.json()
+  const parsed = parseBody(NutritionTargetsSchema, await request.json())
+  if (!parsed.success) return NextResponse.json({ error: parsed.error }, { status: 400 })
+
+  // Verify coach owns this client
+  const { data: clientRecord } = await supabase.from('clients').select('id').eq('id', parsed.data.client_id).eq('coach_id', user.id).single()
+  if (!clientRecord) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
   const { data: targets, error: upsertError } = await supabase
     .from('nutrition_targets')
-    .upsert({ ...body, updated_at: new Date().toISOString() }, { onConflict: 'client_id' })
+    .upsert({ ...parsed.data, updated_at: new Date().toISOString() }, { onConflict: 'client_id' })
     .select()
     .single()
 

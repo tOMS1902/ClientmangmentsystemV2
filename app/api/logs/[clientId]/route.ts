@@ -6,7 +6,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ clie
   const { searchParams } = new URL(request.url)
   const from = searchParams.get('from')
   const to = searchParams.get('to')
-  const limit = parseInt(searchParams.get('limit') || '30')
+  const limit = Math.min(parseInt(searchParams.get('limit') || '30'), 90)
 
   const supabase = await createServerSupabaseClient()
   const { data: { user }, error } = await supabase.auth.getUser()

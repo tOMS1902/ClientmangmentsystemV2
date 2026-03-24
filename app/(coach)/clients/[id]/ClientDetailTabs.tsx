@@ -11,6 +11,8 @@ import { ProgrammeEditor } from '@/components/coach/ProgrammeEditor'
 import { NutritionTargetsForm } from '@/components/coach/NutritionTargetsForm'
 import { MealPlanBuilder } from '@/components/coach/MealPlanBuilder'
 import { HabitManager } from '@/components/coach/HabitManager'
+import { MessagingTab } from '@/components/coach/MessagingTab'
+import { PhotosTab } from '@/components/client/tabs/PhotosTab'
 import type { Client, WeeklyCheckin, DailyLog, Programme, NutritionTargets, Habit, MealPlan } from '@/lib/types'
 
 interface ClientDetailTabsProps {
@@ -23,9 +25,10 @@ interface ClientDetailTabsProps {
   trainingMealPlan: MealPlan | null
   restMealPlan: MealPlan | null
   weekNumber: number
+  unreadMessages?: number
 }
 
-type Tab = 'overview' | 'logs' | 'checkins' | 'training' | 'nutrition' | 'onboarding'
+type Tab = 'overview' | 'logs' | 'checkins' | 'training' | 'nutrition' | 'onboarding' | 'messages' | 'photos'
 
 const QUESTION_LABELS: Record<string, string> = {
   goal: 'Main Goal',
@@ -371,6 +374,7 @@ export function ClientDetailTabs({
   trainingMealPlan,
   restMealPlan,
   weekNumber,
+  unreadMessages = 0,
 }: ClientDetailTabsProps) {
   const [activeTab, setActiveTab] = useState<Tab>('overview')
 
@@ -383,6 +387,8 @@ export function ClientDetailTabs({
     { id: 'training', label: 'Training' },
     { id: 'nutrition', label: 'Nutrition' },
     { id: 'onboarding', label: 'Onboarding', badge: needsApproval },
+    { id: 'messages', label: 'Messages', badge: unreadMessages > 0 },
+    { id: 'photos', label: 'Photos' },
   ]
 
   return (
@@ -435,6 +441,12 @@ export function ClientDetailTabs({
         </div>
       )}
       {activeTab === 'onboarding' && <OnboardingTab client={client} />}
+      {activeTab === 'messages' && (
+        <MessagingTab clientId={client.id} clientName={client.full_name} clientUserId={client.user_id} />
+      )}
+      {activeTab === 'photos' && (
+        <PhotosTab clientId={client.id} weekNumber={weekNumber} checkins={checkins} />
+      )}
     </div>
   )
 }

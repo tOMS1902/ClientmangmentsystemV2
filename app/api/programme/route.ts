@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { ProgrammeSchema, parseBody } from '@/lib/validation'
 
 export async function POST(request: Request) {
   const supabase = await createServerSupabaseClient()
@@ -9,7 +10,14 @@ export async function POST(request: Request) {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'coach') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { clientId, name, days } = await request.json()
+  const parsed = parseBody(ProgrammeSchema, await request.json())
+  if (!parsed.success) return NextResponse.json({ error: parsed.error }, { status: 400 })
+
+  const { clientId, name, days } = parsed.data
+
+  // Verify coach owns this client
+  const { data: clientRecord } = await supabase.from('clients').select('id').eq('id', clientId).eq('coach_id', user.id).single()
+  if (!clientRecord) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   // Deactivate existing programmes
   await supabase.from('programmes').update({ is_active: false }).eq('client_id', clientId)
@@ -41,7 +49,7 @@ export async function POST(request: Request) {
 
     if (day.exercises?.length) {
       const { error: exerciseError } = await supabase.from('exercises').insert(
-        day.exercises.map((ex: { name: string; sets: number; reps: string; rest_seconds: number | null; notes: string | null }, j: number) => ({
+        day.exercises.map((ex: { name: string; sets: number; reps: string; rest_seconds?: number | null; video_url?: string | null; notes?: string }, j: number) => ({
           day_id: progDay.id,
           name: ex.name,
           sets: ex.sets,

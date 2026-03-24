@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { AINutritionSchema, parseBody } from '@/lib/validation'
 
 const client = new Anthropic()
 
@@ -67,8 +68,12 @@ Return only valid JSON.`
   }
 
   try {
-    const parsed = JSON.parse(content.text)
-    return NextResponse.json(parsed)
+    const raw = JSON.parse(content.text)
+    const validated = parseBody(AINutritionSchema, raw)
+    if (!validated.success) {
+      return NextResponse.json({ error: 'AI returned invalid data' }, { status: 500 })
+    }
+    return NextResponse.json(validated.data)
   } catch {
     return NextResponse.json({ error: 'Failed to parse AI response as JSON' }, { status: 500 })
   }

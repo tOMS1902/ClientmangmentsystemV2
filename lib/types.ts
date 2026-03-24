@@ -175,3 +175,26 @@ export interface OnboardingResponses {
   responses: Record<string, string>
   created_at: string
 }
+
+export interface Message {
+  id: string
+  client_id: string
+  sender_role: 'coach' | 'client'
+  body: string       // base64-encoded AES-GCM ciphertext
+  iv: string | null  // base64-encoded 12-byte AES-GCM IV
+  is_read: boolean
+  created_at: string
+}
+
+export interface CheckInPhoto {
+  id: string
+  client_id: string
+  check_in_id: string | null
+  week_number: number
+  photo_type: 'front' | 'back'
+  storage_path: string
+  file_size_bytes: number | null
+  uploaded_by: 'client' | 'coach'
+  created_at: string
+  signed_url?: string  // generated on-demand, not stored in DB
+}
