@@ -1,0 +1,161 @@
+import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { NextResponse } from 'next/server'
+
+async function resolvePhotoAccess(clientId: string) {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (!user || error) return { error: 'Unauthorized', status: 401, supabase: null, role: null, userId: null }
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+
+  if (!profile?.role) return { error: 'Unauthorized', status: 401, supabase: null, role: null, userId: null }
+
+  if (profile.role === 'client') {
+    const { data: clientRecord } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('id', clientId)
+      .single()
+    if (!clientRecord) return { error: 'Forbidden', status: 403, supabase: null, role: null, userId: null }
+  }
+
+  if (profile.role === 'coach') {
+    const { data: clientRecord } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('id', clientId)
+      .eq('coach_id', user.id)
+      .single()
+    if (!clientRecord) return { error: 'Forbidden', status: 403, supabase: null, role: null, userId: null }
+  }
+
+  return { error: null, status: 200, supabase, role: profile.role as 'coach' | 'client', userId: user.id }
+}
+
+export async function GET(request: Request, { params }: { params: Promise<{ clientId: string }> }) {
+  const { clientId } = await params
+  const access = await resolvePhotoAccess(clientId)
+  if (access.error || !access.supabase) {
+    return NextResponse.json({ error: access.error }, { status: access.status })
+  }
+
+  const { searchParams } = new URL(request.url)
+  const weekParam = searchParams.get('week')
+
+  let query = access.supabase
+    .from('check_in_photos')
+    .select('*')
+    .eq('client_id', clientId)
+    .order('week_number', { ascending: false })
+    .order('created_at', { ascending: false })
+
+  if (weekParam !== null) {
+    const weekNumber = parseInt(weekParam, 10)
+    if (!isNaN(weekNumber)) {
+      query = query.eq('week_number', weekNumber)
+    }
+  }
+
+  const { data: photos, error: fetchError } = await query
+  if (fetchError) {
+    console.error('[photos GET] DB error:', fetchError)
+    return NextResponse.json({ error: 'Failed to fetch photos' }, { status: 500 })
+  }
+
+  const photosWithUrls = await Promise.all(
+    (photos || []).map(async (photo) => {
+      const { data, error: urlError } = await access.supabase!.storage
+        .from('progress-photos')
+        .createSignedUrl(photo.storage_path, 3600)
+      return {
+        ...photo,
+        signed_url: urlError || !data ? null : data.signedUrl,
+      }
+    })
+  )
+
+  return NextResponse.json({ photos: photosWithUrls })
+}
+
+export async function POST(request: Request, { params }: { params: Promise<{ clientId: string }> }) {
+  const { clientId } = await params
+  const access = await resolvePhotoAccess(clientId)
+  if (access.error || !access.supabase) {
+    return NextResponse.json({ error: access.error }, { status: access.status })
+  }
+
+  const body = await request.json()
+  const { week_number, photo_type, storage_path, file_size_bytes, check_in_id } = body
+
+  if (!Number.isInteger(week_number) || week_number < 1) {
+    return NextResponse.json({ error: 'week_number must be a positive integer' }, { status: 400 })
+  }
+  if (photo_type !== 'front' && photo_type !== 'back') {
+    return NextResponse.json({ error: 'photo_type must be "front" or "back"' }, { status: 400 })
+  }
+  if (!storage_path || typeof storage_path !== 'string' || storage_path.trim().length === 0) {
+    return NextResponse.json({ error: 'storage_path is required' }, { status: 400 })
+  }
+
+  const { data: photo, error: insertError } = await access.supabase
+    .from('check_in_photos')
+    .insert({
+      client_id: clientId,
+      week_number,
+      photo_type,
+      storage_path: storage_path.trim(),
+      file_size_bytes: file_size_bytes ?? null,
+      check_in_id: check_in_id ?? null,
+      uploaded_by: access.role,
+    })
+    .select()
+    .single()
+
+  if (insertError) {
+    console.error('[photos POST] Insert error:', insertError)
+    return NextResponse.json({ error: 'Failed to save photo record' }, { status: 500 })
+  }
+
+  return NextResponse.json(photo, { status: 201 })
+}
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ clientId: string }> }) {
+  const { clientId } = await params
+  const access = await resolvePhotoAccess(clientId)
+  if (access.error || !access.supabase) {
+    return NextResponse.json({ error: access.error }, { status: access.status })
+  }
+
+  const { searchParams } = new URL(request.url)
+  const photoId = searchParams.get('id')
+
+  if (!photoId) {
+    return NextResponse.json({ error: 'Photo id is required' }, { status: 400 })
+  }
+
+  const { data: photo, error: fetchError } = await access.supabase
+    .from('check_in_photos')
+    .select('*')
+    .eq('id', photoId)
+    .eq('client_id', clientId)
+    .single()
+
+  if (fetchError || !photo) {
+    return NextResponse.json({ error: 'Photo not found' }, { status: 404 })
+  }
+
+  const { error: deleteError } = await access.supabase
+    .from('check_in_photos')
+    .delete()
+    .eq('id', photoId)
+
+  if (deleteError) {
+    console.error('[photos DELETE] DB delete error:', deleteError)
+    return NextResponse.json({ error: 'Failed to delete photo record' }, { status: 500 })
+  }
+
+  await access.supabase.storage.from('progress-photos').remove([photo.storage_path])
+
+  return NextResponse.json({ ok: true })
+}

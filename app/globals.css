@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy-deep: #0b1929;
+  --color-navy-mid: #0f2440;
+  --color-navy-card: #152b4e;
+  --color-gold: #b8962e;
+  --color-gold-light: #d4af50;
+  --color-grey-muted: #8892a4;
+  --color-offwhite: #f8f9fa;
+
+  --font-display: 'Playfair Display', serif;
+  --font-body: 'Lato', sans-serif;
+  --font-label: 'Montserrat', sans-serif;
+}
+
+body {
+  background-color: #0b1929;
+  color: rgba(255, 255, 255, 0.85);
+  font-family: var(--font-body);
+}
+
+.eyebrow {
+  font-family: var(--font-label);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  font-size: 11px;
+  color: #b8962e;
+}
+
+.gold-rule {
+  display: block;
+  height: 1px;
+  background: #b8962e;
+  margin: 12px 0;
+}
