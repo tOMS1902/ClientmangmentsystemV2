@@ -92,7 +92,7 @@ function OverviewTab({ client, checkins, logs, targets, weekNumber }: Pick<Clien
 
   return (
     <div>
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {[
           { label: 'Current Weight', value: latestCheckin ? `${latestCheckin.weight}kg` : '—', sub: `Goal: ${goalWeight}kg` },
           { label: 'Goal Progress', value: goalExceeded ? '100%' : `${goalProgress}%`, sub: goalExceeded ? 'Goal exceeded!' : 'of weight goal' },
@@ -512,12 +512,12 @@ export function ClientDetailTabs({
 
   return (
     <div>
-      <div className="flex gap-6 border-b border-white/8 mb-8">
+      <div className="flex gap-4 md:gap-6 border-b border-white/8 mb-8 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 scrollbar-none">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`pb-3 text-sm transition-colors relative ${
+            className={`pb-3 text-sm transition-colors relative whitespace-nowrap flex-shrink-0 ${
               activeTab === tab.id
                 ? 'text-gold border-b-2 border-gold'
                 : 'text-grey-muted hover:text-white'

@@ -347,7 +347,7 @@ Create a ${r.training_days || '3'}-day training programme tailored to this clien
               )}
 
               {addingExercise === day.id ? (
-                <div className="bg-navy-deep p-4 grid grid-cols-6 gap-3 mb-3">
+                <div className="bg-navy-deep p-4 grid grid-cols-2 sm:grid-cols-6 gap-3 mb-3">
                   <div className="col-span-2">
                     <Input
                       placeholder="Exercise name"
@@ -359,7 +359,7 @@ Create a ${r.training_days || '3'}-day training programme tailored to this clien
                   <Input placeholder="Reps" value={exerciseForm.reps} onChange={e => setExerciseForm(f => ({ ...f, reps: e.target.value }))} />
                   <Input placeholder="Rest (s)" value={exerciseForm.rest_seconds} onChange={e => setExerciseForm(f => ({ ...f, rest_seconds: e.target.value }))} />
                   <Input placeholder="Notes" value={exerciseForm.notes} onChange={e => setExerciseForm(f => ({ ...f, notes: e.target.value }))} />
-                  <div className="col-span-6 flex gap-2">
+                  <div className="col-span-2 sm:col-span-6 flex gap-2">
                     <Button size="sm" variant="primary" onClick={() => addExercise(day.id)}>Add</Button>
                     <Button size="sm" variant="ghost" onClick={() => setAddingExercise(null)}>Cancel</Button>
                   </div>
@@ -385,7 +385,7 @@ Create a ${r.training_days || '3'}-day training programme tailored to this clien
       {/* Import modal */}
       {importModalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-navy-card border border-white/8 w-full max-w-2xl max-h-[90vh] flex flex-col">
+          <div className="bg-navy-card border border-white/8 w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-5 border-b border-white/8 flex-shrink-0">
               <div>

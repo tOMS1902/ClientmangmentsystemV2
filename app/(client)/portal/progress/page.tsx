@@ -32,7 +32,7 @@ function WeightChart({ checkins, goalWeight }: { checkins: WeeklyCheckin[]; goal
   const goalY = padT + ((maxW - goalWeight) / range) * chartH
 
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="w-full">
+    <svg viewBox={`0 0 ${width} ${height}`} className="w-full">
       {/* Goal line */}
       <line
         x1={padL} y1={goalY} x2={width - padR} y2={goalY}
@@ -186,7 +186,7 @@ export default async function ProgressPage() {
       </div>
 
       {/* Key stats */}
-      <div className="grid grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
         <div className="bg-navy-card border border-white/8 p-5">
           <Eyebrow className="block mb-2">Total Weeks</Eyebrow>
           <div className="text-3xl text-white" style={{ fontFamily: 'var(--font-display)' }}>{totalWeeks}</div>

@@ -132,7 +132,7 @@ export default async function PortalHomePage() {
         {todayLog ? (
           <div>
             <p className="text-sm text-green-400 mb-2" style={{ fontFamily: 'var(--font-label)' }}>TODAY LOGGED</p>
-            <div className="grid grid-cols-4 gap-4 text-sm">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
               <div>
                 <p className="text-grey-muted">Calories</p>
                 <p className="text-white">{todayLog.calories ?? '—'}</p>

@@ -78,7 +78,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
         {[
           { label: 'Active Clients', value: totalActive, sub: 'currently enrolled' },
           { label: 'Logged This Week', value: checkedInThisWeek, sub: 'of ' + totalActive + ' clients' },
@@ -131,7 +131,7 @@ export default async function DashboardPage() {
       <div>
         <Eyebrow>Active Clients</Eyebrow>
         <GoldRule />
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {clientsWithLogs.map(({ client, latestLog, weekNumber }) => (
             <ClientCard
               key={client.id}

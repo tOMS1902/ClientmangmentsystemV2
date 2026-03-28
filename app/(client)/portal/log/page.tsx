@@ -124,7 +124,7 @@ export default function DailyLogPage() {
         <div>
           <Eyebrow>Nutrition</Eyebrow>
           <GoldRule />
-          <div className="grid grid-cols-2 gap-4 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
             <Input label="Calories (kcal)" type="number" value={calories} onChange={e => setCalories(e.target.value)} placeholder="e.g. 2200" />
             <Input label="Protein (g)" type="number" value={protein} onChange={e => setProtein(e.target.value)} placeholder="e.g. 160" />
             <Input label="Steps" type="number" value={steps} onChange={e => setSteps(e.target.value)} placeholder="e.g. 8500" />

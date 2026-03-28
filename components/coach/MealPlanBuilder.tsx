@@ -309,7 +309,7 @@ Create both a training day meal plan and a rest day meal plan that hit these mac
       {/* Import modal */}
       {importModalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-navy-card border border-white/8 w-full max-w-2xl max-h-[90vh] flex flex-col">
+          <div className="bg-navy-card border border-white/8 w-full max-w-[95vw] sm:max-w-2xl max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-5 border-b border-white/8 flex-shrink-0">
               <div>
                 <h3 className="text-white" style={{ fontFamily: 'var(--font-display)' }}>

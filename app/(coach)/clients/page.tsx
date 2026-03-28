@@ -73,7 +73,7 @@ export default async function ClientsPage() {
         {active.length === 0 ? (
           <p className="text-grey-muted text-sm">No active clients yet. Add one above.</p>
         ) : (
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {active.map(({ client, latestLog, weekNumber }) => (
               <ClientCard
                 key={client.id}
@@ -90,7 +90,7 @@ export default async function ClientsPage() {
       {inactive.length > 0 && (
         <div>
           <Eyebrow className="block mb-3">Inactive — {inactive.length}</Eyebrow>
-          <div className="grid grid-cols-3 gap-4 opacity-50">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 opacity-50">
             {inactive.map(({ client, latestLog, weekNumber }) => (
               <ClientCard
                 key={client.id}
