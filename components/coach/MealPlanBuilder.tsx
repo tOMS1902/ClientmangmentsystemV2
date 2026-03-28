@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Trash2, Plus } from 'lucide-react'
+import { Trash2, Plus, Copy, Check } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Eyebrow } from '@/components/ui/Eyebrow'
@@ -161,6 +161,92 @@ export function MealPlanBuilder({ clientId, initialTrainingPlan, initialRestPlan
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
+  const [importModalOpen, setImportModalOpen] = useState(false)
+  const [importStep, setImportStep] = useState<'prompt' | 'paste'>('prompt')
+  const [generatedPrompt, setGeneratedPrompt] = useState('')
+  const [promptLoading, setPromptLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [importText, setImportText] = useState('')
+  const [importLoading, setImportLoading] = useState(false)
+  const [importError, setImportError] = useState('')
+
+  function loadMealPlanData(data: { training_day: { meals: Meal[] }; rest_day: { meals: Meal[] } }) {
+    setTrainingMeals(data.training_day.meals || [])
+    setRestMeals(data.rest_day.meals || [])
+  }
+
+  async function openImportModal() {
+    setImportModalOpen(true)
+    setImportStep('prompt')
+    setImportText('')
+    setCopied(false)
+    setPromptLoading(true)
+
+    try {
+      const [onboardingRes, targetsRes] = await Promise.all([
+        fetch(`/api/onboarding/${clientId}`),
+        fetch(`/api/nutrition-targets?clientId=${clientId}`),
+      ])
+      const onboardingData = onboardingRes.ok ? await onboardingRes.json() : {}
+      const targetsData = targetsRes.ok ? await targetsRes.json() : {}
+      const r: Record<string, string> = onboardingData?.responses || {}
+      const t = targetsData || {}
+
+      const prompt = `You are a professional nutrition coach. Create a detailed meal plan for a client with the following profile:
+
+Goal: ${r.goal || 'Not specified'}
+Current weight: ${r.current_weight || '?'}kg | Goal weight: ${r.goal_weight || '?'}kg
+Age: ${r.age || '?'} | Height: ${r.height || '?'}cm
+Activity level: ${r.activity_level || 'Not specified'}
+Dietary preferences: ${r.dietary_preferences || 'None specified'}
+Injuries / limitations: ${r.injuries || 'None'}
+
+Nutrition targets:
+Training day: ${t.td_calories || '?'} kcal | ${t.td_protein || '?'}g protein | ${t.td_carbs || '?'}g carbs | ${t.td_fat || '?'}g fat
+Rest day: ${t.ntd_calories || '?'} kcal | ${t.ntd_protein || '?'}g protein | ${t.ntd_carbs || '?'}g carbs | ${t.ntd_fat || '?'}g fat
+
+Create both a training day meal plan and a rest day meal plan that hit these macronutrient targets. Return ONLY valid JSON in this exact format with no other text:
+
+{"training_day":{"meals":[{"name":"string","items":[{"name":"string","description":"string","calories":number,"protein":number,"carbs":number,"fat":number}]}]},"rest_day":{"meals":[{"name":"string","items":[{"name":"string","description":"string","calories":number,"protein":number,"carbs":number,"fat":number}]}]}}`
+
+      setGeneratedPrompt(prompt)
+    } catch {
+      setGeneratedPrompt('Failed to load client data. Please ensure the client has completed onboarding and has nutrition targets set.')
+    }
+    setPromptLoading(false)
+  }
+
+  async function handleCopyPrompt() {
+    await navigator.clipboard.writeText(generatedPrompt)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function handleParseResponse() {
+    if (!importText.trim()) return
+    setImportLoading(true)
+    setImportError('')
+    try {
+      const res = await fetch('/api/ai/import-meal-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: importText }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setImportError(data.error || 'Failed to parse response.')
+      } else if (data.training_day && data.rest_day) {
+        loadMealPlanData(data)
+        setImportModalOpen(false)
+        setImportText('')
+        setImportError('')
+      }
+    } catch {
+      setImportError('Unexpected error. Please try again.')
+    }
+    setImportLoading(false)
+  }
+
   async function handleSave() {
     setSaving(true)
     try {
@@ -188,9 +274,14 @@ export function MealPlanBuilder({ clientId, initialTrainingPlan, initialRestPlan
     <div>
       <div className="flex items-center justify-between mb-4">
         <Eyebrow>Meal Plan</Eyebrow>
-        <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving...' : 'Save Meal Plan'}
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="ghost" size="sm" onClick={openImportModal}>
+            Import with AI
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : 'Save Meal Plan'}
+          </Button>
+        </div>
       </div>
       <GoldRule />
 
@@ -213,6 +304,95 @@ export function MealPlanBuilder({ clientId, initialTrainingPlan, initialRestPlan
         <MealEditor meals={trainingMeals} onChange={setTrainingMeals} />
       ) : (
         <MealEditor meals={restMeals} onChange={setRestMeals} />
+      )}
+
+      {/* Import modal */}
+      {importModalOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-navy-card border border-white/8 w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-white/8 flex-shrink-0">
+              <div>
+                <h3 className="text-white" style={{ fontFamily: 'var(--font-display)' }}>
+                  Import with AI
+                </h3>
+                <div className="flex items-center gap-3 mt-1">
+                  <span
+                    className={`text-xs ${importStep === 'prompt' ? 'text-gold' : 'text-grey-muted'}`}
+                    style={{ fontFamily: 'var(--font-label)' }}
+                  >
+                    1. COPY PROMPT
+                  </span>
+                  <span className="text-white/20 text-xs">→</span>
+                  <span
+                    className={`text-xs ${importStep === 'paste' ? 'text-gold' : 'text-grey-muted'}`}
+                    style={{ fontFamily: 'var(--font-label)' }}
+                  >
+                    2. PASTE RESPONSE
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => { setImportModalOpen(false); setImportText('') }}
+                className="text-grey-muted hover:text-white transition-colors text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="px-6 py-5 flex-1 overflow-y-auto">
+              {importStep === 'prompt' ? (
+                <>
+                  <p className="text-grey-muted text-sm mb-4">
+                    This prompt is built from the client&apos;s profile and nutrition targets. Copy it, paste into ChatGPT or any AI, then come back and paste the response.
+                  </p>
+                  {promptLoading ? (
+                    <p className="text-grey-muted text-sm">Building prompt...</p>
+                  ) : (
+                    <pre className="w-full bg-navy-deep border border-white/12 text-white/85 p-4 text-xs font-mono whitespace-pre-wrap leading-relaxed mb-4 max-h-72 overflow-y-auto">
+                      {generatedPrompt}
+                    </pre>
+                  )}
+                  <div className="flex gap-3">
+                    <Button variant="primary" size="sm" onClick={handleCopyPrompt} disabled={promptLoading}>
+                      {copied
+                        ? <><Check size={13} className="inline mr-1.5" />Copied!</>
+                        : <><Copy size={13} className="inline mr-1.5" />Copy Prompt</>
+                      }
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setImportStep('paste')} disabled={promptLoading}>
+                      Next: Paste Response →
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-grey-muted text-sm mb-4">
+                    Paste the AI&apos;s response below. Both training day and rest day meal plans will be loaded into the editor.
+                  </p>
+                  <textarea
+                    value={importText}
+                    onChange={e => setImportText(e.target.value)}
+                    rows={12}
+                    className="w-full bg-navy-deep border border-white/20 text-white/85 p-3 text-sm focus:outline-none focus:border-gold resize-none mb-4"
+                    placeholder="Paste the AI response here (JSON format expected)..."
+                    autoFocus
+                  />
+                  {importError && (
+                    <p className="text-red-400 text-xs mb-3">{importError}</p>
+                  )}
+                  <div className="flex gap-3">
+                    <Button variant="primary" size="sm" onClick={handleParseResponse} disabled={importLoading || !importText.trim()}>
+                      {importLoading ? 'Parsing...' : 'Parse & Import'}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => { setImportStep('prompt'); setImportError('') }}>
+                      ← Back
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

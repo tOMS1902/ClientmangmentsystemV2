@@ -26,40 +26,10 @@ export function NutritionTargetsForm({ clientId, initialTargets }: NutritionTarg
     sleep_target_hours: initialTargets?.sleep_target_hours?.toString() || '',
   })
   const [saving, setSaving] = useState(false)
-  const [generating, setGenerating] = useState(false)
   const [message, setMessage] = useState('')
 
   function handleChange(field: string, value: string) {
     setTargets(prev => ({ ...prev, [field]: value }))
-  }
-
-  async function handleGenerate() {
-    setGenerating(true)
-    try {
-      const res = await fetch('/api/ai/generate-nutrition', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientId }),
-      })
-      const data = await res.json()
-      if (!data.error) {
-        setTargets({
-          td_calories: data.td_calories?.toString() || '',
-          td_protein: data.td_protein?.toString() || '',
-          td_carbs: data.td_carbs?.toString() || '',
-          td_fat: data.td_fat?.toString() || '',
-          ntd_calories: data.ntd_calories?.toString() || '',
-          ntd_protein: data.ntd_protein?.toString() || '',
-          ntd_carbs: data.ntd_carbs?.toString() || '',
-          ntd_fat: data.ntd_fat?.toString() || '',
-          daily_steps: data.daily_steps?.toString() || '',
-          sleep_target_hours: data.sleep_target_hours?.toString() || '',
-        })
-      }
-    } catch {
-      setMessage('Error generating targets.')
-    }
-    setGenerating(false)
   }
 
   async function handleSave() {
@@ -94,12 +64,7 @@ export function NutritionTargetsForm({ clientId, initialTargets }: NutritionTarg
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <Eyebrow>Nutrition Targets</Eyebrow>
-        <Button variant="ghost" size="sm" onClick={handleGenerate} disabled={generating}>
-          {generating ? 'Generating...' : 'Generate from Onboarding'}
-        </Button>
-      </div>
+      <Eyebrow className="mb-4">Nutrition Targets</Eyebrow>
       <GoldRule />
 
       <div className="grid grid-cols-2 gap-8 mt-4">

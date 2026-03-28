@@ -76,17 +76,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ cli
   if (!body || typeof body !== 'string' || body.trim().length === 0) {
     return NextResponse.json({ error: 'Message body is required' }, { status: 400 })
   }
-  // body is now base64 ciphertext — length limit reflects encrypted size
   if (body.length > 8000) {
     return NextResponse.json({ error: 'Message too long' }, { status: 400 })
-  }
-  if (!iv || typeof iv !== 'string') {
-    return NextResponse.json({ error: 'Encryption IV is required' }, { status: 400 })
   }
 
   const { data: message, error: insertError } = await access.supabase
     .from('messages')
-    .insert({ client_id: clientId, sender_role: access.role, body: body.trim(), iv })
+    .insert({ client_id: clientId, sender_role: access.role, body: body.trim(), iv: iv || null })
     .select()
     .single()
 

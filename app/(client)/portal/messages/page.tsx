@@ -41,7 +41,7 @@ export default function MessagesPage() {
   const decryptAll = useCallback(async (msgs: Message[]) => {
     const result: Record<string, string> = {}
     await Promise.all(msgs.map(async msg => {
-      if (!msg.iv) { result[msg.id] = '[Legacy unencrypted message]'; return }
+      if (!msg.iv) { result[msg.id] = msg.body; return }
       try { result[msg.id] = await decrypt(msg.body, msg.iv) }
       catch { result[msg.id] = '[Could not decrypt]' }
     }))
