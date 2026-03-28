@@ -27,7 +27,7 @@ function PhotoSlotDisplay({ photo, label, clientId, weekNumber, photoType, onUpl
   const handleCoachUpload = useCallback(async (file: File) => {
     const { createClientSupabaseClient } = await import('@/lib/supabase/client')
     const supabase = createClientSupabaseClient()
-    const path = `${clientId}/wk${weekNumber}_${photoType}_${Date.now()}.jpg`
+    const path = `${clientId}/coach_wk${weekNumber}_${photoType}_${Date.now()}.jpg`
     const { error } = await supabase.storage.from('progress-photos').upload(path, file, { upsert: true })
     if (error) throw new Error(error.message)
     const res = await fetch(`/api/photos/${clientId}`, {

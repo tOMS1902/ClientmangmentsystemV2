@@ -30,8 +30,7 @@ export function ProgressPhotoUpload({
 
   const uploadPhoto = async (file: File, photoType: 'front' | 'back') => {
     const supabase = createClientSupabaseClient()
-    const ext = file.name.split('.').pop() ?? 'jpg'
-    const path = `${clientId}/wk${weekNumber}_${photoType}_${Date.now()}.${ext}`
+    const path = `${clientId}/wk${weekNumber}_${photoType}_${Date.now()}.jpg`
 
     const { error: uploadError } = await supabase.storage
       .from('progress-photos')

@@ -11,7 +11,7 @@ interface PhotoUploadSlotProps {
   disabled?: boolean
 }
 
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']
 const MAX_BYTES = 10 * 1024 * 1024 // 10 MB
 
 type Status = 'idle' | 'uploading' | 'success' | 'error'
@@ -29,7 +29,10 @@ export function PhotoUploadSlot({
   const inputRef = useRef<HTMLInputElement>(null)
 
   const validate = (file: File): string | null => {
-    if (!ACCEPTED_TYPES.includes(file.type)) return 'Only JPEG, PNG, or WebP files are accepted.'
+    // Allow all image/* — iOS may report HEIC/HEIF or empty type; we accept any image format
+    if (file.type && !file.type.startsWith('image/') && !ACCEPTED_TYPES.includes(file.type)) {
+      return 'Only image files are accepted.'
+    }
     if (file.size > MAX_BYTES) return 'File must be under 10 MB.'
     return null
   }
@@ -108,7 +111,7 @@ export function PhotoUploadSlot({
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/*"
         className="hidden"
         onChange={handleInputChange}
         disabled={disabled}

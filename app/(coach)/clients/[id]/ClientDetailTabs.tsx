@@ -512,7 +512,24 @@ export function ClientDetailTabs({
 
   return (
     <div>
-      <div className="flex gap-4 md:gap-6 border-b border-white/8 mb-8 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 scrollbar-none">
+      {/* Mobile tab selector */}
+      <div className="sm:hidden mb-6">
+        <select
+          value={activeTab}
+          onChange={e => setActiveTab(e.target.value as Tab)}
+          className="w-full bg-navy-mid border border-white/20 text-white text-sm px-3 py-2.5 focus:outline-none focus:border-gold"
+          style={{ fontFamily: 'var(--font-label)' }}
+        >
+          {tabs.map(tab => (
+            <option key={tab.id} value={tab.id}>
+              {tab.label}{tab.badge ? ' •' : ''}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Desktop tab strip */}
+      <div className="hidden sm:flex gap-4 md:gap-6 border-b border-white/8 mb-8 overflow-x-auto scrollbar-none">
         {tabs.map(tab => (
           <button
             key={tab.id}
