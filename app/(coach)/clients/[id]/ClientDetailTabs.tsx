@@ -513,7 +513,7 @@ export function ClientDetailTabs({
   return (
     <div>
       {/* Mobile tab selector */}
-      <div className="sm:hidden mb-6">
+      <div className="md:hidden mb-6">
         <select
           value={activeTab}
           onChange={e => setActiveTab(e.target.value as Tab)}
@@ -529,7 +529,7 @@ export function ClientDetailTabs({
       </div>
 
       {/* Desktop tab strip */}
-      <div className="hidden sm:flex gap-4 md:gap-6 border-b border-white/8 mb-8 overflow-x-auto scrollbar-none">
+      <div className="hidden md:flex gap-6 border-b border-white/8 mb-8 overflow-x-auto scrollbar-none">
         {tabs.map(tab => (
           <button
             key={tab.id}
