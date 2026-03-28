@@ -4,15 +4,15 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClientSupabaseClient } from '@/lib/supabase/client'
 import { useKeyInit } from '@/hooks/useKeyInit'
-import { Home, BookOpen, ClipboardList, Dumbbell, Utensils, TrendingUp, MessageCircle } from 'lucide-react'
+import { Home, BookOpen, ClipboardList, Utensils, TrendingUp, MessageCircle, Camera } from 'lucide-react'
 
 const navLinks = [
   { href: '/portal', label: 'Home', icon: Home },
   { href: '/portal/log', label: 'Log', icon: BookOpen },
   { href: '/portal/checkin', label: 'Check-In', icon: ClipboardList },
-  { href: '/portal/programme', label: 'Programme', icon: Dumbbell },
   { href: '/portal/meals', label: 'Meals', icon: Utensils },
   { href: '/portal/progress', label: 'Progress', icon: TrendingUp },
+  { href: '/portal/photos', label: 'Photos', icon: Camera },
   { href: '/portal/messages', label: 'Messages', icon: MessageCircle },
 ]
 
