@@ -19,7 +19,7 @@ interface ClientDetailTabsProps {
   client: Client
   checkins: WeeklyCheckin[]
   logs: DailyLog[]
-  programme: Programme | null
+  programmes: Programme[]
   targets: NutritionTargets | null
   habits: Habit[]
   trainingMealPlan: MealPlan | null
@@ -487,7 +487,7 @@ export function ClientDetailTabs({
   client,
   checkins,
   logs,
-  programme,
+  programmes,
   targets,
   habits,
   trainingMealPlan,
@@ -556,7 +556,7 @@ export function ClientDetailTabs({
       {activeTab === 'checkins' && <CheckInsTab clientId={client.id} checkins={checkins} />}
       {activeTab === 'training' && (
         <div className="bg-navy-card border border-white/8 p-6">
-          <ProgrammeEditor clientId={client.id} initialProgramme={programme} />
+          <ProgrammeEditor clientId={client.id} initialProgrammes={programmes} />
         </div>
       )}
       {activeTab === 'nutrition' && (

@@ -19,9 +19,6 @@ export async function POST(request: Request) {
   const { data: clientRecord } = await supabase.from('clients').select('id').eq('id', clientId).eq('coach_id', user.id).single()
   if (!clientRecord) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  // Deactivate existing programmes
-  await supabase.from('programmes').update({ is_active: false }).eq('client_id', clientId)
-
   // Create new programme
   const { data: programme, error: progError } = await supabase
     .from('programmes')

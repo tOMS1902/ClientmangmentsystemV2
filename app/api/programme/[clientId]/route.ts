@@ -17,21 +17,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ clie
     }
   }
 
-  const { data: programme, error: fetchError } = await supabase
+  const { data: programmes, error: fetchError } = await supabase
     .from('programmes')
     .select(`*, days:programme_days(*, exercises(*))`)
     .eq('client_id', clientId)
     .eq('is_active', true)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .single()
+    .order('created_at', { ascending: true })
 
-  if (fetchError) return NextResponse.json(null)
-  return NextResponse.json(programme)
+  if (fetchError) return NextResponse.json([])
+  return NextResponse.json(programmes || [])
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ clientId: string }> }) {
-  // When called as PATCH /api/programme/[programmeId], the param is the programme ID
+  // param is the programme ID
   const { clientId: programmeId } = await params
   const supabase = await createServerSupabaseClient()
   const { data: { user }, error } = await supabase.auth.getUser()
@@ -42,17 +40,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ cl
 
   const { name, days } = await request.json()
 
-  // Update programme name
   if (name) {
     await supabase.from('programmes').update({ name }).eq('id', programmeId)
   }
 
-  // If days provided, replace all days and exercises
   if (days) {
-    // Delete existing days (cascades to exercises)
     await supabase.from('programme_days').delete().eq('programme_id', programmeId)
 
-    // Recreate days and exercises
     for (let i = 0; i < days.length; i++) {
       const day = days[i]
       const { data: progDay } = await supabase
@@ -85,4 +79,27 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ cl
     .single()
 
   return NextResponse.json(updated)
+}
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ clientId: string }> }) {
+  // param is the programme ID
+  const { clientId: programmeId } = await params
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (!user || error) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'coach') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  // Verify coach owns this programme via client
+  const { data: programme } = await supabase
+    .from('programmes').select('client_id').eq('id', programmeId).single()
+  if (!programme) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  const { data: clientRecord } = await supabase
+    .from('clients').select('id').eq('id', programme.client_id).eq('coach_id', user.id).single()
+  if (!clientRecord) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  await supabase.from('programmes').delete().eq('id', programmeId)
+  return NextResponse.json({ success: true })
 }
