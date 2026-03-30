@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClientSupabaseClient } from '@/lib/supabase/client'
 import { useKeyInit } from '@/hooks/useKeyInit'
-import { Home, BookOpen, ClipboardList, Utensils, TrendingUp, MessageCircle, Camera } from 'lucide-react'
+import { Home, BookOpen, ClipboardList, Utensils, TrendingUp, MessageCircle, Camera, Dumbbell } from 'lucide-react'
 
 const navLinks = [
   { href: '/portal', label: 'Home', icon: Home },
@@ -12,6 +12,7 @@ const navLinks = [
   { href: '/portal/checkin', label: 'Check-In', icon: ClipboardList },
   { href: '/portal/meals', label: 'Meals', icon: Utensils },
   { href: '/portal/progress', label: 'Progress', icon: TrendingUp },
+  { href: '/portal/programme', label: 'Training', icon: Dumbbell },
   { href: '/portal/photos', label: 'Photos', icon: Camera },
   { href: '/portal/messages', label: 'Messages', icon: MessageCircle },
 ]
@@ -80,14 +81,12 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             <Link
               key={link.href}
               href={link.href}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors ${
+              className={`flex-1 flex flex-col items-center justify-center transition-colors ${
                 isActive ? 'text-gold' : 'text-white/40 active:text-white'
               }`}
             >
-              <Icon size={18} />
-              <span className="text-[9px]" style={{ fontFamily: 'var(--font-label)' }}>
-                {link.label}
-              </span>
+              <Icon size={20} />
+              {isActive && <span className="mt-1 w-1 h-1 rounded-full bg-gold" />}
             </Link>
           )
         })}
