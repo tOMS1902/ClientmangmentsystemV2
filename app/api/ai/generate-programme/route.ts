@@ -34,12 +34,18 @@ export async function POST(request: Request) {
         content: `Based on this client's onboarding information, generate an appropriate training programme.
 
 Client details:
-- Goal: ${r.goal}
+- Primary goals: ${r.primary_goals}
 - Training days per week: ${r.training_days}
 - Experience level: ${r.training_experience}
-- Equipment: ${r.equipment}
+- Preferred style: ${r.preferred_style}
+- Preferred structure: ${r.workout_structure}
+- Preferred time: ${r.preferred_time}
 - Injuries/limitations: ${r.injuries}
-- Current weight: ${r.current_weight}kg, Goal weight: ${r.goal_weight}kg
+- Equipment/exercises to avoid: ${r.avoid_exercises}
+- Priority areas: ${r.priority_areas}
+- Strength goals: ${r.strength_goals}
+- Mobility/prehab: ${r.mobility_prehab}
+- Current weight: ${r.weight_kg}kg
 
 Return a JSON training programme with this structure:
 { "name": string, "days": [{ "day_label": string, "exercises": [{ "name": string, "sets": number, "reps": string, "rest_seconds": number | null, "notes": string | null }] }] }

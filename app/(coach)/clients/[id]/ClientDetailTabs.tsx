@@ -30,21 +30,68 @@ interface ClientDetailTabsProps {
 
 type Tab = 'overview' | 'logs' | 'checkins' | 'training' | 'nutrition' | 'onboarding' | 'messages' | 'photos'
 
-const QUESTION_LABELS: Record<string, string> = {
-  goal: 'Main Goal',
-  current_weight: 'Current Weight (kg)',
-  goal_weight: 'Goal Weight (kg)',
-  height: 'Height (cm)',
-  age: 'Age',
-  activity_level: 'Activity Level',
-  training_experience: 'Training Experience',
-  training_days: 'Training Days / Week',
-  equipment: 'Equipment',
-  injuries: 'Injuries / Limitations',
-  daily_schedule: 'Daily Schedule',
-  dietary_preferences: 'Dietary Preferences',
-  what_worked: "What Has / Hasn't Worked",
-}
+const ONBOARDING_SECTIONS = [
+  {
+    title: 'Training',
+    fields: [
+      { key: 'full_name', label: 'Full Name' },
+      { key: 'activity_days', label: 'Activity Level (days/week)' },
+      { key: 'training_experience', label: 'Training Experience' },
+      { key: 'training_days', label: 'Training Days Available' },
+      { key: 'preferred_time', label: 'Preferred Training Time' },
+      { key: 'preferred_style', label: 'Preferred Style' },
+      { key: 'workout_structure', label: 'Workout Structure' },
+      { key: 'mobility_prehab', label: 'Mobility / Prehab' },
+      { key: 'avoid_exercises', label: 'Exercises / Equipment to Avoid', wide: true },
+      { key: 'injuries', label: 'Injuries / Limitations', wide: true },
+      { key: 'priority_areas', label: 'Areas to Prioritise', wide: true },
+      { key: 'strength_goals', label: 'Specific Strength Goals', wide: true },
+      { key: 'previous_programmes', label: 'Previous Programmes', wide: true },
+    ],
+  },
+  {
+    title: 'Nutrition',
+    fields: [
+      { key: 'weight_kg', label: 'Weight (kg)' },
+      { key: 'age', label: 'Age' },
+      { key: 'height', label: 'Height' },
+      { key: 'daily_steps', label: 'Daily Steps' },
+      { key: 'meals_per_day', label: 'Meals Per Day' },
+      { key: 'meal_prep_time', label: 'Meal Prep Time' },
+      { key: 'calorie_tracking', label: 'Calorie Tracking' },
+      { key: 'primary_goals', label: 'Primary Goals', wide: true },
+      { key: 'motivation', label: 'What Motivates Them', wide: true },
+      { key: 'fat_loss_history', label: 'Past Success with Fat/Weight Loss', wide: true },
+      { key: 'food_allergies', label: 'Food Allergies / Intolerances', wide: true },
+      { key: 'foods_avoided', label: 'Foods to Avoid', wide: true },
+      { key: 'foods_wanted', label: 'Foods to Include', wide: true },
+      { key: 'typical_eating', label: 'Typical Day of Eating', wide: true },
+      { key: 'training_fasted', label: 'Training / Fasted Preference', wide: true },
+      { key: 'food_relationship', label: 'Relationship with Food', wide: true },
+      { key: 'medical_conditions', label: 'Medical Conditions', wide: true },
+    ],
+  },
+  {
+    title: 'Lifestyle',
+    fields: [
+      { key: 'work_week', label: 'Work Week Type' },
+      { key: 'wake_time', label: 'Wake-Up Time' },
+      { key: 'work_start', label: 'Work Start' },
+      { key: 'work_finish', label: 'Work Finish' },
+      { key: 'bedtime', label: 'Bedtime' },
+      { key: 'peak_energy', label: 'Peak Energy Window' },
+      { key: 'energy_crash', label: 'Energy Crash Time' },
+      { key: 'wearable', label: 'Wearable / HRV' },
+      { key: 'sleep_hours', label: 'Sleep Hours' },
+      { key: 'phone_in_bed', label: 'Phone in Bed' },
+      { key: 'weekends_routine', label: 'Weekends Derail Routine' },
+      { key: 'alcohol_frequency', label: 'Alcohol Frequency' },
+      { key: 'work_travel', label: 'Work Travel' },
+      { key: 'stress_triggers', label: 'Stress Triggers', wide: true },
+      { key: 'stress_response', label: 'Stress Response', wide: true },
+    ],
+  },
+]
 
 function OverviewTab({ client, checkins, logs, targets, weekNumber }: Pick<ClientDetailTabsProps, 'client' | 'checkins' | 'logs' | 'targets' | 'weekNumber'>) {
   const latestCheckin = checkins[0] || null
@@ -467,17 +514,29 @@ function OnboardingTab({ client }: { client: Client }) {
         </div>
       )}
 
-      <div className="flex flex-col gap-3">
-        {Object.entries(QUESTION_LABELS).map(([key, label]) =>
-          responses[key] ? (
-            <div key={key} className="bg-navy-card border border-white/8 p-5">
-              <p className="text-grey-muted text-xs mb-1.5" style={{ fontFamily: 'var(--font-label)' }}>
-                {label.toUpperCase()}
-              </p>
-              <p className="text-white/85 text-sm">{responses[key]}</p>
+      <div className="flex flex-col gap-8">
+        {ONBOARDING_SECTIONS.map(section => (
+          <div key={section.title}>
+            <p className="text-gold text-xs mb-3" style={{ fontFamily: 'var(--font-label)' }}>
+              {section.title.toUpperCase()}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {section.fields.map(field =>
+                responses[field.key] ? (
+                  <div
+                    key={field.key}
+                    className={`bg-navy-card border border-white/8 p-4 ${field.wide ? 'sm:col-span-2' : ''}`}
+                  >
+                    <p className="text-grey-muted text-xs mb-1.5" style={{ fontFamily: 'var(--font-label)' }}>
+                      {field.label.toUpperCase()}
+                    </p>
+                    <p className="text-white/85 text-sm whitespace-pre-wrap">{responses[field.key]}</p>
+                  </div>
+                ) : null
+              )}
             </div>
-          ) : null
-        )}
+          </div>
+        ))}
       </div>
     </div>
   )

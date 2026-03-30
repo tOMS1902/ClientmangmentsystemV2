@@ -35,11 +35,15 @@ export async function POST(request: Request) {
         content: `Generate nutrition targets for a fitness coaching client.
 
 Client details:
-- Goal: ${r.goal}
-- Age: ${r.age}, Height: ${r.height}cm, Weight: ${r.current_weight}kg
-- Activity level: ${r.activity_level}
-- Dietary preferences: ${r.dietary_preferences}
+- Primary goals: ${r.primary_goals}
+- Age: ${r.age}, Height: ${r.height}, Weight: ${r.weight_kg}kg
+- Daily steps: ${r.daily_steps}
 - Training days per week: ${r.training_days}
+- Meals per day: ${r.meals_per_day}
+- Food allergies/intolerances: ${r.food_allergies}
+- Foods to avoid: ${r.foods_avoided}
+- Calorie tracking experience: ${r.calorie_tracking}
+- Medical conditions: ${r.medical_conditions}
 
 Return JSON with these fields:
 {
