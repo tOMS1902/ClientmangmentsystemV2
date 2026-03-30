@@ -155,7 +155,7 @@ export default function OnboardingPage() {
       <div className="flex flex-col gap-5">
         {current.questions.map(q => (
           <div key={q.key}>
-            <label className="block text-white/85 text-sm mb-2 font-medium">
+            <label className="block text-gold text-sm mb-2" style={{ fontFamily: 'var(--font-label)' }}>
               {q.label}
               {q.note && <span className="ml-2 text-xs text-gold/70" style={{ fontFamily: 'var(--font-label)' }}>{q.note.toUpperCase()}</span>}
             </label>
