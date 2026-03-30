@@ -1,35 +1,47 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, History } from 'lucide-react'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import { Button } from '@/components/ui/Button'
 import { SessionLogger } from '@/components/client/SessionLogger'
-import type { Programme, ProgrammeDay } from '@/lib/types'
+import type { Programme, ProgrammeDay, SessionLog } from '@/lib/types'
 
 export default function ProgrammePage() {
   const [programmes, setProgrammes] = useState<Programme[]>([])
+  const [sessionLogs, setSessionLogs] = useState<SessionLog[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedDay, setExpandedDay] = useState<string | null>(null)
   const [activeSession, setActiveSession] = useState<ProgrammeDay | null>(null)
+  const [showHistory, setShowHistory] = useState(false)
+  const [expandedLog, setExpandedLog] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
       try {
         const clientRes = await fetch('/api/clients/me')
-        if (clientRes.ok) {
-          const client = await clientRes.json()
-          const progRes = await fetch(`/api/programme/${client.id}`)
-          if (progRes.ok) {
-            const data = await progRes.json()
-            setProgrammes(Array.isArray(data) ? data : (data ? [data] : []))
-          }
+        if (!clientRes.ok) return
+        const client = await clientRes.json()
+
+        const [progRes, logsRes] = await Promise.all([
+          fetch(`/api/programme/${client.id}`),
+          fetch(`/api/session-logs/${client.id}`),
+        ])
+
+        if (progRes.ok) {
+          const data = await progRes.json()
+          setProgrammes(Array.isArray(data) ? data : (data ? [data] : []))
+        }
+        if (logsRes.ok) {
+          const data = await logsRes.json()
+          setSessionLogs(Array.isArray(data) ? data : [])
         }
       } catch {
-        // no programme
+        // ignore
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
     load()
   }, [])
@@ -50,6 +62,77 @@ export default function ProgrammePage() {
     )
   }
 
+  if (showHistory) {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <Eyebrow>Session History</Eyebrow>
+            <GoldRule className="mt-2" />
+          </div>
+          <button
+            onClick={() => setShowHistory(false)}
+            className="text-grey-muted text-sm hover:text-white transition-colors"
+          >
+            ← Back to plan
+          </button>
+        </div>
+
+        {sessionLogs.length === 0 ? (
+          <p className="text-grey-muted text-sm">No sessions logged yet.</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {sessionLogs.map(log => (
+              <div key={log.id} className="border border-white/8">
+                <div
+                  className="flex items-center justify-between p-4 bg-navy-card cursor-pointer"
+                  onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}
+                >
+                  <div className="flex items-center gap-3">
+                    {expandedLog === log.id
+                      ? <ChevronDown size={16} className="text-grey-muted" />
+                      : <ChevronRight size={16} className="text-grey-muted" />}
+                    <div>
+                      <p className="text-white text-sm font-semibold" style={{ fontFamily: 'var(--font-label)' }}>
+                        {log.day_label}
+                      </p>
+                      <p className="text-grey-muted text-xs mt-0.5">
+                        {new Date(log.log_date).toLocaleDateString('en-IE', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-xs text-grey-muted">{log.exercises_logged.length} exercises</span>
+                </div>
+
+                {expandedLog === log.id && (
+                  <div className="p-4 flex flex-col gap-4">
+                    {log.exercises_logged.map((entry, i) => (
+                      <div key={i}>
+                        <p className="text-white text-sm font-semibold mb-2">{entry.exercise_name}</p>
+                        <div className="grid grid-cols-3 gap-2 text-xs text-grey-muted mb-1">
+                          <span>Set</span>
+                          <span>Weight</span>
+                          <span>Reps</span>
+                        </div>
+                        {entry.sets.map((set, j) => (
+                          <div key={j} className="grid grid-cols-3 gap-2 text-sm py-1 border-b border-white/8">
+                            <span className="text-grey-muted">{set.set_number}</span>
+                            <span className="text-white">{set.weight_kg != null ? `${set.weight_kg}kg` : '—'}</span>
+                            <span className="text-white">{set.reps_completed != null ? set.reps_completed : '—'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   if (programmes.length === 0) {
     return (
       <div>
@@ -62,9 +145,21 @@ export default function ProgrammePage() {
 
   return (
     <div>
-      <div className="mb-6">
-        <Eyebrow>Training Programme</Eyebrow>
-        <GoldRule className="mt-2" />
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <Eyebrow>Training Programme</Eyebrow>
+          <GoldRule className="mt-2" />
+        </div>
+        {sessionLogs.length > 0 && (
+          <button
+            onClick={() => setShowHistory(true)}
+            className="flex items-center gap-2 text-sm text-gold border border-gold/40 px-3 py-1.5 hover:border-gold transition-colors"
+            style={{ fontFamily: 'var(--font-label)' }}
+          >
+            <History size={14} />
+            History ({sessionLogs.length})
+          </button>
+        )}
       </div>
 
       {programmes.map(programme => (
