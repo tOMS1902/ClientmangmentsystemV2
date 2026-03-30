@@ -6,33 +6,44 @@ import { GoldRule } from '@/components/ui/GoldRule'
 import { Button } from '@/components/ui/Button'
 import type { MealPlan, Meal } from '@/lib/types'
 
+function MacroRow({ calories, protein, carbs, fat, muted }: { calories: number; protein: number; carbs: number; fat: number; muted?: boolean }) {
+  const val = muted ? 'text-white/60' : 'text-white'
+  const lbl = 'text-grey-muted'
+  return (
+    <div className="flex items-center gap-3 text-xs flex-wrap">
+      <span><span className={lbl}>kcal </span><span className={val}>{calories}</span></span>
+      <span className="text-white/20">·</span>
+      <span><span className={lbl}>P </span><span className={val}>{protein}g</span></span>
+      <span className="text-white/20">·</span>
+      <span><span className={lbl}>C </span><span className={val}>{carbs}g</span></span>
+      <span className="text-white/20">·</span>
+      <span><span className={lbl}>F </span><span className={val}>{fat}g</span></span>
+    </div>
+  )
+}
+
 function MealCard({ meal }: { meal: Meal }) {
-  const totalCals = meal.items.reduce((a, i) => a + i.calories, 0)
-  const totalProtein = meal.items.reduce((a, i) => a + i.protein, 0)
+  const total = meal.items.reduce((a, i) => ({
+    calories: a.calories + i.calories,
+    protein: a.protein + i.protein,
+    carbs: a.carbs + i.carbs,
+    fat: a.fat + i.fat,
+  }), { calories: 0, protein: 0, carbs: 0, fat: 0 })
 
   return (
     <div className="bg-navy-card border border-white/8 mb-4">
-      <div className="px-5 py-3 border-b border-white/8 flex items-center justify-between">
+      <div className="px-5 py-3 border-b border-white/8 flex items-center justify-between gap-4 flex-wrap">
         <span className="text-sm text-white font-semibold" style={{ fontFamily: 'var(--font-label)' }}>
           {meal.name}
         </span>
-        <span className="text-xs text-grey-muted">{totalCals} kcal · {totalProtein}g P</span>
+        <MacroRow {...total} muted />
       </div>
       <div className="p-5">
         {meal.items.map((item, i) => (
           <div key={i} className={`py-3 ${i < meal.items.length - 1 ? 'border-b border-white/8' : ''}`}>
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm text-white">{item.name}</p>
-                {item.description && <p className="text-xs text-grey-muted">{item.description}</p>}
-              </div>
-              <p className="text-xs text-grey-muted ml-4 flex-shrink-0">
-                {item.calories} kcal
-              </p>
-            </div>
-            <p className="text-xs text-grey-muted mt-1">
-              P: {item.protein}g · C: {item.carbs}g · F: {item.fat}g
-            </p>
+            <p className="text-sm text-white mb-0.5">{item.name}</p>
+            {item.description && <p className="text-xs text-grey-muted mb-1.5">{item.description}</p>}
+            <MacroRow calories={item.calories} protein={item.protein} carbs={item.carbs} fat={item.fat} />
           </div>
         ))}
       </div>
@@ -87,7 +98,9 @@ export default function MealsPage() {
   const planTotal = activePlan?.meals.reduce((acc, meal) => ({
     calories: acc.calories + meal.items.reduce((a, i) => a + i.calories, 0),
     protein: acc.protein + meal.items.reduce((a, i) => a + i.protein, 0),
-  }), { calories: 0, protein: 0 }) || { calories: 0, protein: 0 }
+    carbs: acc.carbs + meal.items.reduce((a, i) => a + i.carbs, 0),
+    fat: acc.fat + meal.items.reduce((a, i) => a + i.fat, 0),
+  }), { calories: 0, protein: 0, carbs: 0, fat: 0 }) || { calories: 0, protein: 0, carbs: 0, fat: 0 }
 
   if (loading) return <div className="text-grey-muted">Loading meals...</div>
 
@@ -123,9 +136,8 @@ export default function MealsPage() {
           ))}
 
           <div className="mt-4 p-4 border-t border-white/8">
-            <p className="text-sm text-grey-muted">
-              Plan total: <span className="text-white font-semibold">{planTotal.calories} kcal</span> · <span className="text-white font-semibold">{planTotal.protein}g protein</span>
-            </p>
+            <p className="text-xs text-grey-muted mb-1.5" style={{ fontFamily: 'var(--font-label)' }}>DAILY TOTAL</p>
+            <MacroRow calories={planTotal.calories} protein={planTotal.protein} carbs={planTotal.carbs} fat={planTotal.fat} />
           </div>
         </div>
       )}

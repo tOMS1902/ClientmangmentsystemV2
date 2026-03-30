@@ -19,9 +19,16 @@ function getTotal(meals: Meal[]) {
     const mealTotal = meal.items.reduce((a, i) => ({
       calories: a.calories + i.calories,
       protein: a.protein + i.protein,
-    }), { calories: 0, protein: 0 })
-    return { calories: acc.calories + mealTotal.calories, protein: acc.protein + mealTotal.protein }
-  }, { calories: 0, protein: 0 })
+      carbs: a.carbs + i.carbs,
+      fat: a.fat + i.fat,
+    }), { calories: 0, protein: 0, carbs: 0, fat: 0 })
+    return {
+      calories: acc.calories + mealTotal.calories,
+      protein: acc.protein + mealTotal.protein,
+      carbs: acc.carbs + mealTotal.carbs,
+      fat: acc.fat + mealTotal.fat,
+    }
+  }, { calories: 0, protein: 0, carbs: 0, fat: 0 })
 }
 
 function MealEditor({
@@ -145,10 +152,15 @@ function MealEditor({
         </button>
       )}
 
-      <div className="mt-4 pt-3 border-t border-white/8">
-        <p className="text-sm text-grey-muted">
-          Plan total: <span className="text-white font-semibold">{total.calories} kcal</span> &middot; <span className="text-white font-semibold">{total.protein}g protein</span>
-        </p>
+      <div className="mt-4 pt-3 border-t border-white/8 text-xs text-grey-muted flex items-center gap-3 flex-wrap">
+        <span>Total:</span>
+        <span><span className="text-white font-semibold">{total.calories}</span> kcal</span>
+        <span className="text-white/20">·</span>
+        <span>P <span className="text-white font-semibold">{total.protein}g</span></span>
+        <span className="text-white/20">·</span>
+        <span>C <span className="text-white font-semibold">{total.carbs}g</span></span>
+        <span className="text-white/20">·</span>
+        <span>F <span className="text-white font-semibold">{total.fat}g</span></span>
       </div>
     </div>
   )
@@ -194,12 +206,14 @@ export function MealPlanBuilder({ clientId, initialTrainingPlan, initialRestPlan
 
       const prompt = `You are a professional nutrition coach. Create a detailed meal plan for a client with the following profile:
 
-Goal: ${r.goal || 'Not specified'}
-Current weight: ${r.current_weight || '?'}kg | Goal weight: ${r.goal_weight || '?'}kg
-Age: ${r.age || '?'} | Height: ${r.height || '?'}cm
-Activity level: ${r.activity_level || 'Not specified'}
-Dietary preferences: ${r.dietary_preferences || 'None specified'}
-Injuries / limitations: ${r.injuries || 'None'}
+Primary goals: ${r.primary_goals || 'Not specified'}
+Weight: ${r.weight_kg || '?'}kg | Age: ${r.age || '?'} | Height: ${r.height || 'Not specified'}
+Meals per day: ${r.meals_per_day || 'Not specified'}
+Food allergies / intolerances: ${r.food_allergies || 'None'}
+Foods to avoid: ${r.foods_avoided || 'None'}
+Foods to include: ${r.foods_wanted || 'Not specified'}
+Meal prep time: ${r.meal_prep_time || 'Not specified'}
+Medical conditions: ${r.medical_conditions || 'None'}
 
 Nutrition targets:
 Training day: ${t.td_calories || '?'} kcal | ${t.td_protein || '?'}g protein | ${t.td_carbs || '?'}g carbs | ${t.td_fat || '?'}g fat
