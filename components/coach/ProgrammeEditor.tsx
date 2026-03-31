@@ -141,6 +141,30 @@ export function ProgrammeEditor({ clientId, initialProgrammes }: ProgrammeEditor
     }))
   }
 
+  // Client has asked for inline editing of exercise fields (sets, reps, rest, name, notes)
+  function updateExercise(planId: string, dayId: string, exerciseId: string, field: 'name' | 'sets' | 'reps' | 'rest_seconds' | 'notes', value: string) {
+    updatePlan(planId, plan => ({
+      ...plan,
+      days: plan.days.map(d =>
+        d.id === dayId
+          ? {
+              ...d,
+              exercises: d.exercises.map(e =>
+                e.id === exerciseId
+                  ? {
+                      ...e,
+                      [field]: field === 'sets' ? (parseInt(value) || e.sets)
+                               : field === 'rest_seconds' ? (value === '' ? null : parseInt(value) || e.rest_seconds)
+                               : value,
+                    }
+                  : e
+              ),
+            }
+          : d
+      ),
+    }))
+  }
+
   // Save plan — POST for new, PATCH for existing
   async function savePlan(plan: Programme) {
     const planId = plan.id
@@ -354,12 +378,44 @@ export function ProgrammeEditor({ clientId, initialProgrammes }: ProgrammeEditor
                         <tbody>
                           {day.exercises.map(exercise => (
                             <tr key={exercise.id} className="border-b border-white/8">
-                              <td className="py-2.5 text-white">{exercise.name}</td>
-                              <td className="py-2.5 text-white/85">{exercise.sets}</td>
-                              <td className="py-2.5 text-white/85">{exercise.reps}</td>
-                              <td className="py-2.5 text-white/85">{exercise.rest_seconds ? `${exercise.rest_seconds}s` : '—'}</td>
-                              <td className="py-2.5 text-grey-muted text-xs">{exercise.notes || '—'}</td>
-                              <td className="py-2.5">
+                              <td className="py-1.5">
+                                <input
+                                  value={exercise.name}
+                                  onChange={e => updateExercise(plan.id, day.id, exercise.id, 'name', e.target.value)}
+                                  className="bg-transparent text-white text-sm w-full focus:outline-none focus:border-b focus:border-gold/60 border-b border-transparent"
+                                />
+                              </td>
+                              <td className="py-1.5 w-16">
+                                <input
+                                  value={exercise.sets}
+                                  onChange={e => updateExercise(plan.id, day.id, exercise.id, 'sets', e.target.value)}
+                                  className="bg-transparent text-white/85 text-sm w-12 focus:outline-none focus:border-b focus:border-gold/60 border-b border-transparent"
+                                />
+                              </td>
+                              <td className="py-1.5 w-20">
+                                <input
+                                  value={exercise.reps}
+                                  onChange={e => updateExercise(plan.id, day.id, exercise.id, 'reps', e.target.value)}
+                                  className="bg-transparent text-white/85 text-sm w-16 focus:outline-none focus:border-b focus:border-gold/60 border-b border-transparent"
+                                />
+                              </td>
+                              <td className="py-1.5 w-20">
+                                <input
+                                  value={exercise.rest_seconds ?? ''}
+                                  onChange={e => updateExercise(plan.id, day.id, exercise.id, 'rest_seconds', e.target.value)}
+                                  placeholder="—"
+                                  className="bg-transparent text-white/85 text-sm w-16 focus:outline-none focus:border-b focus:border-gold/60 border-b border-transparent placeholder:text-white/30"
+                                />
+                              </td>
+                              <td className="py-1.5">
+                                <input
+                                  value={exercise.notes ?? ''}
+                                  onChange={e => updateExercise(plan.id, day.id, exercise.id, 'notes', e.target.value)}
+                                  placeholder="—"
+                                  className="bg-transparent text-grey-muted text-xs w-full focus:outline-none focus:border-b focus:border-gold/60 border-b border-transparent placeholder:text-white/20"
+                                />
+                              </td>
+                              <td className="py-1.5">
                                 <button
                                   onClick={() => deleteExercise(plan.id, day.id, exercise.id)}
                                   className="text-grey-muted hover:text-white"
