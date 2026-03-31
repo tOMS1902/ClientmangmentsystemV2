@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import { Button } from '@/components/ui/Button'
-import type { MealPlan, Meal } from '@/lib/types'
+import type { MealPlan, Meal, Supplement } from '@/lib/types'
 
 function MacroRow({ calories, protein, carbs, fat, muted }: { calories: number; protein: number; carbs: number; fat: number; muted?: boolean }) {
   const val = muted ? 'text-white/60' : 'text-white'
@@ -54,6 +54,7 @@ function MealCard({ meal }: { meal: Meal }) {
 export default function MealsPage() {
   const [trainingPlan, setTrainingPlan] = useState<MealPlan | null>(null)
   const [restPlan, setRestPlan] = useState<MealPlan | null>(null)
+  const [supplements, setSupplements] = useState<Supplement[]>([])
   const [activeTab, setActiveTab] = useState<'training' | 'rest'>('training')
   const [loading, setLoading] = useState(true)
   const [extraCalories, setExtraCalories] = useState('')
@@ -66,15 +67,21 @@ export default function MealsPage() {
         const clientRes = await fetch('/api/clients/me')
         if (clientRes.ok) {
           const client = await clientRes.json()
-          const mealRes = await fetch(`/api/meal-plan/${client.id}`)
+          const [mealRes, suppRes] = await Promise.all([
+            fetch(`/api/meal-plan/${client.id}`),
+            fetch(`/api/supplements/${client.id}`),
+          ])
           if (mealRes.ok) {
             const data = await mealRes.json()
             setTrainingPlan(data.training)
             setRestPlan(data.rest)
           }
+          if (suppRes.ok) {
+            setSupplements(await suppRes.json())
+          }
         }
       } catch {
-        // no meal plan
+        // no data
       }
       setLoading(false)
     }
@@ -168,6 +175,29 @@ export default function MealsPage() {
           </p>
         )}
       </div>
+
+      {supplements.length > 0 && (
+        <div className="bg-navy-card border border-white/8 p-6 mt-6">
+          <Eyebrow>Supplements</Eyebrow>
+          <GoldRule />
+          <div className="mt-3 flex flex-col gap-0">
+            {supplements.map(s => (
+              <div key={s.id} className="py-3 border-b border-white/8 last:border-0">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm text-white">
+                      {s.name}
+                      <span className="text-grey-muted ml-2 font-normal">{s.dose}</span>
+                    </p>
+                    <p className="text-xs text-gold/80 mt-0.5">{s.timing}</p>
+                    {s.notes && <p className="text-xs text-grey-muted mt-0.5">{s.notes}</p>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

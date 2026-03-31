@@ -194,7 +194,8 @@ export default function ProgrammePage() {
 
                 {expandedDay === day.id && (
                   <div className="p-4">
-                    <table className="w-full text-sm">
+                    <div className="overflow-x-auto">
+                    <table className="w-full text-sm min-w-[320px]">
                       <thead>
                         <tr className="text-grey-muted border-b border-white/8">
                           <th className="text-left py-2 font-normal">Exercise</th>
@@ -219,6 +220,7 @@ export default function ProgrammePage() {
                         ))}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 )}
               </div>

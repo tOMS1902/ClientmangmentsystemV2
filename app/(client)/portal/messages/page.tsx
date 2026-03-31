@@ -189,6 +189,22 @@ export default function MessagesPage() {
           <div className="mt-4">
             <MessageComposer onSend={handleSend} onSendImage={canMessage ? handleSendImage : undefined} disabled={!canMessage} />
           </div>
+
+          <div className="mt-4 border border-white/8 bg-navy-card px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+            <div>
+              <p className="text-xs text-white/85" style={{ fontFamily: 'var(--font-label)' }}>MONTHLY CHECK-IN CALL</p>
+              <p className="text-xs text-grey-muted mt-0.5">Book your monthly 1-to-1 call with your coach</p>
+            </div>
+            <a
+              href="https://calendly.com/calumfraserfitness/monthly-check-in-call"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-gold border border-gold/40 px-3 py-1.5 hover:bg-gold/10 transition-colors flex-shrink-0"
+              style={{ fontFamily: 'var(--font-label)' }}
+            >
+              Book a Call →
+            </a>
+          </div>
         </div>
       )}
     </div>

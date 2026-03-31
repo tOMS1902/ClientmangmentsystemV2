@@ -43,12 +43,18 @@ export const DailyLogSchema = z.object({
 
 export const CheckInSchema = z.object({
   weight: z.number().min(20).max(300),
+  week_summary: nonEmptyStr(500),
+  diet_summary: nonEmptyStr(500),
+  training_sessions: nonEmptyStr(100),
+  energy_summary: nonEmptyStr(500),
   sleep_summary: nonEmptyStr(500),
   biggest_win: nonEmptyStr(500),
-  diet_summary: nonEmptyStr(500),
   main_challenge: nonEmptyStr(500),
   focus_next_week: nonEmptyStr(500),
+  improve_next_week: nonEmptyStr(500),
+  coach_support: nonEmptyStr(500),
   avg_steps: nonEmptyStr(20),
+  anything_else: optionalStr(500),
 })
 
 // ─── Programmes ───────────────────────────────────────────────────────────────

@@ -66,12 +66,18 @@ export interface WeeklyCheckin {
   week_number: number
   check_in_date: string
   weight: number
+  week_summary: string
   sleep_summary: string
   biggest_win: string
   diet_summary: string
+  training_sessions: string
+  energy_summary: string
   main_challenge: string
   focus_next_week: string
+  improve_next_week: string
+  coach_support: string
   avg_steps: string
+  anything_else: string | null
   coach_notes: string | null
   created_at: string
 }
@@ -167,6 +173,17 @@ export interface MealItem {
   protein: number
   carbs: number
   fat: number
+}
+
+export interface Supplement {
+  id: string
+  client_id: string
+  name: string
+  dose: string
+  timing: string
+  notes: string | null
+  sort_order: number
+  created_at: string
 }
 
 export interface OnboardingResponses {

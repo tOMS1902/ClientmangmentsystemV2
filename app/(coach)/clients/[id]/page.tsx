@@ -1,6 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { ClientDetailTabs } from './ClientDetailTabs'
-import type { Client, WeeklyCheckin, DailyLog, Programme, NutritionTargets, Habit, MealPlan } from '@/lib/types'
+import type { Client, WeeklyCheckin, DailyLog, Programme, NutritionTargets, Habit, MealPlan, Supplement } from '@/lib/types'
 
 function getWeekNumber(startDate: string): number {
   const start = new Date(startDate)
@@ -21,6 +21,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     { data: habits },
     { data: trainingMealPlan },
     { data: restMealPlan },
+    { data: supplements },
     { count: unreadMessages },
   ] = await Promise.all([
     supabase.from('clients').select('*').eq('id', id).single<Client>(),
@@ -36,6 +37,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     supabase.from('habits').select('*').eq('client_id', id).eq('is_active', true).order('created_at'),
     supabase.from('meal_plans').select('*').eq('client_id', id).eq('day_type', 'training').eq('is_active', true).maybeSingle<MealPlan>(),
     supabase.from('meal_plans').select('*').eq('client_id', id).eq('day_type', 'rest').eq('is_active', true).maybeSingle<MealPlan>(),
+    supabase.from('supplements').select('*').eq('client_id', id).order('sort_order', { ascending: true }),
     supabase
       .from('messages')
       .select('*', { count: 'exact', head: true })
@@ -84,6 +86,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         habits={(habits as Habit[]) || []}
         trainingMealPlan={trainingMealPlan as MealPlan | null}
         restMealPlan={restMealPlan as MealPlan | null}
+        supplements={(supplements as Supplement[]) || []}
         weekNumber={weekNumber}
         unreadMessages={unreadMessages ?? 0}
       />

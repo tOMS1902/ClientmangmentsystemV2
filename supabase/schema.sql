@@ -74,12 +74,18 @@ create table weekly_checkins (
   week_number int,
   check_in_date date,
   weight numeric,
+  week_summary text,
   sleep_summary text,
   biggest_win text,
   diet_summary text,
+  training_sessions text,
+  energy_summary text,
   main_challenge text,
   focus_next_week text,
+  improve_next_week text,
+  coach_support text,
   avg_steps text,
+  anything_else text,
   coach_notes text,
   created_at timestamptz default now(),
   unique(client_id, week_number)
@@ -157,6 +163,18 @@ create table meal_plans (
   unique(client_id, day_type)
 );
 
+-- Supplements
+create table supplements (
+  id uuid primary key default gen_random_uuid(),
+  client_id uuid references clients(id) on delete cascade,
+  name text not null,
+  dose text not null,
+  timing text not null,
+  notes text,
+  sort_order int default 0,
+  created_at timestamptz default now()
+);
+
 -- RLS
 alter table profiles enable row level security;
 alter table clients enable row level security;
@@ -171,6 +189,7 @@ alter table session_logs enable row level security;
 alter table habits enable row level security;
 alter table habit_logs enable row level security;
 alter table meal_plans enable row level security;
+alter table supplements enable row level security;
 
 -- Profiles: users can read own
 create policy "own_profile" on profiles for all using (id = auth.uid());
@@ -235,6 +254,10 @@ create policy "client_habits" on habits for select
 create policy "client_habit_logs" on habit_logs for all
   using (client_id in (select id from clients where user_id = auth.uid()));
 create policy "client_meal_plans" on meal_plans for select
+  using (client_id in (select id from clients where user_id = auth.uid()));
+create policy "coach_supplements" on supplements for all
+  using (exists (select 1 from profiles where id = auth.uid() and role = 'coach'));
+create policy "client_supplements" on supplements for select
   using (client_id in (select id from clients where user_id = auth.uid()));
 
 -- Auto-create profile on signup

@@ -11,9 +11,10 @@ import { ProgrammeEditor } from '@/components/coach/ProgrammeEditor'
 import { NutritionTargetsForm } from '@/components/coach/NutritionTargetsForm'
 import { MealPlanBuilder } from '@/components/coach/MealPlanBuilder'
 import { HabitManager } from '@/components/coach/HabitManager'
+import { SupplementsEditor } from '@/components/coach/SupplementsEditor'
 import { MessagingTab } from '@/components/coach/MessagingTab'
 import { PhotosTab } from '@/components/client/tabs/PhotosTab'
-import type { Client, WeeklyCheckin, DailyLog, Programme, NutritionTargets, Habit, MealPlan } from '@/lib/types'
+import type { Client, WeeklyCheckin, DailyLog, Programme, NutritionTargets, Habit, MealPlan, Supplement } from '@/lib/types'
 
 interface ClientDetailTabsProps {
   client: Client
@@ -24,6 +25,7 @@ interface ClientDetailTabsProps {
   habits: Habit[]
   trainingMealPlan: MealPlan | null
   restMealPlan: MealPlan | null
+  supplements: Supplement[]
   weekNumber: number
   unreadMessages?: number
 }
@@ -369,11 +371,17 @@ function DailyLogsTab({ logs, targets }: { logs: DailyLog[]; targets: NutritionT
   )
 }
 
-function CheckInsTab({ clientId, checkins }: { clientId: string; checkins: WeeklyCheckin[] }) {
+const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+function CheckInsTab({ clientId, checkins, checkInDay }: { clientId: string; checkins: WeeklyCheckin[]; checkInDay: string }) {
+  const router = useRouter()
   const [notes, setNotes] = useState<Record<string, string>>(
     Object.fromEntries(checkins.map(c => [c.id, c.coach_notes || '']))
   )
   const [saved, setSaved] = useState<Record<string, boolean>>({})
+  const [selectedDay, setSelectedDay] = useState(checkInDay || 'Monday')
+  const [savingDay, setSavingDay] = useState(false)
+  const [daySaved, setDaySaved] = useState(false)
 
   async function saveNotes(checkinId: string) {
     const res = await fetch(`/api/checkins/${checkinId}`, {
@@ -387,8 +395,49 @@ function CheckInsTab({ clientId, checkins }: { clientId: string; checkins: Weekl
     }
   }
 
+  async function saveCheckInDay() {
+    setSavingDay(true)
+    const res = await fetch(`/api/clients/${clientId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ check_in_day: selectedDay }),
+    })
+    if (res.ok) {
+      setDaySaved(true)
+      setTimeout(() => setDaySaved(false), 2500)
+      router.refresh()
+    }
+    setSavingDay(false)
+  }
+
   return (
     <div className="flex flex-col gap-6">
+      {/* Check-in day setting */}
+      <div className="bg-navy-card border border-white/8 p-5">
+        <p className="text-xs text-grey-muted mb-3" style={{ fontFamily: 'var(--font-label)' }}>CHECK-IN DAY</p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <select
+            value={selectedDay}
+            onChange={e => setSelectedDay(e.target.value)}
+            className="bg-navy-mid border border-white/20 text-white/85 px-3 py-2 text-sm focus:outline-none focus:border-gold"
+          >
+            {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+          <button
+            onClick={saveCheckInDay}
+            disabled={savingDay}
+            className="text-xs text-gold disabled:opacity-50"
+            style={{ fontFamily: 'var(--font-label)' }}
+          >
+            {savingDay ? 'Saving...' : 'Save'}
+          </button>
+          {daySaved && <span className="text-xs text-grey-muted">Saved</span>}
+        </div>
+        <p className="text-xs text-grey-muted mt-2">
+          The client will see a check-in prompt on their dashboard on this day.
+        </p>
+      </div>
+
       {checkins.map(checkin => (
         <div key={checkin.id} className="bg-navy-card border border-white/8 p-6">
           <div className="flex items-center justify-between mb-4">
@@ -404,18 +453,29 @@ function CheckInsTab({ clientId, checkins }: { clientId: string; checkins: Weekl
           <div className="grid grid-cols-2 gap-4 text-sm mb-4">
             {[
               { label: 'Weight', value: `${checkin.weight}kg` },
-              { label: 'Avg Steps', value: checkin.avg_steps },
+              { label: 'Week Summary', value: checkin.week_summary },
+              { label: 'Food', value: checkin.diet_summary },
+              { label: 'Training Sessions', value: checkin.training_sessions },
+              { label: 'Energy', value: checkin.energy_summary },
+              { label: 'Sleep', value: checkin.sleep_summary },
               { label: 'Biggest Win', value: checkin.biggest_win },
-              { label: 'Diet Summary', value: checkin.diet_summary },
-              { label: 'Sleep Summary', value: checkin.sleep_summary },
-              { label: 'Main Challenge', value: checkin.main_challenge },
+              { label: 'Biggest Challenge', value: checkin.main_challenge },
               { label: 'Focus Next Week', value: checkin.focus_next_week },
-            ].map(item => (
+              { label: 'Make Next Week Better', value: checkin.improve_next_week },
+              { label: 'Support Needed', value: checkin.coach_support },
+              { label: 'Avg Steps', value: checkin.avg_steps },
+            ].map(item => item.value ? (
               <div key={item.label}>
                 <p className="text-grey-muted mb-0.5">{item.label}</p>
                 <p className="text-white/85">{item.value}</p>
               </div>
-            ))}
+            ) : null)}
+            {checkin.anything_else && (
+              <div className="col-span-2">
+                <p className="text-grey-muted mb-0.5">Anything Else</p>
+                <p className="text-white/85">{checkin.anything_else}</p>
+              </div>
+            )}
           </div>
           <div>
             <label className="text-xs text-grey-muted block mb-1">Coach Notes</label>
@@ -551,6 +611,7 @@ export function ClientDetailTabs({
   habits,
   trainingMealPlan,
   restMealPlan,
+  supplements,
   weekNumber,
   unreadMessages = 0,
 }: ClientDetailTabsProps) {
@@ -612,7 +673,7 @@ export function ClientDetailTabs({
         <OverviewTab client={client} checkins={checkins} logs={logs} targets={targets} weekNumber={weekNumber} />
       )}
       {activeTab === 'logs' && <DailyLogsTab logs={logs} targets={targets} />}
-      {activeTab === 'checkins' && <CheckInsTab clientId={client.id} checkins={checkins} />}
+      {activeTab === 'checkins' && <CheckInsTab clientId={client.id} checkins={checkins} checkInDay={client.check_in_day} />}
       {activeTab === 'training' && (
         <div className="bg-navy-card border border-white/8 p-6">
           <ProgrammeEditor clientId={client.id} initialProgrammes={programmes} />
@@ -629,6 +690,9 @@ export function ClientDetailTabs({
               initialTrainingPlan={trainingMealPlan}
               initialRestPlan={restMealPlan}
             />
+          </div>
+          <div className="bg-navy-card border border-white/8 p-6">
+            <SupplementsEditor clientId={client.id} initialSupplements={supplements} />
           </div>
           <div className="bg-navy-card border border-white/8 p-6">
             <HabitManager clientId={client.id} initialHabits={habits} />

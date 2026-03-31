@@ -4,23 +4,28 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClientSupabaseClient } from '@/lib/supabase/client'
 import { useKeyInit } from '@/hooks/useKeyInit'
-import { Home, BookOpen, ClipboardList, Utensils, TrendingUp, MessageCircle, Camera, Dumbbell } from 'lucide-react'
 
 const navLinks = [
-  { href: '/portal', label: 'Home', icon: Home },
-  { href: '/portal/log', label: 'Log', icon: BookOpen },
-  { href: '/portal/checkin', label: 'Check-In', icon: ClipboardList },
-  { href: '/portal/meals', label: 'Meals', icon: Utensils },
-  { href: '/portal/progress', label: 'Progress', icon: TrendingUp },
-  { href: '/portal/programme', label: 'Training', icon: Dumbbell },
-  { href: '/portal/photos', label: 'Photos', icon: Camera },
-  { href: '/portal/messages', label: 'Messages', icon: MessageCircle },
+  { href: '/portal', label: 'Home' },
+  { href: '/portal/log', label: 'Log' },
+  { href: '/portal/checkin', label: 'Check-In' },
+  { href: '/portal/meals', label: 'Meals' },
+  { href: '/portal/progress', label: 'Progress' },
+  { href: '/portal/programme', label: 'Training' },
+  { href: '/portal/photos', label: 'Photos' },
+  { href: '/portal/messages', label: 'Messages' },
 ]
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   useKeyInit()
+
+  // Find the best matching nav link for the current path
+  const activeHref =
+    navLinks.find(l => l.href === pathname)?.href ||
+    navLinks.find(l => l.href !== '/portal' && pathname.startsWith(l.href))?.href ||
+    '/portal'
 
   async function handleSignOut() {
     const supabase = createClientSupabaseClient()
@@ -30,7 +35,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   return (
     <div className="min-h-screen bg-navy-deep">
-      {/* Top nav */}
+      {/* Top nav bar */}
       <nav className="bg-navy-mid border-b border-white/8">
         <div className="max-w-[860px] mx-auto px-4 flex items-center justify-between h-14">
           <div className="text-xl text-gold" style={{ fontFamily: 'var(--font-display)' }}>LE</div>
@@ -72,28 +77,22 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         </div>
       </nav>
 
-      {/* Mobile bottom tab bar */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 bg-navy-mid border-t border-white/8 z-50 flex h-16">
-        {navLinks.map(link => {
-          const Icon = link.icon
-          const isActive = pathname === link.href
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`flex-1 flex flex-col items-center justify-center transition-colors ${
-                isActive ? 'text-gold' : 'text-white/40 active:text-white'
-              }`}
-            >
-              <Icon size={20} />
-              {isActive && <span className="mt-1 w-1 h-1 rounded-full bg-gold" />}
-            </Link>
-          )
-        })}
-      </nav>
+      {/* Mobile dropdown nav — same style as coach tab dropdown */}
+      <div className="sm:hidden bg-navy-mid border-b border-white/8 px-4 py-2">
+        <select
+          value={activeHref}
+          onChange={e => router.push(e.target.value)}
+          className="w-full bg-navy-deep border border-white/20 text-white text-sm px-3 py-2.5 focus:outline-none focus:border-gold"
+          style={{ fontFamily: 'var(--font-label)' }}
+        >
+          {navLinks.map(link => (
+            <option key={link.href} value={link.href}>{link.label}</option>
+          ))}
+        </select>
+      </div>
 
-      {/* Main content — extra bottom padding on mobile for tab bar */}
-      <main className="max-w-[860px] mx-auto px-4 py-6 sm:py-8 pb-24 sm:pb-8">
+      {/* Main content */}
+      <main className="max-w-[860px] mx-auto px-4 py-6 sm:py-8">
         {children}
       </main>
     </div>
