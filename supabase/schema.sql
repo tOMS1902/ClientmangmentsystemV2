@@ -26,6 +26,7 @@ create table clients (
   check_in_day text,
   is_active boolean default true,
   portal_access boolean default false,
+  track_weight boolean default true,
   created_at timestamptz default now()
 );
 
@@ -60,6 +61,7 @@ create table daily_logs (
   hunger_score int check (hunger_score between 1 and 5),
   energy_score int check (energy_score between 1 and 5),
   stress_score int check (stress_score between 1 and 5),
+  weight numeric,
   training_done boolean default false,
   training_notes text,
   notes text,

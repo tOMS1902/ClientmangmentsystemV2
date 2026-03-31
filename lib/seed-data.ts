@@ -27,6 +27,7 @@ export const SEED_CLIENTS: Client[] = [
     check_in_day: 'Monday',
     is_active: true,
     portal_access: true,
+    track_weight: true,
     created_at: '2025-01-06T00:00:00Z',
   },
   {
@@ -44,6 +45,7 @@ export const SEED_CLIENTS: Client[] = [
     check_in_day: 'Wednesday',
     is_active: true,
     portal_access: true,
+    track_weight: true,
     created_at: '2025-01-27T00:00:00Z',
   },
   {
@@ -61,6 +63,7 @@ export const SEED_CLIENTS: Client[] = [
     check_in_day: 'Friday',
     is_active: true,
     portal_access: true,
+    track_weight: true,
     created_at: '2025-02-17T00:00:00Z',
   },
 ]
@@ -131,6 +134,7 @@ function generateLogs(clientId: string, startOffset: number): DailyLog[] {
       id: `log-${clientId}-${i}`,
       client_id: clientId,
       log_date: dateStr,
+      weight: null,
       calories: 1800 + Math.floor(Math.random() * 600),
       protein: 120 + Math.floor(Math.random() * 60),
       steps: 6000 + Math.floor(Math.random() * 6000),

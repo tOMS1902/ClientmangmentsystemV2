@@ -24,6 +24,7 @@ export interface Client {
   check_in_day: string
   is_active: boolean
   portal_access: boolean
+  track_weight: boolean
   created_at: string
 }
 
@@ -47,6 +48,7 @@ export interface DailyLog {
   id: string
   client_id: string
   log_date: string
+  weight: number | null
   calories: number | null
   protein: number | null
   steps: number | null

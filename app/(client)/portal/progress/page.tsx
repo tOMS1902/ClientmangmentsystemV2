@@ -174,8 +174,11 @@ export default async function ProgressPage() {
 
   const totalWeeks = checkins?.length ? Math.max(...checkins.map(c => c.week_number)) : 0
   const latestCheckin = checkins?.[0]
-  const totalLost = latestCheckin && clientRecord.start_weight
-    ? Math.max(0, clientRecord.start_weight - latestCheckin.weight)
+  const trackWeight = clientRecord.track_weight ?? true
+  const latestDailyWeight = (logs || []).find(l => l.weight != null)?.weight ?? null
+  const latestWeight = latestDailyWeight ?? latestCheckin?.weight ?? null
+  const totalLost = latestWeight != null && clientRecord.start_weight
+    ? Math.max(0, clientRecord.start_weight - latestWeight)
     : 0
 
   return (
@@ -191,20 +194,24 @@ export default async function ProgressPage() {
           <Eyebrow className="block mb-2">Total Weeks</Eyebrow>
           <div className="text-3xl text-white" style={{ fontFamily: 'var(--font-display)' }}>{totalWeeks}</div>
         </div>
-        <div className="bg-navy-card border border-white/8 p-5">
-          <Eyebrow className="block mb-2">Total Lost</Eyebrow>
-          <div className="text-3xl text-white" style={{ fontFamily: 'var(--font-display)' }}>{totalLost.toFixed(1)}kg</div>
-        </div>
+        {trackWeight && (
+          <div className="bg-navy-card border border-white/8 p-5">
+            <Eyebrow className="block mb-2">Total Lost</Eyebrow>
+            <div className="text-3xl text-white" style={{ fontFamily: 'var(--font-display)' }}>{totalLost.toFixed(1)}kg</div>
+          </div>
+        )}
       </div>
 
       {/* Weight chart */}
-      <div className="bg-navy-card border border-white/8 p-6 mb-8">
-        <Eyebrow>Weight History</Eyebrow>
-        <GoldRule />
-        <div className="mt-4">
-          <WeightChart checkins={sortedCheckins} goalWeight={clientRecord.goal_weight} />
+      {trackWeight && (
+        <div className="bg-navy-card border border-white/8 p-6 mb-8">
+          <Eyebrow>Weight History</Eyebrow>
+          <GoldRule />
+          <div className="mt-4">
+            <WeightChart checkins={sortedCheckins} goalWeight={clientRecord.goal_weight} />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Logging consistency */}
       <div className="bg-navy-card border border-white/8 p-6 mb-8">

@@ -21,12 +21,14 @@ export const ClientPatchSchema = z.object({
   check_in_day: z.enum(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']).optional(),
   is_active: z.boolean().optional(),
   portal_access: z.boolean().optional(),
+  track_weight: z.boolean().optional(),
 })
 
 // ─── Daily Logs ───────────────────────────────────────────────────────────────
 
 export const DailyLogSchema = z.object({
   log_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  weight: positiveNum.nullable().optional(),
   calories: positiveInt.nullable().optional(),
   protein: positiveInt.nullable().optional(),
   steps: positiveInt.nullable().optional(),

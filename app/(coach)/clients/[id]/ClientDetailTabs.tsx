@@ -246,8 +246,21 @@ function OverviewTab({ client, checkins, logs, targets, weekNumber }: Pick<Clien
   )
 }
 
-function DailyLogsTab({ logs, targets }: { logs: DailyLog[]; targets: NutritionTargets | null }) {
+function DailyLogsTab({ logs, targets, client }: { logs: DailyLog[]; targets: NutritionTargets | null; client: Client }) {
   const [range, setRange] = useState<7 | 14 | 30>(7)
+  const [trackWeight, setTrackWeight] = useState(client.track_weight ?? true)
+  const [savingToggle, setSavingToggle] = useState(false)
+
+  async function toggleWeightTracking() {
+    setSavingToggle(true)
+    const res = await fetch(`/api/clients/${client.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ track_weight: !trackWeight }),
+    })
+    if (res.ok) setTrackWeight(!trackWeight)
+    setSavingToggle(false)
+  }
 
   const now = new Date()
   function wk(n: number) {
@@ -289,6 +302,24 @@ function DailyLogsTab({ logs, targets }: { logs: DailyLog[]; targets: NutritionT
 
   return (
     <div>
+      {/* Weight Tracking Toggle */}
+      <div className="bg-navy-deep border border-white/8 p-4 mb-6 flex items-center justify-between">
+        <div>
+          <p className="text-xs text-grey-muted" style={{ fontFamily: 'var(--font-label)' }}>WEIGHT TRACKING</p>
+          <p className="text-sm text-white/70 mt-0.5">Record client weight in daily logs</p>
+        </div>
+        <button
+          onClick={toggleWeightTracking}
+          disabled={savingToggle}
+          className={`px-4 py-2 text-xs font-semibold transition-colors disabled:opacity-50 ${
+            trackWeight ? 'bg-gold text-navy-deep' : 'bg-navy-card border border-white/20 text-white/85 hover:border-gold'
+          }`}
+          style={{ fontFamily: 'var(--font-label)' }}
+        >
+          {trackWeight ? 'ON' : 'OFF'}
+        </button>
+      </div>
+
       {/* 4-Week Averages */}
       <div className="bg-navy-deep border border-white/8 p-4 mb-6">
         <Eyebrow className="block mb-3">4-Week Averages</Eyebrow>
@@ -347,6 +378,7 @@ function DailyLogsTab({ logs, targets }: { logs: DailyLog[]; targets: NutritionT
               <th className="text-left py-2 font-normal">Energy</th>
               <th className="text-left py-2 font-normal">Stress</th>
               <th className="text-left py-2 font-normal">Training</th>
+              {trackWeight && <th className="text-left py-2 font-normal">Weight</th>}
             </tr>
           </thead>
           <tbody>
@@ -362,6 +394,7 @@ function DailyLogsTab({ logs, targets }: { logs: DailyLog[]; targets: NutritionT
                 <td className="py-2.5 text-white/85">{log.energy_score ?? '—'}/5</td>
                 <td className="py-2.5 text-white/85">{log.stress_score ?? '—'}/5</td>
                 <td className="py-2.5">{log.training_done ? <span className="text-gold">Yes</span> : <span className="text-grey-muted">No</span>}</td>
+                {trackWeight && <td className="py-2.5 text-white/85">{log.weight != null ? `${log.weight}kg` : '—'}</td>}
               </tr>
             ))}
           </tbody>
@@ -672,7 +705,7 @@ export function ClientDetailTabs({
       {activeTab === 'overview' && (
         <OverviewTab client={client} checkins={checkins} logs={logs} targets={targets} weekNumber={weekNumber} />
       )}
-      {activeTab === 'logs' && <DailyLogsTab logs={logs} targets={targets} />}
+      {activeTab === 'logs' && <DailyLogsTab logs={logs} targets={targets} client={client} />}
       {activeTab === 'checkins' && <CheckInsTab clientId={client.id} checkins={checkins} checkInDay={client.check_in_day} />}
       {activeTab === 'training' && (
         <div className="bg-navy-card border border-white/8 p-6">

@@ -12,6 +12,8 @@ export default function DailyLogPage() {
   const [loading, setLoading] = useState(true)
   const [saved, setSaved] = useState(false)
 
+  const [trackWeight, setTrackWeight] = useState(true)
+  const [weight, setWeight] = useState('')
   const [calories, setCalories] = useState('')
   const [protein, setProtein] = useState('')
   const [steps, setSteps] = useState('')
@@ -28,11 +30,14 @@ export default function DailyLogPage() {
   const today = new Date().toISOString().split('T')[0]
 
   useEffect(() => {
-    async function loadTodayLog() {
+    async function loadData() {
       try {
-        const res = await fetch('/api/logs/today')
-        if (res.ok) {
-          const log = await res.json()
+        const [logRes, clientRes] = await Promise.all([
+          fetch('/api/logs/today'),
+          fetch('/api/clients/me'),
+        ])
+        if (logRes.ok) {
+          const log = await logRes.json()
           if (log && !log.error) {
             setExistingLog(log)
             setCalories(log.calories?.toString() || '')
@@ -45,12 +50,17 @@ export default function DailyLogPage() {
             setEnergyScore(log.energy_score)
             setStressScore(log.stress_score)
             setNotes(log.notes || '')
+            setWeight(log.weight?.toString() || '')
           }
         }
-      } catch { /* no existing log */ }
+        if (clientRes.ok) {
+          const clientData = await clientRes.json()
+          setTrackWeight(clientData.track_weight ?? true)
+        }
+      } catch { /* ignore */ }
       setLoading(false)
     }
-    loadTodayLog()
+    loadData()
   }, [today])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -59,6 +69,7 @@ export default function DailyLogPage() {
 
     const body = {
       log_date: today,
+      weight: trackWeight && weight ? parseFloat(weight) : null,
       calories: calories ? parseInt(calories) : null,
       protein: protein ? parseInt(protein) : null,
       steps: steps ? parseInt(steps) : null,
@@ -124,6 +135,11 @@ export default function DailyLogPage() {
         <div>
           <Eyebrow>Nutrition</Eyebrow>
           <GoldRule />
+          {trackWeight && (
+            <div className="mt-4">
+              <Input label="Weight (kg)" type="number" step="0.1" value={weight} onChange={e => setWeight(e.target.value)} placeholder="e.g. 82.5" />
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
             <Input label="Calories (kcal)" type="number" value={calories} onChange={e => setCalories(e.target.value)} placeholder="e.g. 2200" />
             <Input label="Protein (g)" type="number" value={protein} onChange={e => setProtein(e.target.value)} placeholder="e.g. 160" />
