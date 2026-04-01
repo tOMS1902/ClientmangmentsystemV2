@@ -7,8 +7,8 @@ import { useKeyInit } from '@/hooks/useKeyInit'
 
 const navLinks = [
   { href: '/portal', label: 'Home' },
-  { href: '/portal/log', label: 'Log' },
   { href: '/portal/checkin', label: 'Check-In' },
+  { href: '/portal/checkin/midweek', label: 'Midweek' },
   { href: '/portal/meals', label: 'Meals' },
   { href: '/portal/progress', label: 'Progress' },
   { href: '/portal/programme', label: 'Training' },

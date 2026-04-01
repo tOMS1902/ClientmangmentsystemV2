@@ -3,7 +3,7 @@ import { ClientCard } from '@/components/coach/ClientCard'
 import { AddClientModal } from '@/components/coach/AddClientModal'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
-import type { Client, DailyLog } from '@/lib/types'
+import type { Client } from '@/lib/types'
 
 async function getClients(): Promise<Client[]> {
   const supabase = await createServerSupabaseClient()
@@ -17,16 +17,14 @@ async function getClients(): Promise<Client[]> {
   return data ?? []
 }
 
-async function getLatestLog(clientId: string): Promise<DailyLog | null> {
-  const supabase = await createServerSupabaseClient()
-  const { data } = await supabase
-    .from('daily_logs')
-    .select('*')
-    .eq('client_id', clientId)
-    .order('log_date', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  return data ?? null
+function getWeekStart(): string {
+  const now = new Date()
+  const day = now.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  const monday = new Date(now)
+  monday.setDate(now.getDate() + diff)
+  monday.setHours(0, 0, 0, 0)
+  return monday.toISOString()
 }
 
 function getWeekNumber(startDate: string): number {
@@ -36,18 +34,20 @@ function getWeekNumber(startDate: string): number {
 }
 
 export default async function ClientsPage() {
+  const supabase = await createServerSupabaseClient()
   const clients = await getClients()
+  const weekStart = getWeekStart()
 
-  const clientsWithLogs = await Promise.all(
-    clients.map(async (client) => ({
-      client,
-      latestLog: await getLatestLog(client.id),
-      weekNumber: getWeekNumber(client.start_date),
-    }))
-  )
+  const [{ data: midweekRows }, { data: weeklyRows }] = await Promise.all([
+    supabase.from('midweek_checks').select('client_id').gte('submitted_at', weekStart),
+    supabase.from('weekly_checkins').select('client_id').gte('check_in_date', weekStart.split('T')[0]),
+  ])
 
-  const active = clientsWithLogs.filter(({ client }) => client.is_active)
-  const inactive = clientsWithLogs.filter(({ client }) => !client.is_active)
+  const midweekSubmitted = new Set((midweekRows || []).map(r => r.client_id))
+  const weeklySubmitted = new Set((weeklyRows || []).map(r => r.client_id))
+
+  const active = clients.filter(c => c.is_active)
+  const inactive = clients.filter(c => !c.is_active)
 
   return (
     <div className="max-w-6xl">
@@ -74,12 +74,13 @@ export default async function ClientsPage() {
           <p className="text-grey-muted text-sm">No active clients yet. Add one above.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {active.map(({ client, latestLog, weekNumber }) => (
+            {active.map((client) => (
               <ClientCard
                 key={client.id}
                 client={client}
-                latestLog={latestLog}
-                weekNumber={weekNumber}
+                weekNumber={getWeekNumber(client.start_date)}
+                midweekSubmitted={midweekSubmitted.has(client.id)}
+                weeklySubmitted={weeklySubmitted.has(client.id)}
               />
             ))}
           </div>
@@ -91,12 +92,13 @@ export default async function ClientsPage() {
         <div>
           <Eyebrow className="block mb-3">Inactive — {inactive.length}</Eyebrow>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 opacity-50">
-            {inactive.map(({ client, latestLog, weekNumber }) => (
+            {inactive.map((client) => (
               <ClientCard
                 key={client.id}
                 client={client}
-                latestLog={latestLog}
-                weekNumber={weekNumber}
+                weekNumber={getWeekNumber(client.start_date)}
+                midweekSubmitted={midweekSubmitted.has(client.id)}
+                weeklySubmitted={weeklySubmitted.has(client.id)}
               />
             ))}
           </div>

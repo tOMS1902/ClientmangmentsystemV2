@@ -1,6 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { ClientDetailTabs } from './ClientDetailTabs'
-import type { Client, WeeklyCheckin, DailyLog, Programme, NutritionTargets, Habit, MealPlan, Supplement } from '@/lib/types'
+import type { Client, WeeklyCheckin, MidweekCheck, Programme, NutritionTargets, Habit, MealPlan, Supplement } from '@/lib/types'
 
 function getWeekNumber(startDate: string): number {
   const start = new Date(startDate)
@@ -15,7 +15,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   const [
     { data: client },
     { data: checkins },
-    { data: logs },
+    { data: midweekChecks },
     { data: programmes },
     { data: targets },
     { data: habits },
@@ -26,7 +26,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
   ] = await Promise.all([
     supabase.from('clients').select('*').eq('id', id).single<Client>(),
     supabase.from('weekly_checkins').select('*').eq('client_id', id).order('check_in_date', { ascending: false }),
-    supabase.from('daily_logs').select('*').eq('client_id', id).order('log_date', { ascending: false }).limit(30),
+    supabase.from('midweek_checks').select('*').eq('client_id', id).order('submitted_at', { ascending: false }),
     supabase
       .from('programmes')
       .select('*, days:programme_days(*, exercises(*))')
@@ -80,7 +80,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
       <ClientDetailTabs
         client={client}
         checkins={(checkins as WeeklyCheckin[]) || []}
-        logs={(logs as DailyLog[]) || []}
+        midweekChecks={(midweekChecks as MidweekCheck[]) || []}
         programmes={(programmes as Programme[]) || []}
         targets={targets as NutritionTargets | null}
         habits={(habits as Habit[]) || []}

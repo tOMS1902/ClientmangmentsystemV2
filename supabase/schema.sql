@@ -49,24 +49,20 @@ create table nutrition_targets (
   updated_at timestamptz default now()
 );
 
--- Daily logs
-create table daily_logs (
+-- Midweek checks
+create table midweek_checks (
   id uuid primary key default gen_random_uuid(),
-  client_id uuid references clients(id) on delete cascade,
-  log_date date not null,
-  calories int,
-  protein int,
-  steps int,
-  sleep_hours numeric,
-  hunger_score int check (hunger_score between 1 and 5),
-  energy_score int check (energy_score between 1 and 5),
-  stress_score int check (stress_score between 1 and 5),
-  weight numeric,
-  training_done boolean default false,
-  training_notes text,
-  notes text,
-  created_at timestamptz default now(),
-  unique(client_id, log_date)
+  client_id uuid references clients(id) on delete cascade not null,
+  coach_id uuid references profiles(id) on delete set null,
+  submitted_at timestamptz default now(),
+  week_number int not null,
+  current_weight numeric,
+  training_on_track text check (training_on_track in ('yes', 'slightly_off', 'off')) not null,
+  food_on_track text check (food_on_track in ('yes', 'slightly_off', 'off')) not null,
+  energy_level int check (energy_level between 1 and 5) not null,
+  steps_on_track boolean not null,
+  biggest_blocker text,
+  unique(client_id, week_number)
 );
 
 -- Weekly check-ins
@@ -182,7 +178,7 @@ alter table profiles enable row level security;
 alter table clients enable row level security;
 alter table onboarding_responses enable row level security;
 alter table nutrition_targets enable row level security;
-alter table daily_logs enable row level security;
+alter table midweek_checks enable row level security;
 alter table weekly_checkins enable row level security;
 alter table programmes enable row level security;
 alter table programme_days enable row level security;
@@ -203,7 +199,7 @@ create policy "coach_onboarding" on onboarding_responses for select
   using (exists (select 1 from profiles where id = auth.uid() and role = 'coach'));
 create policy "coach_targets" on nutrition_targets for all
   using (exists (select 1 from profiles where id = auth.uid() and role = 'coach'));
-create policy "coach_logs" on daily_logs for all
+create policy "coach_midweek_checks" on midweek_checks for all
   using (exists (select 1 from profiles where id = auth.uid() and role = 'coach'));
 create policy "coach_checkins" on weekly_checkins for all
   using (exists (select 1 from profiles where id = auth.uid() and role = 'coach'));
@@ -227,7 +223,7 @@ create policy "client_own_record" on clients for select
   using (user_id = auth.uid());
 create policy "client_onboarding" on onboarding_responses for all
   using (client_id = auth.uid());
-create policy "client_logs" on daily_logs for all
+create policy "client_midweek_checks" on midweek_checks for all
   using (client_id in (select id from clients where user_id = auth.uid()));
 create policy "client_checkins" on weekly_checkins for all
   using (client_id in (select id from clients where user_id = auth.uid()));

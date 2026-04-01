@@ -1,12 +1,11 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { HabitTracker } from '@/components/client/HabitTracker'
-import { MetricBar } from '@/components/ui/MetricBar'
 import { SparkLine } from '@/components/ui/SparkLine'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
-import type { DailyLog, WeeklyCheckin, Habit, HabitLog, NutritionTargets } from '@/lib/types'
+import type { WeeklyCheckin, Habit, HabitLog, MidweekCheck } from '@/lib/types'
 
 
 function getGreeting(name: string): string {
@@ -51,6 +50,17 @@ function calculateStreaks(habits: Habit[], allLogs: HabitLog[]): Record<string, 
   return streaks
 }
 
+function trackStatusLabel(v: string) {
+  if (v === 'yes') return 'On track'
+  if (v === 'slightly_off') return 'Slightly off'
+  return 'Off track'
+}
+function trackStatusColor(v: string) {
+  if (v === 'yes') return 'text-green-400'
+  if (v === 'slightly_off') return 'text-amber-400'
+  return 'text-red-400'
+}
+
 export default async function PortalHomePage() {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -67,42 +77,37 @@ export default async function PortalHomePage() {
 
   const clientId = clientRecord.id
   const today = new Date().toISOString().split('T')[0]
-
   const from14Days = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
 
   const [
-    { data: logs },
     { data: checkins },
+    { data: midweekChecks },
     { data: habits },
     { data: habitLogData },
-    { data: targets },
   ] = await Promise.all([
-    supabase.from('daily_logs').select('*').eq('client_id', clientId).order('log_date', { ascending: false }).limit(30),
     supabase.from('weekly_checkins').select('*').eq('client_id', clientId).order('check_in_date', { ascending: false }),
+    supabase.from('midweek_checks').select('*').eq('client_id', clientId).order('submitted_at', { ascending: false }).limit(10),
     supabase.from('habits').select('*').eq('client_id', clientId).eq('is_active', true),
     supabase.from('habit_logs').select('*').eq('client_id', clientId).gte('log_date', from14Days),
-    supabase.from('nutrition_targets').select('*').eq('client_id', clientId).maybeSingle(),
   ])
 
-  const todayLog = logs?.find(l => l.log_date === today) || null
   const todayHabitLogs = habitLogData?.filter(l => l.log_date === today) || []
   const streaks = calculateStreaks(habits || [], habitLogData || [])
-
-  const last7Logs = logs?.filter(l => {
-    const diff = (new Date().getTime() - new Date(l.log_date).getTime()) / (1000 * 60 * 60 * 24)
-    return diff <= 7
-  }) || []
-
-  const avgCalories = last7Logs.length ? Math.round(last7Logs.reduce((a, l) => a + (l.calories || 0), 0) / last7Logs.length) : 0
-  const avgProtein = last7Logs.length ? Math.round(last7Logs.reduce((a, l) => a + (l.protein || 0), 0) / last7Logs.length) : 0
-  const avgSteps = last7Logs.length ? Math.round(last7Logs.reduce((a, l) => a + (l.steps || 0), 0) / last7Logs.length) : 0
-  const avgSleep = last7Logs.length ? Math.round((last7Logs.reduce((a, l) => a + (l.sleep_hours || 0), 0) / last7Logs.length) * 10) / 10 : 0
 
   const weightHistory = [...(checkins || [])].reverse().map(c => c.weight)
   const latestCheckin = checkins?.[0] || null
 
   const dayOfWeek = new Date().toLocaleDateString('en-IE', { weekday: 'long' })
   const isCheckinDay = clientRecord.check_in_day === dayOfWeek
+  const isMidweekDay = clientRecord.midweek_check_day
+    ? dayOfWeek === clientRecord.midweek_check_day
+    : dayOfWeek === 'Wednesday'
+
+  // Midweek check — submitted within the last 7 days?
+  const thisWeekMidweek = (midweekChecks as MidweekCheck[] | null)?.find(c => {
+    const diff = (Date.now() - new Date(c.submitted_at).getTime()) / (1000 * 60 * 60 * 24)
+    return diff <= 7
+  }) || null
 
   return (
     <div>
@@ -117,7 +122,7 @@ export default async function PortalHomePage() {
         <p className="text-grey-muted">{formatDate(new Date())}</p>
       </div>
 
-      {/* Check-in due banner */}
+      {/* Weekly check-in due banner */}
       {isCheckinDay && !checkins?.find(c => c.check_in_date === today) && (
         <div className="bg-gold/15 border border-gold/30 p-4 mb-6 flex items-center justify-between">
           <p className="text-white/85 text-sm">Your weekly check-in is due today.</p>
@@ -127,39 +132,36 @@ export default async function PortalHomePage() {
         </div>
       )}
 
-      {/* Today's log status */}
-      <div className={`border p-5 mb-6 ${todayLog ? 'border-green-700' : 'border-gold'}`}>
-        {todayLog ? (
-          <div>
-            <p className="text-sm text-green-400 mb-2" style={{ fontFamily: 'var(--font-label)' }}>TODAY LOGGED</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-              <div>
-                <p className="text-grey-muted">Calories</p>
-                <p className="text-white">{todayLog.calories ?? '—'}</p>
-              </div>
-              <div>
-                <p className="text-grey-muted">Protein</p>
-                <p className="text-white">{todayLog.protein ?? '—'}g</p>
-              </div>
-              <div>
-                <p className="text-grey-muted">Steps</p>
-                <p className="text-white">{todayLog.steps?.toLocaleString() ?? '—'}</p>
-              </div>
-              <div>
-                <p className="text-grey-muted">Sleep</p>
-                <p className="text-white">{todayLog.sleep_hours ?? '—'}hrs</p>
-              </div>
+      {/* Midweek check widget */}
+      {thisWeekMidweek ? (
+        <div className="border border-green-700 p-5 mb-6">
+          <p className="text-xs text-green-400 mb-3" style={{ fontFamily: 'var(--font-label)' }}>MIDWEEK CHECK — SUBMITTED</p>
+          <div className="grid grid-cols-3 gap-3 text-sm">
+            <div>
+              <p className="text-grey-muted text-xs mb-0.5">Training</p>
+              <p className={trackStatusColor(thisWeekMidweek.training_on_track)}>{trackStatusLabel(thisWeekMidweek.training_on_track)}</p>
+            </div>
+            <div>
+              <p className="text-grey-muted text-xs mb-0.5">Food</p>
+              <p className={trackStatusColor(thisWeekMidweek.food_on_track)}>{trackStatusLabel(thisWeekMidweek.food_on_track)}</p>
+            </div>
+            <div>
+              <p className="text-grey-muted text-xs mb-0.5">Energy</p>
+              <p className="text-white">{thisWeekMidweek.energy_level}/5</p>
             </div>
           </div>
-        ) : (
-          <div className="flex items-center justify-between">
-            <p className="text-white/85">You haven't logged today.</p>
-            <Link href="/portal/log">
-              <Button variant="primary" size="sm">Log Today →</Button>
-            </Link>
-          </div>
-        )}
-      </div>
+          {thisWeekMidweek.biggest_blocker && (
+            <p className="text-grey-muted text-xs mt-3">{thisWeekMidweek.biggest_blocker}</p>
+          )}
+        </div>
+      ) : isMidweekDay ? (
+        <div className="bg-gold/15 border border-gold/30 p-4 mb-6 flex items-center justify-between">
+          <p className="text-white/85 text-sm">Quick one — how are things going this week?</p>
+          <Link href="/portal/checkin/midweek">
+            <Button variant="primary" size="sm">Check In →</Button>
+          </Link>
+        </div>
+      ) : null}
 
       {/* Start today's session */}
       <Link href="/portal/programme?day=today">
@@ -168,20 +170,6 @@ export default async function PortalHomePage() {
           <span className="text-gold">→</span>
         </div>
       </Link>
-
-      {/* This week's targets */}
-      {targets && (
-        <div className="bg-navy-card border border-white/8 p-6 mb-8">
-          <Eyebrow>This Week's Targets</Eyebrow>
-          <GoldRule />
-          <div className="flex flex-col gap-4 mt-4">
-            <MetricBar label="Avg Calories" value={avgCalories} target={targets.td_calories} unit="kcal" />
-            <MetricBar label="Avg Protein" value={avgProtein} target={targets.td_protein} unit="g" />
-            <MetricBar label="Avg Steps" value={avgSteps} target={targets.daily_steps} unit="steps" />
-            <MetricBar label="Avg Sleep" value={avgSleep} target={targets.sleep_target_hours} unit="hrs" />
-          </div>
-        </div>
-      )}
 
       {/* Habit tracker */}
       <div className="bg-navy-card border border-white/8 p-6 mb-8">

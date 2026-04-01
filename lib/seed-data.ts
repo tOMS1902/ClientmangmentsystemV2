@@ -1,4 +1,4 @@
-import type { Client, NutritionTargets, DailyLog, WeeklyCheckin, Programme, Habit, HabitLog, OnboardingResponses, MealPlan } from './types'
+import type { Client, NutritionTargets, WeeklyCheckin, Programme, Habit, HabitLog, OnboardingResponses, MealPlan } from './types'
 
 // Coach
 export const SEED_COACH = {
@@ -115,47 +115,6 @@ export const SEED_TARGETS: NutritionTargets[] = [
     sleep_target_hours: 7,
     updated_at: '2025-02-20T00:00:00Z',
   },
-]
-
-// Generate daily logs for last 4 weeks for a client
-function generateLogs(clientId: string, startOffset: number): DailyLog[] {
-  const logs: DailyLog[] = []
-  const today = new Date('2026-03-12')
-
-  for (let i = 0; i < 28; i++) {
-    const date = new Date(today)
-    date.setDate(today.getDate() - i - startOffset)
-    const dateStr = date.toISOString().split('T')[0]
-
-    // Skip some days to simulate missed logs
-    if (i === 3 || i === 11 || i === 20) continue
-
-    logs.push({
-      id: `log-${clientId}-${i}`,
-      client_id: clientId,
-      log_date: dateStr,
-      weight: null,
-      calories: 1800 + Math.floor(Math.random() * 600),
-      protein: 120 + Math.floor(Math.random() * 60),
-      steps: 6000 + Math.floor(Math.random() * 6000),
-      sleep_hours: 5.5 + Math.random() * 3,
-      hunger_score: Math.floor(Math.random() * 3) + 2,
-      energy_score: Math.floor(Math.random() * 3) + 2,
-      stress_score: Math.floor(Math.random() * 3) + 1,
-      training_done: Math.random() > 0.4,
-      training_notes: null,
-      notes: null,
-      created_at: dateStr + 'T20:00:00Z',
-    })
-  }
-
-  return logs
-}
-
-export const SEED_LOGS: DailyLog[] = [
-  ...generateLogs('client-001', 0),
-  ...generateLogs('client-002', 0),
-  ...generateLogs('client-003', 0),
 ]
 
 // Weekly check-ins (4 per client)

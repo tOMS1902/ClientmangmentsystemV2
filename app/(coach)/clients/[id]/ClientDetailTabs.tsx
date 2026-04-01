@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import { Button } from '@/components/ui/Button'
-import { MetricBar } from '@/components/ui/MetricBar'
 import { SparkLine } from '@/components/ui/SparkLine'
 import { ProgrammeEditor } from '@/components/coach/ProgrammeEditor'
 import { NutritionTargetsForm } from '@/components/coach/NutritionTargetsForm'
@@ -14,12 +13,12 @@ import { HabitManager } from '@/components/coach/HabitManager'
 import { SupplementsEditor } from '@/components/coach/SupplementsEditor'
 import { MessagingTab } from '@/components/coach/MessagingTab'
 import { PhotosTab } from '@/components/client/tabs/PhotosTab'
-import type { Client, WeeklyCheckin, DailyLog, Programme, NutritionTargets, Habit, MealPlan, Supplement } from '@/lib/types'
+import type { Client, WeeklyCheckin, MidweekCheck, Programme, NutritionTargets, Habit, MealPlan, Supplement, TrackingStatus } from '@/lib/types'
 
 interface ClientDetailTabsProps {
   client: Client
   checkins: WeeklyCheckin[]
-  logs: DailyLog[]
+  midweekChecks: MidweekCheck[]
   programmes: Programme[]
   targets: NutritionTargets | null
   habits: Habit[]
@@ -30,7 +29,7 @@ interface ClientDetailTabsProps {
   unreadMessages?: number
 }
 
-type Tab = 'overview' | 'logs' | 'checkins' | 'training' | 'nutrition' | 'onboarding' | 'messages' | 'photos'
+type Tab = 'overview' | 'midweek' | 'checkins' | 'training' | 'nutrition' | 'onboarding' | 'messages' | 'photos'
 
 const ONBOARDING_SECTIONS = [
   {
@@ -95,7 +94,18 @@ const ONBOARDING_SECTIONS = [
   },
 ]
 
-function OverviewTab({ client, checkins, logs, targets, weekNumber }: Pick<ClientDetailTabsProps, 'client' | 'checkins' | 'logs' | 'targets' | 'weekNumber'>) {
+function statusLabel(v: TrackingStatus) {
+  if (v === 'yes') return 'On track'
+  if (v === 'slightly_off') return 'Slightly off'
+  return 'Off track'
+}
+function statusColor(v: TrackingStatus) {
+  if (v === 'yes') return 'text-green-400'
+  if (v === 'slightly_off') return 'text-amber-400'
+  return 'text-red-400'
+}
+
+function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProps, 'client' | 'checkins' | 'weekNumber'>) {
   const latestCheckin = checkins[0] || null
   const [goalWeight, setGoalWeight] = useState(client.goal_weight || 0)
   const [startWeight, setStartWeight] = useState(client.start_weight || 0)
@@ -127,25 +137,14 @@ function OverviewTab({ client, checkins, logs, targets, weekNumber }: Pick<Clien
   const goalProgress = Math.min(100, rawGoalProgress)
   const goalExceeded = rawGoalProgress > 100
 
-  const today = new Date().toISOString().split('T')[0]
-  const todayLog = logs.find(l => l.log_date === today) || null
-
-  const last7 = logs.filter(l => {
-    const d = new Date(l.log_date)
-    const diff = (new Date().getTime() - d.getTime()) / (1000 * 60 * 60 * 24)
-    return diff <= 7
-  })
-  const streak = last7.length
-
   const weightHistory = [...checkins].reverse().map(c => c.weight)
 
   return (
     <div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
         {[
           { label: 'Current Weight', value: latestCheckin ? `${latestCheckin.weight}kg` : '—', sub: `Goal: ${goalWeight}kg` },
           { label: 'Goal Progress', value: goalExceeded ? '100%' : `${goalProgress}%`, sub: goalExceeded ? 'Goal exceeded!' : 'of weight goal' },
-          { label: '7-Day Log Streak', value: streak.toString(), sub: 'days this week' },
           { label: 'Total Weeks', value: weekNumber.toString(), sub: 'weeks coached' },
         ].map(stat => (
           <div key={stat.label} className="bg-navy-card border border-white/8 p-5">
@@ -208,19 +207,6 @@ function OverviewTab({ client, checkins, logs, targets, weekNumber }: Pick<Clien
         {weightMsg && <p className="text-xs text-grey-muted mt-2">{weightMsg}</p>}
       </div>
 
-      {todayLog && targets && (
-        <div className="bg-navy-card border border-white/8 p-6 mb-6">
-          <Eyebrow className="block mb-2">Today vs Targets</Eyebrow>
-          <GoldRule />
-          <div className="flex flex-col gap-4 mt-4">
-            <MetricBar label="Calories" value={todayLog.calories || 0} target={targets.td_calories} unit="kcal" />
-            <MetricBar label="Protein" value={todayLog.protein || 0} target={targets.td_protein} unit="g" />
-            <MetricBar label="Steps" value={todayLog.steps || 0} target={targets.daily_steps} unit="steps" />
-            <MetricBar label="Sleep" value={todayLog.sleep_hours || 0} target={targets.sleep_target_hours} unit="hrs" />
-          </div>
-        </div>
-      )}
-
       {latestCheckin && (
         <div className="bg-navy-card border border-white/8 p-6">
           <Eyebrow className="block mb-2">Latest Check-In &mdash; Week {latestCheckin.week_number}</Eyebrow>
@@ -246,160 +232,103 @@ function OverviewTab({ client, checkins, logs, targets, weekNumber }: Pick<Clien
   )
 }
 
-function DailyLogsTab({ logs, targets, client }: { logs: DailyLog[]; targets: NutritionTargets | null; client: Client }) {
-  const [range, setRange] = useState<7 | 14 | 30>(7)
-  const [trackWeight, setTrackWeight] = useState(client.track_weight ?? true)
-  const [savingToggle, setSavingToggle] = useState(false)
+function MidweekChecksTab({ client, midweekChecks }: { client: Client; midweekChecks: MidweekCheck[] }) {
+  const router = useRouter()
+  const [selectedDay, setSelectedDay] = useState(client.midweek_check_day || 'Wednesday')
+  const [savingDay, setSavingDay] = useState(false)
+  const [daySaved, setDaySaved] = useState(false)
 
-  async function toggleWeightTracking() {
-    setSavingToggle(true)
+  async function saveMidweekDay() {
+    setSavingDay(true)
     const res = await fetch(`/api/clients/${client.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ track_weight: !trackWeight }),
+      body: JSON.stringify({ midweek_check_day: selectedDay }),
     })
-    if (res.ok) setTrackWeight(!trackWeight)
-    setSavingToggle(false)
-  }
-
-  const now = new Date()
-  function wk(n: number) {
-    return logs.filter(l => {
-      const d = (now.getTime() - new Date(l.log_date).getTime()) / 86400000
-      return d >= n * 7 && d < (n + 1) * 7
-    })
-  }
-  const weeks = [wk(0), wk(1), wk(2), wk(3)]
-  const weekLabels = ['This Week', 'Last Week', '2 Wks Ago', '3 Wks Ago']
-
-  function wAvg(arr: DailyLog[], field: keyof DailyLog): number {
-    if (!arr.length) return 0
-    return Math.round(arr.map(l => (l[field] as number | null) || 0).reduce((a, b) => a + b, 0) / arr.length)
-  }
-  function wAvgDec(arr: DailyLog[], field: keyof DailyLog): number {
-    if (!arr.length) return 0
-    return Math.round(arr.map(l => (l[field] as number | null) || 0).reduce((a, b) => a + b, 0) / arr.length * 10) / 10
-  }
-  function wColor(val: number, tgt: number | null | undefined): string {
-    if (!tgt || !val) return 'text-white/85'
-    const p = val / tgt
-    if (p >= 0.95) return 'text-green-400'
-    if (p >= 0.80) return 'text-amber-400'
-    return 'text-red-400'
-  }
-
-  const cutoff = new Date()
-  cutoff.setDate(cutoff.getDate() - range)
-  const filtered = logs.filter(l => new Date(l.log_date) >= cutoff)
-
-  function getRowStyle(log: DailyLog) {
-    const fields = [log.calories, log.protein, log.steps, log.sleep_hours]
-    const filled = fields.filter(f => f !== null && f !== undefined).length
-    if (filled === 0) return 'border-l-2 border-red-500'
-    if (filled < 4) return 'border-l-2 border-amber-500'
-    return ''
+    if (res.ok) {
+      setDaySaved(true)
+      setTimeout(() => setDaySaved(false), 2500)
+      router.refresh()
+    }
+    setSavingDay(false)
   }
 
   return (
-    <div>
-      {/* Weight Tracking Toggle */}
-      <div className="bg-navy-deep border border-white/8 p-4 mb-6 flex items-center justify-between">
-        <div>
-          <p className="text-xs text-grey-muted" style={{ fontFamily: 'var(--font-label)' }}>WEIGHT TRACKING</p>
-          <p className="text-sm text-white/70 mt-0.5">Record client weight in daily logs</p>
-        </div>
-        <button
-          onClick={toggleWeightTracking}
-          disabled={savingToggle}
-          className={`px-4 py-2 text-xs font-semibold transition-colors disabled:opacity-50 ${
-            trackWeight ? 'bg-gold text-navy-deep' : 'bg-navy-card border border-white/20 text-white/85 hover:border-gold'
-          }`}
-          style={{ fontFamily: 'var(--font-label)' }}
-        >
-          {trackWeight ? 'ON' : 'OFF'}
-        </button>
-      </div>
-
-      {/* 4-Week Averages */}
-      <div className="bg-navy-deep border border-white/8 p-4 mb-6">
-        <Eyebrow className="block mb-3">4-Week Averages</Eyebrow>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="text-grey-muted border-b border-white/8">
-                <th className="text-left py-2 font-normal">Metric</th>
-                {weekLabels.map(l => <th key={l} className="text-left py-2 font-normal">{l}</th>)}
-                {targets && <th className="text-left py-2 font-normal">Target</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {([
-                { label: 'Calories', vals: weeks.map(w => wAvg(w, 'calories')), tgt: targets?.td_calories, fmt: (v: number) => v ? v.toLocaleString() : '—', tgtFmt: (t: number) => t.toLocaleString() },
-                { label: 'Protein', vals: weeks.map(w => wAvg(w, 'protein')), tgt: targets?.td_protein, fmt: (v: number) => v ? `${v}g` : '—', tgtFmt: (t: number) => `${t}g` },
-                { label: 'Steps', vals: weeks.map(w => wAvg(w, 'steps')), tgt: targets?.daily_steps, fmt: (v: number) => v ? v.toLocaleString() : '—', tgtFmt: (t: number) => t.toLocaleString() },
-                { label: 'Sleep', vals: weeks.map(w => wAvgDec(w, 'sleep_hours')), tgt: targets?.sleep_target_hours, fmt: (v: number) => v ? `${v}h` : '—', tgtFmt: (t: number) => `${t}h` },
-                { label: 'Training', vals: weeks.map(w => w.filter(l => l.training_done).length), tgt: null as number | null | undefined, fmt: (v: number) => `${v}/7`, tgtFmt: (_t: number) => '—' },
-                { label: 'Days Logged', vals: weeks.map(w => w.length), tgt: null as number | null | undefined, fmt: (v: number) => `${v}/7`, tgtFmt: (_t: number) => '—' },
-              ] as const).map(row => (
-                <tr key={row.label} className="border-b border-white/8">
-                  <td className="py-2 text-grey-muted">{row.label}</td>
-                  {row.vals.map((v, i) => (
-                    <td key={i} className={`py-2 ${i === 0 ? wColor(v, row.tgt) : 'text-white/70'}`}>{row.fmt(v)}</td>
-                  ))}
-                  {targets && <td className="py-2 text-grey-muted">{row.tgt ? row.tgtFmt(row.tgt) : '—'}</td>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="flex gap-3 mb-6">
-        {([7, 14, 30] as const).map(d => (
+    <div className="flex flex-col gap-4">
+      {/* Midweek check day setting */}
+      <div className="bg-navy-card border border-white/8 p-5">
+        <p className="text-xs text-grey-muted mb-3" style={{ fontFamily: 'var(--font-label)' }}>MIDWEEK CHECK DAY</p>
+        <div className="flex items-center gap-3 flex-wrap">
+          <select
+            value={selectedDay}
+            onChange={e => setSelectedDay(e.target.value)}
+            className="bg-navy-mid border border-white/20 text-white/85 px-3 py-2 text-sm focus:outline-none focus:border-gold"
+          >
+            {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
           <button
-            key={d}
-            onClick={() => setRange(d)}
-            className={`px-4 py-2 text-xs transition-colors ${range === d ? 'bg-gold text-navy-deep' : 'bg-navy-card text-grey-muted hover:text-white'}`}
+            onClick={saveMidweekDay}
+            disabled={savingDay}
+            className="text-xs text-gold disabled:opacity-50"
             style={{ fontFamily: 'var(--font-label)' }}
           >
-            {d} Days
+            {savingDay ? 'Saving...' : 'Save'}
           </button>
-        ))}
+          {daySaved && <span className="text-xs text-grey-muted">Saved</span>}
+        </div>
+        <p className="text-xs text-grey-muted mt-2">
+          The client will see a midweek check-in prompt on their dashboard on this day.
+        </p>
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-grey-muted border-b border-white/8">
-              <th className="text-left py-2 font-normal">Date</th>
-              <th className="text-left py-2 font-normal">Calories</th>
-              <th className="text-left py-2 font-normal">Protein</th>
-              <th className="text-left py-2 font-normal">Steps</th>
-              <th className="text-left py-2 font-normal">Sleep</th>
-              <th className="text-left py-2 font-normal">Energy</th>
-              <th className="text-left py-2 font-normal">Stress</th>
-              <th className="text-left py-2 font-normal">Training</th>
-              {trackWeight && <th className="text-left py-2 font-normal">Weight</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(log => (
-              <tr key={log.id} className={`border-b border-white/8 ${getRowStyle(log)}`}>
-                <td className="py-2.5 text-white">
-                  {new Date(log.log_date).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })}
-                </td>
-                <td className="py-2.5 text-white/85">{log.calories ?? '—'}</td>
-                <td className="py-2.5 text-white/85">{log.protein ?? '—'}g</td>
-                <td className="py-2.5 text-white/85">{log.steps?.toLocaleString() ?? '—'}</td>
-                <td className="py-2.5 text-white/85">{log.sleep_hours ?? '—'}hrs</td>
-                <td className="py-2.5 text-white/85">{log.energy_score ?? '—'}/5</td>
-                <td className="py-2.5 text-white/85">{log.stress_score ?? '—'}/5</td>
-                <td className="py-2.5">{log.training_done ? <span className="text-gold">Yes</span> : <span className="text-grey-muted">No</span>}</td>
-                {trackWeight && <td className="py-2.5 text-white/85">{log.weight != null ? `${log.weight}kg` : '—'}</td>}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+
+      {!midweekChecks.length ? (
+        <p className="text-grey-muted text-sm">No midweek checks submitted yet.</p>
+      ) : midweekChecks.map(check => (
+        <div key={check.id} className="bg-navy-card border border-white/8 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-white text-lg" style={{ fontFamily: 'var(--font-display)' }}>
+                Week {check.week_number}
+              </h3>
+              <p className="text-grey-muted text-sm">
+                {new Date(check.submitted_at).toLocaleDateString('en-IE', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+            {check.current_weight && (
+              <div>
+                <p className="text-grey-muted mb-0.5">Weight</p>
+                <p className="text-white">{check.current_weight}kg</p>
+              </div>
+            )}
+            <div>
+              <p className="text-grey-muted mb-0.5">Training</p>
+              <p className={statusColor(check.training_on_track)}>{statusLabel(check.training_on_track)}</p>
+            </div>
+            <div>
+              <p className="text-grey-muted mb-0.5">Food</p>
+              <p className={statusColor(check.food_on_track)}>{statusLabel(check.food_on_track)}</p>
+            </div>
+            <div>
+              <p className="text-grey-muted mb-0.5">Energy</p>
+              <p className="text-white">{check.energy_level}/5</p>
+            </div>
+            <div>
+              <p className="text-grey-muted mb-0.5">Steps</p>
+              <p className={check.steps_on_track ? 'text-green-400' : 'text-red-400'}>
+                {check.steps_on_track ? 'On track' : 'Off track'}
+              </p>
+            </div>
+          </div>
+          {check.biggest_blocker && (
+            <div className="mt-4 pt-4 border-t border-white/8">
+              <p className="text-grey-muted text-xs mb-1">Biggest blocker</p>
+              <p className="text-white/85 text-sm">{check.biggest_blocker}</p>
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   )
 }
@@ -638,7 +567,7 @@ function OnboardingTab({ client }: { client: Client }) {
 export function ClientDetailTabs({
   client,
   checkins,
-  logs,
+  midweekChecks,
   programmes,
   targets,
   habits,
@@ -654,7 +583,7 @@ export function ClientDetailTabs({
 
   const tabs: { id: Tab; label: string; badge?: boolean }[] = [
     { id: 'overview', label: 'Overview' },
-    { id: 'logs', label: 'Daily Logs' },
+    { id: 'midweek', label: 'Midweek' },
     { id: 'checkins', label: 'Check-Ins' },
     { id: 'training', label: 'Training' },
     { id: 'nutrition', label: 'Nutrition' },
@@ -703,9 +632,9 @@ export function ClientDetailTabs({
       </div>
 
       {activeTab === 'overview' && (
-        <OverviewTab client={client} checkins={checkins} logs={logs} targets={targets} weekNumber={weekNumber} />
+        <OverviewTab client={client} checkins={checkins} weekNumber={weekNumber} />
       )}
-      {activeTab === 'logs' && <DailyLogsTab logs={logs} targets={targets} client={client} />}
+      {activeTab === 'midweek' && <MidweekChecksTab client={client} midweekChecks={midweekChecks} />}
       {activeTab === 'checkins' && <CheckInsTab clientId={client.id} checkins={checkins} checkInDay={client.check_in_day} />}
       {activeTab === 'training' && (
         <div className="bg-navy-card border border-white/8 p-6">

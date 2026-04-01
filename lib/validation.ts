@@ -19,26 +19,21 @@ export const ClientPatchSchema = z.object({
   current_weight: positiveNum.optional(),
   goal_text: optionalStr(500),
   check_in_day: z.enum(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']).optional(),
+  midweek_check_day: z.enum(['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']).optional(),
   is_active: z.boolean().optional(),
   portal_access: z.boolean().optional(),
   track_weight: z.boolean().optional(),
 })
 
-// ─── Daily Logs ───────────────────────────────────────────────────────────────
+// ─── Midweek Checks ───────────────────────────────────────────────────────────
 
-export const DailyLogSchema = z.object({
-  log_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  weight: positiveNum.nullable().optional(),
-  calories: positiveInt.nullable().optional(),
-  protein: positiveInt.nullable().optional(),
-  steps: positiveInt.nullable().optional(),
-  sleep_hours: z.number().min(0).max(24).nullable().optional(),
-  hunger_score: score.nullable().optional(),
-  energy_score: score.nullable().optional(),
-  stress_score: score.nullable().optional(),
-  training_done: z.boolean().nullable().optional(),
-  training_notes: optionalStr(1000),
-  notes: optionalStr(1000),
+export const MidweekCheckSchema = z.object({
+  current_weight: positiveNum.nullable().optional(),
+  training_on_track: z.enum(['yes', 'slightly_off', 'off']),
+  food_on_track: z.enum(['yes', 'slightly_off', 'off']),
+  energy_level: score,
+  steps_on_track: z.boolean(),
+  biggest_blocker: optionalStr(500),
 })
 
 // ─── Weekly Check-Ins ─────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@ import { ClientCard } from '@/components/coach/ClientCard'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
-import type { Client, DailyLog } from '@/lib/types'
+import type { Client } from '@/lib/types'
 
 async function getClients(): Promise<Client[]> {
   const supabase = await createServerSupabaseClient()
@@ -17,16 +17,14 @@ async function getClients(): Promise<Client[]> {
   return data ?? []
 }
 
-async function getLatestLog(clientId: string): Promise<DailyLog | null> {
-  const supabase = await createServerSupabaseClient()
-  const { data } = await supabase
-    .from('daily_logs')
-    .select('*')
-    .eq('client_id', clientId)
-    .order('log_date', { ascending: false })
-    .limit(1)
-    .single()
-  return data ?? null
+function getWeekStart(): string {
+  const now = new Date()
+  const day = now.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  const monday = new Date(now)
+  monday.setDate(now.getDate() + diff)
+  monday.setHours(0, 0, 0, 0)
+  return monday.toISOString()
 }
 
 function getWeekNumber(startDate: string): number {
@@ -35,34 +33,28 @@ function getWeekNumber(startDate: string): number {
   return Math.max(1, Math.ceil((today.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000)))
 }
 
-function getDaysWithoutLog(latestLog: DailyLog | null): number {
-  if (!latestLog) return 999
-  const lastDate = new Date(latestLog.log_date)
-  const today = new Date()
-  return Math.floor((today.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24))
-}
-
 export default async function DashboardPage() {
+  const supabase = await createServerSupabaseClient()
   const clients = await getClients()
+  const weekStart = getWeekStart()
 
-  const clientsWithLogs = await Promise.all(
-    clients.map(async (client) => ({
-      client,
-      latestLog: await getLatestLog(client.id),
-      weekNumber: getWeekNumber(client.start_date),
-    }))
-  )
+  const [{ data: midweekRows }, { data: weeklyRows }] = await Promise.all([
+    supabase
+      .from('midweek_checks')
+      .select('client_id')
+      .gte('submitted_at', weekStart),
+    supabase
+      .from('weekly_checkins')
+      .select('client_id')
+      .gte('check_in_date', weekStart.split('T')[0]),
+  ])
 
-  const needsAttention = clientsWithLogs.filter(
-    ({ latestLog }) => getDaysWithoutLog(latestLog) >= 3
-  )
+  const midweekSubmitted = new Set((midweekRows || []).map(r => r.client_id))
+  const weeklySubmitted = new Set((weeklyRows || []).map(r => r.client_id))
 
   const totalActive = clients.filter(c => c.is_active).length
-  const checkedInThisWeek = clientsWithLogs.filter(({ latestLog }) => {
-    if (!latestLog) return false
-    const daysDiff = getDaysWithoutLog(latestLog)
-    return daysDiff <= 7
-  }).length
+  const midweekCount = clients.filter(c => midweekSubmitted.has(c.id)).length
+  const weeklyCount = clients.filter(c => weeklySubmitted.has(c.id)).length
 
   return (
     <div className="max-w-6xl">
@@ -81,8 +73,8 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
         {[
           { label: 'Active Clients', value: totalActive, sub: 'currently enrolled' },
-          { label: 'Logged This Week', value: checkedInThisWeek, sub: 'of ' + totalActive + ' clients' },
-          { label: 'Need Attention', value: needsAttention.length, sub: 'no log in 3+ days' },
+          { label: 'Midweek Submitted', value: midweekCount, sub: `of ${totalActive} clients` },
+          { label: 'Weekly Check-Ins', value: weeklyCount, sub: `of ${totalActive} clients` },
         ].map((stat) => (
           <div key={stat.label} className="bg-navy-card border border-white/8 p-6">
             <Eyebrow className="block mb-2">{stat.label}</Eyebrow>
@@ -97,47 +89,18 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Needs attention */}
-      {needsAttention.length > 0 && (
-        <div className="mb-10">
-          <Eyebrow>Requires Attention</Eyebrow>
-          <GoldRule />
-          <div className="flex flex-col gap-2">
-            {needsAttention.map(({ client, latestLog }) => {
-              const daysAgo = getDaysWithoutLog(latestLog)
-              return (
-                <div key={client.id} className="flex items-center justify-between py-3 border-b border-white/8">
-                  <div>
-                    <span className="text-white">{client.full_name}</span>
-                    <span className="text-grey-muted text-sm ml-3">
-                      {daysAgo >= 999 ? 'Never logged' : `No log in ${daysAgo} days`}
-                    </span>
-                  </div>
-                  <a
-                    href={`/clients/${client.id}`}
-                    className="text-gold text-sm"
-                    style={{ fontFamily: 'var(--font-label)' }}
-                  >
-                    View Client &rarr;
-                  </a>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
       {/* All clients */}
       <div>
         <Eyebrow>Active Clients</Eyebrow>
         <GoldRule />
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {clientsWithLogs.map(({ client, latestLog, weekNumber }) => (
+          {clients.map((client) => (
             <ClientCard
               key={client.id}
               client={client}
-              latestLog={latestLog}
-              weekNumber={weekNumber}
+              weekNumber={getWeekNumber(client.start_date)}
+              midweekSubmitted={midweekSubmitted.has(client.id)}
+              weeklySubmitted={weeklySubmitted.has(client.id)}
             />
           ))}
           {clients.length === 0 && (

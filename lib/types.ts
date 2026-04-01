@@ -22,6 +22,7 @@ export interface Client {
   current_weight: number
   goal_text: string
   check_in_day: string
+  midweek_check_day?: string
   is_active: boolean
   portal_access: boolean
   track_weight: boolean
@@ -44,22 +45,20 @@ export interface NutritionTargets {
   updated_at: string
 }
 
-export interface DailyLog {
+export type TrackingStatus = 'yes' | 'slightly_off' | 'off'
+
+export interface MidweekCheck {
   id: string
   client_id: string
-  log_date: string
-  weight: number | null
-  calories: number | null
-  protein: number | null
-  steps: number | null
-  sleep_hours: number | null
-  hunger_score: number | null
-  energy_score: number | null
-  stress_score: number | null
-  training_done: boolean | null
-  training_notes: string | null
-  notes: string | null
-  created_at: string
+  coach_id: string | null
+  submitted_at: string
+  week_number: number
+  current_weight: number | null
+  training_on_track: TrackingStatus
+  food_on_track: TrackingStatus
+  energy_level: number
+  steps_on_track: boolean
+  biggest_blocker: string | null
 }
 
 export interface WeeklyCheckin {
