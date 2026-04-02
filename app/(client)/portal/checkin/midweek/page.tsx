@@ -84,6 +84,7 @@ export default function MidweekCheckPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  const [midweekDay, setMidweekDay] = useState<string | null>(null)
 
   const [currentWeight, setCurrentWeight] = useState('')
   const [trainingOnTrack, setTrainingOnTrack] = useState<TrackingStatus | null>(null)
@@ -93,13 +94,24 @@ export default function MidweekCheckPage() {
   const [biggestBlocker, setBiggestBlocker] = useState('')
 
   useEffect(() => {
-    fetch('/api/midweek-checks/me')
-      .then(r => r.json())
-      .then(data => {
-        setChecks(Array.isArray(data) ? data : [])
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
+    async function load() {
+      try {
+        const [checksRes, meRes] = await Promise.all([
+          fetch('/api/midweek-checks/me'),
+          fetch('/api/clients/me'),
+        ])
+        if (checksRes.ok) {
+          const data = await checksRes.json()
+          setChecks(Array.isArray(data) ? data : [])
+        }
+        if (meRes.ok) {
+          const me = await meRes.json()
+          setMidweekDay(me.midweek_check_day || 'Wednesday')
+        }
+      } catch { /* ignore */ }
+      setLoading(false)
+    }
+    load()
   }, [])
 
   const thisWeekCheck = checks.find(c => {
@@ -150,6 +162,20 @@ export default function MidweekCheckPage() {
   }
 
   if (loading) return <div className="text-grey-muted">Loading...</div>
+
+  const todayName = new Date().toLocaleDateString('en-IE', { weekday: 'long' })
+  if (midweekDay && todayName !== midweekDay) {
+    return (
+      <div className="max-w-xl">
+        <Eyebrow>Midweek Check</Eyebrow>
+        <GoldRule />
+        <div className="mt-6 bg-navy-card border border-white/10 p-6 text-center">
+          <p className="text-white/85 text-sm mb-1">Midweek check day is <span className="text-gold">{midweekDay}</span>.</p>
+          <p className="text-grey-muted text-sm">Come back on {midweekDay} to submit your midweek check.</p>
+        </div>
+      </div>
+    )
+  }
 
   if (thisWeekCheck || submitted) {
     const check = thisWeekCheck || checks[0]

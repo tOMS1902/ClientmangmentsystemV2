@@ -206,6 +206,7 @@ export default function CheckInPage() {
   const [validationError, setValidationError] = useState(false)
   const [submittedCheckinId, setSubmittedCheckinId] = useState<string | null>(null)
   const [clientId, setClientId] = useState<string | null>(null)
+  const [checkInDay, setCheckInDay] = useState<string | null>(null)
 
   // Form state
   const [weekScore, setWeekScore] = useState(5)
@@ -227,8 +228,16 @@ export default function CheckInPage() {
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch('/api/checkins/me')
-        if (res.ok) setCheckins(await res.json() || [])
+        const [checkinsRes, meRes] = await Promise.all([
+          fetch('/api/checkins/me'),
+          fetch('/api/clients/me'),
+        ])
+        if (checkinsRes.ok) setCheckins(await checkinsRes.json() || [])
+        if (meRes.ok) {
+          const me = await meRes.json()
+          setCheckInDay(me.check_in_day || null)
+          setClientId(me.id || null)
+        }
       } catch { /* ignore */ }
       setLoading(false)
     }
@@ -285,6 +294,20 @@ export default function CheckInPage() {
   }
 
   if (loading) return <div className="text-grey-muted">Loading...</div>
+
+  const todayName = new Date().toLocaleDateString('en-IE', { weekday: 'long' })
+  if (checkInDay && todayName !== checkInDay) {
+    return (
+      <div className="max-w-xl">
+        <Eyebrow>Weekly Check-In</Eyebrow>
+        <GoldRule />
+        <div className="mt-6 bg-navy-card border border-white/10 p-6 text-center">
+          <p className="text-white/85 text-sm mb-1">Check-in day is <span className="text-gold">{checkInDay}</span>.</p>
+          <p className="text-grey-muted text-sm">Come back on {checkInDay} to submit your weekly check-in.</p>
+        </div>
+      </div>
+    )
+  }
 
   if (thisWeekCheckin || submitted) {
     const sorted = [...checkins].reverse() // oldest → newest for charts
