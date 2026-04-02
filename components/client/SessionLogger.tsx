@@ -5,24 +5,31 @@ import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
-import type { ProgrammeDay, Exercise, ExerciseLogEntry, SetEntry } from '@/lib/types'
+import type { ProgrammeDay, ExerciseLogEntry, SessionLog } from '@/lib/types'
 
 interface SessionLoggerProps {
   day: ProgrammeDay
+  lastSession?: SessionLog | null
   onComplete: () => void
 }
 
-export function SessionLogger({ day, onComplete }: SessionLoggerProps) {
+export function SessionLogger({ day, lastSession, onComplete }: SessionLoggerProps) {
   const [entries, setEntries] = useState<ExerciseLogEntry[]>(
-    day.exercises.map(ex => ({
-      exercise_id: ex.id,
-      exercise_name: ex.name,
-      sets: Array.from({ length: ex.sets }, (_, i) => ({
-        set_number: i + 1,
-        weight_kg: null,
-        reps_completed: null,
-      })),
-    }))
+    day.exercises.map(ex => {
+      const lastEntry = lastSession?.exercises_logged.find(e => e.exercise_id === ex.id)
+      return {
+        exercise_id: ex.id,
+        exercise_name: ex.name,
+        sets: Array.from({ length: ex.sets }, (_, i) => {
+          const lastSet = lastEntry?.sets.find(s => s.set_number === i + 1)
+          return {
+            set_number: i + 1,
+            weight_kg: lastSet?.weight_kg ?? null,
+            reps_completed: lastSet?.reps_completed ?? null,
+          }
+        }),
+      }
+    })
   )
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
@@ -83,7 +90,9 @@ export function SessionLogger({ day, onComplete }: SessionLoggerProps) {
       <Eyebrow>{day.day_label}</Eyebrow>
       <GoldRule />
       <div className="flex flex-col gap-6 mt-4">
-        {day.exercises.map((exercise, exerciseIdx) => (
+        {day.exercises.map((exercise, exerciseIdx) => {
+          const lastEntry = lastSession?.exercises_logged.find(e => e.exercise_id === exercise.id)
+          return (
           <div key={exercise.id} className="bg-navy-card border border-white/8 p-5">
             <div className="flex items-start justify-between mb-3">
               <div>
@@ -111,13 +120,16 @@ export function SessionLogger({ day, onComplete }: SessionLoggerProps) {
             )}
 
             <div className="flex flex-col gap-2">
-              <div className="grid grid-cols-3 gap-2 text-xs text-grey-muted mb-1">
+              <div className={`grid gap-2 text-xs text-grey-muted mb-1 ${lastEntry ? 'grid-cols-4' : 'grid-cols-3'}`}>
                 <span>Set</span>
                 <span>Weight (kg)</span>
                 <span>Reps</span>
+                {lastEntry && <span>Last</span>}
               </div>
-              {entries[exerciseIdx]?.sets.map((set, setIdx) => (
-                <div key={setIdx} className="grid grid-cols-3 gap-2 items-center">
+              {entries[exerciseIdx]?.sets.map((set, setIdx) => {
+                const lastSet = lastEntry?.sets.find(s => s.set_number === set.set_number)
+                return (
+                <div key={setIdx} className={`grid gap-2 items-center ${lastEntry ? 'grid-cols-4' : 'grid-cols-3'}`}>
                   <span className="text-sm text-grey-muted">{set.set_number}</span>
                   <input
                     type="number"
@@ -134,8 +146,18 @@ export function SessionLogger({ day, onComplete }: SessionLoggerProps) {
                     onChange={e => updateSet(exerciseIdx, setIdx, 'reps_completed', e.target.value)}
                     className="bg-navy-deep border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold w-full"
                   />
+                  {lastEntry && (
+                    <span className="text-xs text-gold/70">
+                      {lastSet?.weight_kg != null && lastSet?.reps_completed != null
+                        ? `${lastSet.weight_kg}kg × ${lastSet.reps_completed}`
+                        : lastSet?.weight_kg != null
+                        ? `${lastSet.weight_kg}kg`
+                        : '—'}
+                    </span>
+                  )}
                 </div>
-              ))}
+                )
+              })}
             </div>
 
             <button
@@ -146,7 +168,8 @@ export function SessionLogger({ day, onComplete }: SessionLoggerProps) {
               <Plus size={12} /> Add Set
             </button>
           </div>
-        ))}
+        )
+        })}
       </div>
 
       <Button variant="primary" size="lg" className="w-full mt-8" onClick={handleComplete} disabled={saving}>

@@ -10,6 +10,12 @@ import type { Programme, ProgrammeDay, Exercise } from '@/lib/types'
 interface ProgrammeEditorProps {
   clientId: string
   initialProgrammes: Programme[]
+  initialLastWeights?: Record<string, number | null>
+}
+
+interface SessionInput {
+  weight: string
+  reps: string
 }
 
 interface ExerciseFormData {
@@ -29,7 +35,7 @@ function makeTempId() {
   return `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
 }
 
-export function ProgrammeEditor({ clientId, initialProgrammes }: ProgrammeEditorProps) {
+export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeights = {} }: ProgrammeEditorProps) {
   const router = useRouter()
   const [plans, setPlans] = useState<Programme[]>(initialProgrammes)
   const [saving, setSaving] = useState<Record<string, boolean>>({})
@@ -37,6 +43,13 @@ export function ProgrammeEditor({ clientId, initialProgrammes }: ProgrammeEditor
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set())
   const [addingExercise, setAddingExercise] = useState<string | null>(null)
   const [exerciseForm, setExerciseForm] = useState<ExerciseFormData>(emptyExerciseForm)
+
+  // Log Session state
+  const [localLastWeights, setLocalLastWeights] = useState<Record<string, number | null>>(initialLastWeights)
+  const [loggingDayId, setLoggingDayId] = useState<string | null>(null)
+  const [sessionInputs, setSessionInputs] = useState<Record<string, SessionInput>>({})
+  const [savingSession, setSavingSession] = useState(false)
+  const [sessionMsg, setSessionMsg] = useState('')
 
   // Import modal
   const [importModalOpen, setImportModalOpen] = useState(false)
@@ -212,6 +225,70 @@ export function ProgrammeEditor({ clientId, initialProgrammes }: ProgrammeEditor
     }
   }
 
+  // Log Session
+  function startLogSession(day: ProgrammeDay) {
+    const inputs: Record<string, SessionInput> = {}
+    for (const ex of day.exercises) {
+      inputs[ex.id] = {
+        weight: localLastWeights[ex.id] != null ? String(localLastWeights[ex.id]) : '',
+        reps: ex.reps || '',
+      }
+    }
+    setSessionInputs(inputs)
+    setLoggingDayId(day.id)
+    setExpandedDays(prev => new Set([...prev, day.id]))
+  }
+
+  function cancelLogSession() {
+    setLoggingDayId(null)
+    setSessionInputs({})
+    setSessionMsg('')
+  }
+
+  async function saveSession(clientIdArg: string, day: ProgrammeDay) {
+    setSavingSession(true)
+    setSessionMsg('')
+
+    const entries = day.exercises
+      .filter(ex => !ex.id.startsWith('new-ex-') && sessionInputs[ex.id]?.weight !== '')
+      .map(ex => ({
+        exercise_id: ex.id,
+        weight_kg: parseFloat(sessionInputs[ex.id]?.weight || '0'),
+        reps_completed: parseInt(sessionInputs[ex.id]?.reps || '0') || 0,
+        set_number: 1,
+      }))
+      .filter(e => !isNaN(e.weight_kg) && e.weight_kg > 0)
+
+    if (!entries.length) {
+      cancelLogSession()
+      setSavingSession(false)
+      return
+    }
+
+    try {
+      const res = await fetch('/api/logbook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: clientIdArg, day_id: day.id, entries }),
+      })
+      if (res.ok) {
+        const updates: Record<string, number> = {}
+        for (const e of entries) updates[e.exercise_id] = e.weight_kg
+        setLocalLastWeights(prev => ({ ...prev, ...updates }))
+        setLoggingDayId(null)
+        setSessionInputs({})
+        setSessionMsg('Session logged.')
+        setTimeout(() => setSessionMsg(''), 3000)
+      } else {
+        const data = await res.json()
+        setSessionMsg(data.error || 'Failed to save session.')
+      }
+    } catch {
+      setSessionMsg('Network error.')
+    }
+    setSavingSession(false)
+  }
+
   // Import modal
   async function openImportModal(planId: string) {
     setImportTargetId(planId)
@@ -353,17 +430,93 @@ export function ProgrammeEditor({ clientId, initialProgrammes }: ProgrammeEditor
                       style={{ fontFamily: 'var(--font-label)' }}
                     />
                   </div>
-                  <button
-                    onClick={e => { e.stopPropagation(); deleteDay(plan.id, day.id) }}
-                    className="text-grey-muted hover:text-white p-1"
-                  >
-                    <Trash2 size={14} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {loggingDayId !== day.id && day.exercises.length > 0 && !plan.id.startsWith('temp-') && (
+                      <button
+                        onClick={e => { e.stopPropagation(); startLogSession(day) }}
+                        className="text-xs text-gold px-2 py-1 border border-gold/40 hover:bg-gold/10 transition-colors"
+                        style={{ fontFamily: 'var(--font-label)' }}
+                      >
+                        Log Session
+                      </button>
+                    )}
+                    <button
+                      onClick={e => { e.stopPropagation(); deleteDay(plan.id, day.id) }}
+                      className="text-grey-muted hover:text-white p-1"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
 
                 {expandedDays.has(day.id) && (
                   <div className="p-4">
-                    {day.exercises.length > 0 && (
+                    {day.exercises.length > 0 && loggingDayId === day.id ? (
+                      // Log Session mode
+                      <div className="mb-4">
+                        <table className="w-full text-sm mb-4">
+                          <thead>
+                            <tr className="text-grey-muted border-b border-white/8">
+                              <th className="text-left py-2 font-normal">Exercise</th>
+                              <th className="text-left py-2 font-normal w-16">Sets</th>
+                              <th className="text-left py-2 font-normal w-20">Reps</th>
+                              <th className="text-left py-2 font-normal w-24">Last Weight</th>
+                              <th className="text-left py-2 font-normal w-28">Weight Used (kg)</th>
+                              <th className="text-left py-2 font-normal w-24">Reps Done</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {day.exercises.map(exercise => (
+                              <tr key={exercise.id} className="border-b border-white/8">
+                                <td className="py-2 text-white">{exercise.name}</td>
+                                <td className="py-2 text-white/70">{exercise.sets}</td>
+                                <td className="py-2 text-white/70">{exercise.reps}</td>
+                                <td className="py-2">
+                                  {localLastWeights[exercise.id] != null
+                                    ? <span className="text-gold">{localLastWeights[exercise.id]}kg</span>
+                                    : <span className="text-grey-muted text-xs">No history</span>}
+                                </td>
+                                <td className="py-2">
+                                  <input
+                                    type="number"
+                                    step="0.5"
+                                    min="0"
+                                    value={sessionInputs[exercise.id]?.weight ?? ''}
+                                    onChange={e => setSessionInputs(prev => ({
+                                      ...prev,
+                                      [exercise.id]: { ...prev[exercise.id], weight: e.target.value },
+                                    }))}
+                                    className="bg-navy-deep border border-white/20 text-white text-sm w-24 px-2 py-1 focus:outline-none focus:border-gold"
+                                    placeholder="0"
+                                  />
+                                </td>
+                                <td className="py-2">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    value={sessionInputs[exercise.id]?.reps ?? ''}
+                                    onChange={e => setSessionInputs(prev => ({
+                                      ...prev,
+                                      [exercise.id]: { ...prev[exercise.id], reps: e.target.value },
+                                    }))}
+                                    className="bg-navy-deep border border-white/20 text-white text-sm w-20 px-2 py-1 focus:outline-none focus:border-gold"
+                                    placeholder="0"
+                                  />
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        <div className="flex items-center gap-3">
+                          <Button size="sm" variant="primary" onClick={() => saveSession(clientId, day)} disabled={savingSession}>
+                            {savingSession ? 'Saving...' : 'Save Session'}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={cancelLogSession}>Cancel</Button>
+                          {sessionMsg && <span className="text-xs text-gold">{sessionMsg}</span>}
+                        </div>
+                      </div>
+                    ) : day.exercises.length > 0 ? (
+                      // Normal edit mode table
                       <table className="w-full text-sm mb-4">
                         <thead>
                           <tr className="text-grey-muted border-b border-white/8">
@@ -372,7 +525,8 @@ export function ProgrammeEditor({ clientId, initialProgrammes }: ProgrammeEditor
                             <th className="text-left py-2 font-normal w-20">Reps</th>
                             <th className="text-left py-2 font-normal w-20">Rest</th>
                             <th className="text-left py-2 font-normal">Notes</th>
-                            <th className="w-16"></th>
+                            <th className="text-left py-2 font-normal w-24">Last Weight</th>
+                            <th className="w-8"></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -415,6 +569,11 @@ export function ProgrammeEditor({ clientId, initialProgrammes }: ProgrammeEditor
                                   className="bg-transparent text-grey-muted text-xs w-full focus:outline-none focus:border-b focus:border-gold/60 border-b border-transparent placeholder:text-white/20"
                                 />
                               </td>
+                              <td className="py-1.5 w-24">
+                                {localLastWeights[exercise.id] != null
+                                  ? <span className="text-gold text-xs">{localLastWeights[exercise.id]}kg</span>
+                                  : <span className="text-white/20 text-xs">—</span>}
+                              </td>
                               <td className="py-1.5">
                                 <button
                                   onClick={() => deleteExercise(plan.id, day.id, exercise.id)}
@@ -427,34 +586,36 @@ export function ProgrammeEditor({ clientId, initialProgrammes }: ProgrammeEditor
                           ))}
                         </tbody>
                       </table>
-                    )}
+                    ) : null}
 
-                    {addingExercise === day.id ? (
-                      <div className="bg-navy-deep p-4 grid grid-cols-2 sm:grid-cols-6 gap-3 mb-3">
-                        <div className="col-span-2">
-                          <Input
-                            placeholder="Exercise name"
-                            value={exerciseForm.name}
-                            onChange={e => setExerciseForm(f => ({ ...f, name: e.target.value }))}
-                          />
+                    {loggingDayId !== day.id && (
+                      addingExercise === day.id ? (
+                        <div className="bg-navy-deep p-4 grid grid-cols-2 sm:grid-cols-6 gap-3 mb-3">
+                          <div className="col-span-2">
+                            <Input
+                              placeholder="Exercise name"
+                              value={exerciseForm.name}
+                              onChange={e => setExerciseForm(f => ({ ...f, name: e.target.value }))}
+                            />
+                          </div>
+                          <Input placeholder="Sets" value={exerciseForm.sets} onChange={e => setExerciseForm(f => ({ ...f, sets: e.target.value }))} />
+                          <Input placeholder="Reps" value={exerciseForm.reps} onChange={e => setExerciseForm(f => ({ ...f, reps: e.target.value }))} />
+                          <Input placeholder="Rest (s)" value={exerciseForm.rest_seconds} onChange={e => setExerciseForm(f => ({ ...f, rest_seconds: e.target.value }))} />
+                          <Input placeholder="Notes" value={exerciseForm.notes} onChange={e => setExerciseForm(f => ({ ...f, notes: e.target.value }))} />
+                          <div className="col-span-2 sm:col-span-6 flex gap-2">
+                            <Button size="sm" variant="primary" onClick={() => addExercise(plan.id, day.id)}>Add</Button>
+                            <Button size="sm" variant="ghost" onClick={() => setAddingExercise(null)}>Cancel</Button>
+                          </div>
                         </div>
-                        <Input placeholder="Sets" value={exerciseForm.sets} onChange={e => setExerciseForm(f => ({ ...f, sets: e.target.value }))} />
-                        <Input placeholder="Reps" value={exerciseForm.reps} onChange={e => setExerciseForm(f => ({ ...f, reps: e.target.value }))} />
-                        <Input placeholder="Rest (s)" value={exerciseForm.rest_seconds} onChange={e => setExerciseForm(f => ({ ...f, rest_seconds: e.target.value }))} />
-                        <Input placeholder="Notes" value={exerciseForm.notes} onChange={e => setExerciseForm(f => ({ ...f, notes: e.target.value }))} />
-                        <div className="col-span-2 sm:col-span-6 flex gap-2">
-                          <Button size="sm" variant="primary" onClick={() => addExercise(plan.id, day.id)}>Add</Button>
-                          <Button size="sm" variant="ghost" onClick={() => setAddingExercise(null)}>Cancel</Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setAddingExercise(day.id)}
-                        className="flex items-center gap-2 text-gold text-xs py-2"
-                        style={{ fontFamily: 'var(--font-label)' }}
-                      >
-                        <Plus size={14} /> Add Exercise
-                      </button>
+                      ) : (
+                        <button
+                          onClick={() => setAddingExercise(day.id)}
+                          className="flex items-center gap-2 text-gold text-xs py-2"
+                          style={{ fontFamily: 'var(--font-label)' }}
+                        >
+                          <Plus size={14} /> Add Exercise
+                        </button>
+                      )
                     )}
                   </div>
                 )}

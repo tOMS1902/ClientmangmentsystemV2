@@ -4,44 +4,198 @@ import { useState, useEffect } from 'react'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import { Button } from '@/components/ui/Button'
+import { SparkLine } from '@/components/ui/SparkLine'
 import { ProgressPhotoUpload } from '@/components/photos/ProgressPhotoUpload'
 import type { WeeklyCheckin } from '@/lib/types'
 
-function Field({
-  number,
-  label,
-  hint,
-  children,
-}: {
-  number: number
-  label: string
-  hint?: string
-  children: React.ReactNode
-}) {
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+function Field({ number, label, children }: { number: number; label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block mb-1">
+      <label className="block mb-3">
         <span className="text-gold text-xs mr-2" style={{ fontFamily: 'var(--font-label)' }}>{number}.</span>
         <span className="text-white/85 text-sm">{label}</span>
-        {hint && <span className="text-grey-muted text-xs ml-1">({hint})</span>}
       </label>
       {children}
     </div>
   )
 }
 
-function Textarea({ value, onChange, placeholder, required = true }: { value: string; onChange: (v: string) => void; placeholder?: string; required?: boolean }) {
+function Slider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="py-3">
+      <style>{`
+        .gold-slider {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 100%;
+          height: 4px;
+          background: rgba(255,255,255,0.12);
+          border-radius: 2px;
+          outline: none;
+          cursor: pointer;
+        }
+        .gold-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: #b8962e;
+          cursor: pointer;
+          margin-top: -14px;
+          box-shadow: 0 0 0 5px rgba(184,150,46,0.2), 0 2px 8px rgba(0,0,0,0.4);
+        }
+        .gold-slider::-webkit-slider-runnable-track {
+          height: 4px;
+          background: rgba(255,255,255,0.12);
+          border-radius: 2px;
+        }
+        .gold-slider::-moz-range-thumb {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: #b8962e;
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 0 0 5px rgba(184,150,46,0.2), 0 2px 8px rgba(0,0,0,0.4);
+        }
+        .gold-slider::-moz-range-track {
+          height: 4px;
+          background: rgba(255,255,255,0.12);
+          border-radius: 2px;
+        }
+      `}</style>
+      <input
+        type="range"
+        min={1}
+        max={10}
+        value={value}
+        onChange={e => onChange(parseInt(e.target.value))}
+        className="gold-slider"
+      />
+      <div className="flex justify-between items-center mt-4">
+        <span className="text-grey-muted text-xs">1</span>
+        <span className="text-gold text-2xl font-semibold" style={{ fontFamily: 'var(--font-display)' }}>
+          {value}<span className="text-grey-muted text-sm font-normal"> / 10</span>
+        </span>
+        <span className="text-grey-muted text-xs">10</span>
+      </div>
+    </div>
+  )
+}
+
+function ButtonGroup({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: string; label: string }[]
+  value: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map(opt => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={`px-4 py-2 text-sm border transition-colors ${
+            value === opt.value
+              ? 'border-gold bg-gold/10 text-gold'
+              : 'border-white/20 text-white/60 hover:border-white/50 hover:text-white/85'
+          }`}
+          style={{ fontFamily: 'var(--font-label)' }}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function ShortText({
+  value,
+  onChange,
+  placeholder,
+  required = true,
+}: {
+  value: string
+  onChange: (v: string) => void
+  placeholder?: string
+  required?: boolean
+}) {
   return (
     <textarea
       value={value}
       onChange={e => onChange(e.target.value)}
       required={required}
-      rows={3}
+      rows={2}
       placeholder={placeholder}
       className="w-full bg-navy-mid border border-white/20 text-white/85 p-3 text-sm focus:outline-none focus:border-gold resize-none"
     />
   )
 }
+
+function ChartCard({
+  label,
+  data,
+  unit = '',
+  color = '#b8962e',
+}: {
+  label: string
+  data: (number | null)[]
+  unit?: string
+  color?: string
+}) {
+  const clean = data.filter((v): v is number => v != null)
+  if (clean.length < 2) return null
+  const latest = clean[clean.length - 1]
+  return (
+    <div className="bg-navy-card border border-white/8 p-4">
+      <p className="text-xs text-grey-muted mb-1" style={{ fontFamily: 'var(--font-label)' }}>
+        {label.toUpperCase()}
+      </p>
+      <p className="text-white text-lg mb-2" style={{ fontFamily: 'var(--font-display)' }}>
+        {latest}{unit}
+      </p>
+      <SparkLine data={clean} width={150} height={36} color={color} />
+    </div>
+  )
+}
+
+// ─── Option sets ─────────────────────────────────────────────────────────────
+
+const DIET_OPTIONS = [
+  { value: 'on_track', label: 'On track' },
+  { value: 'mostly_on_track', label: 'Mostly on track' },
+  { value: 'mixed', label: 'Mixed' },
+  { value: 'off_track', label: 'Off track' },
+]
+
+const TRAINING_OPTIONS = [
+  { value: 'all', label: 'All sessions done' },
+  { value: 'missed_1', label: 'Missed 1' },
+  { value: 'missed_2plus', label: 'Missed 2+' },
+  { value: 'none', label: 'None' },
+]
+
+const FOCUS_OPTIONS = [
+  { value: 'Food', label: 'Food' },
+  { value: 'Training', label: 'Training' },
+  { value: 'Steps', label: 'Steps' },
+  { value: 'Sleep', label: 'Sleep' },
+  { value: 'Routine', label: 'Routine' },
+  { value: 'Consistency', label: 'Consistency' },
+]
+
+function labelFor(options: { value: string; label: string }[], value: string | null) {
+  return options.find(o => o.value === value)?.label ?? value ?? '—'
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CheckInPage() {
   const [checkins, setCheckins] = useState<WeeklyCheckin[]>([])
@@ -49,22 +203,25 @@ export default function CheckInPage() {
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [validationError, setValidationError] = useState(false)
   const [submittedCheckinId, setSubmittedCheckinId] = useState<string | null>(null)
   const [clientId, setClientId] = useState<string | null>(null)
 
-  // Form state — mirrors all 13 questions
+  // Form state
+  const [weekScore, setWeekScore] = useState(5)
   const [weight, setWeight] = useState('')
-  const [weekSummary, setWeekSummary] = useState('')
-  const [dietSummary, setDietSummary] = useState('')
-  const [trainingSessions, setTrainingSessions] = useState('')
-  const [energySummary, setEnergySummary] = useState('')
-  const [sleepSummary, setSleepSummary] = useState('')
+  const [dietRating, setDietRating] = useState('')
+  const [trainingCompleted, setTrainingCompleted] = useState('')
+  const [energyScore, setEnergyScore] = useState(5)
+  const [sleepScore, setSleepScore] = useState(5)
+  const [hungerScore, setHungerScore] = useState(5)
+  const [cravingsScore, setCravingsScore] = useState(5)
+  const [avgSteps, setAvgSteps] = useState('')
   const [biggestWin, setBiggestWin] = useState('')
   const [mainChallenge, setMainChallenge] = useState('')
-  const [focusNextWeek, setFocusNextWeek] = useState('')
+  const [focusAreas, setFocusAreas] = useState('')
   const [improveNextWeek, setImproveNextWeek] = useState('')
   const [coachSupport, setCoachSupport] = useState('')
-  const [avgSteps, setAvgSteps] = useState('')
   const [anythingElse, setAnythingElse] = useState('')
 
   useEffect(() => {
@@ -83,6 +240,16 @@ export default function CheckInPage() {
     return diff <= 7
   })
 
+  function handleFormSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!dietRating || !trainingCompleted || !focusAreas || !biggestWin.trim() || !mainChallenge.trim() || !improveNextWeek.trim()) {
+      setValidationError(true)
+      return
+    }
+    setValidationError(false)
+    setConfirmOpen(true)
+  }
+
   async function handleSubmit() {
     setSubmitting(true)
     const res = await fetch('/api/checkins', {
@@ -90,17 +257,19 @@ export default function CheckInPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         weight: parseFloat(weight),
-        week_summary: weekSummary,
-        diet_summary: dietSummary,
-        training_sessions: trainingSessions,
-        energy_summary: energySummary,
-        sleep_summary: sleepSummary,
+        week_score: weekScore,
+        diet_rating: dietRating,
+        training_completed: trainingCompleted,
+        energy_score: energyScore,
+        sleep_score: sleepScore,
+        hunger_score: hungerScore,
+        cravings_score: cravingsScore,
+        avg_steps: avgSteps || null,
         biggest_win: biggestWin,
         main_challenge: mainChallenge,
-        focus_next_week: focusNextWeek,
+        focus_areas: focusAreas,
         improve_next_week: improveNextWeek,
-        coach_support: coachSupport,
-        avg_steps: avgSteps,
+        coach_support: coachSupport || null,
         anything_else: anythingElse || null,
       }),
     })
@@ -118,6 +287,13 @@ export default function CheckInPage() {
   if (loading) return <div className="text-grey-muted">Loading...</div>
 
   if (thisWeekCheckin || submitted) {
+    const sorted = [...checkins].reverse() // oldest → newest for charts
+    const weightData = sorted.map(c => c.weight)
+    const weekScoreData = sorted.map(c => c.week_score)
+    const hungerData = sorted.map(c => c.hunger_score)
+    const cravingsData = sorted.map(c => c.cravings_score)
+    const hasCharts = weightData.filter(Boolean).length >= 2 || weekScoreData.filter(Boolean).length >= 2
+
     return (
       <div>
         <div className="mb-8">
@@ -132,6 +308,19 @@ export default function CheckInPage() {
         {submittedCheckinId && clientId && (
           <div className="mb-8">
             <ProgressPhotoUpload clientId={clientId} weekNumber={checkins.length} checkInId={submittedCheckinId} />
+          </div>
+        )}
+
+        {hasCharts && (
+          <div className="mb-8">
+            <Eyebrow>Your Progress</Eyebrow>
+            <GoldRule className="mb-4" />
+            <div className="grid grid-cols-2 gap-3">
+              <ChartCard label="Weight" data={weightData} unit="kg" color="#b8962e" />
+              <ChartCard label="Weekly Score" data={weekScoreData} color="#b8962e" />
+              <ChartCard label="Hunger" data={hungerData} color="#6b7280" />
+              <ChartCard label="Cravings" data={cravingsData} color="#6b7280" />
+            </div>
           </div>
         )}
 
@@ -150,32 +339,27 @@ export default function CheckInPage() {
                   </summary>
                   <div className="px-4 pb-4">
                     <GoldRule />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mt-3">
-                      {[
-                        { label: 'Weight', value: `${c.weight}kg` },
-                        { label: 'Week Summary', value: c.week_summary },
-                        { label: 'Food', value: c.diet_summary },
-                        { label: 'Training Sessions', value: c.training_sessions },
-                        { label: 'Energy', value: c.energy_summary },
-                        { label: 'Sleep', value: c.sleep_summary },
-                        { label: 'Biggest Win', value: c.biggest_win },
-                        { label: 'Biggest Challenge', value: c.main_challenge },
-                        { label: 'Focus Next Week', value: c.focus_next_week },
-                        { label: 'Make Next Week Better', value: c.improve_next_week },
-                        { label: 'Support Needed', value: c.coach_support },
-                        { label: 'Avg Steps', value: c.avg_steps },
-                      ].map(item => item.value ? (
-                        <div key={item.label}>
-                          <p className="text-grey-muted">{item.label}</p>
-                          <p className="text-white">{item.value}</p>
-                        </div>
-                      ) : null)}
-                      {c.anything_else && (
-                        <div className="col-span-2">
-                          <p className="text-grey-muted">Anything Else</p>
-                          <p className="text-white">{c.anything_else}</p>
-                        </div>
-                      )}
+                    <div className="grid grid-cols-2 gap-3 text-sm mt-3">
+                      <div><p className="text-grey-muted">Weight</p><p className="text-white">{c.weight}kg</p></div>
+                      {c.week_score != null && <div><p className="text-grey-muted">Week Score</p><p className="text-white">{c.week_score}/10</p></div>}
+                      {c.diet_rating && <div><p className="text-grey-muted">Food</p><p className="text-white">{labelFor(DIET_OPTIONS, c.diet_rating)}</p></div>}
+                      {c.training_completed && <div><p className="text-grey-muted">Training</p><p className="text-white">{labelFor(TRAINING_OPTIONS, c.training_completed)}</p></div>}
+                      {c.energy_score != null && <div><p className="text-grey-muted">Energy</p><p className="text-white">{c.energy_score}/10</p></div>}
+                      {c.sleep_score != null && <div><p className="text-grey-muted">Sleep</p><p className="text-white">{c.sleep_score}/10</p></div>}
+                      {c.hunger_score != null && <div><p className="text-grey-muted">Hunger</p><p className="text-white">{c.hunger_score}/10</p></div>}
+                      {c.cravings_score != null && <div><p className="text-grey-muted">Cravings</p><p className="text-white">{c.cravings_score}/10</p></div>}
+                      {c.avg_steps && <div><p className="text-grey-muted">Avg Steps</p><p className="text-white">{c.avg_steps}</p></div>}
+                      {c.focus_areas && <div><p className="text-grey-muted">Focus Next Week</p><p className="text-white">{c.focus_areas}</p></div>}
+                      {c.biggest_win && <div className="col-span-2"><p className="text-grey-muted">Biggest Win</p><p className="text-white">{c.biggest_win}</p></div>}
+                      {c.main_challenge && <div className="col-span-2"><p className="text-grey-muted">Biggest Challenge</p><p className="text-white">{c.main_challenge}</p></div>}
+                      {c.improve_next_week && <div className="col-span-2"><p className="text-grey-muted">Make Next Week Better</p><p className="text-white">{c.improve_next_week}</p></div>}
+                      {c.coach_support && <div className="col-span-2"><p className="text-grey-muted">Support Needed</p><p className="text-white">{c.coach_support}</p></div>}
+                      {c.anything_else && <div className="col-span-2"><p className="text-grey-muted">Anything Else</p><p className="text-white">{c.anything_else}</p></div>}
+                      {/* Legacy text fields */}
+                      {c.week_summary && !c.week_score && <div className="col-span-2"><p className="text-grey-muted">Week Summary</p><p className="text-white">{c.week_summary}</p></div>}
+                      {c.diet_summary && !c.diet_rating && <div className="col-span-2"><p className="text-grey-muted">Food</p><p className="text-white">{c.diet_summary}</p></div>}
+                      {c.energy_summary && !c.energy_score && <div className="col-span-2"><p className="text-grey-muted">Energy</p><p className="text-white">{c.energy_summary}</p></div>}
+                      {c.sleep_summary && !c.sleep_score && <div className="col-span-2"><p className="text-grey-muted">Sleep</p><p className="text-white">{c.sleep_summary}</p></div>}
                       {c.coach_notes && (
                         <div className="col-span-2 mt-2 pt-3 border-t border-white/8">
                           <p className="text-grey-muted text-xs mb-1">Coach Notes</p>
@@ -203,10 +387,10 @@ export default function CheckInPage() {
         <GoldRule className="mt-3" />
       </div>
 
-      <form onSubmit={e => { e.preventDefault(); setConfirmOpen(true) }} className="flex flex-col gap-5">
+      <form onSubmit={handleFormSubmit} className="flex flex-col gap-6">
 
-        <Field number={1} label="How was your week overall?" hint="What actually happened — keep it short">
-          <Textarea value={weekSummary} onChange={setWeekSummary} placeholder="Give a brief overview of your week..." />
+        <Field number={1} label="How was your week overall?">
+          <Slider value={weekScore} onChange={setWeekScore} />
         </Field>
 
         <Field number={2} label="Current weight (kg)">
@@ -216,67 +400,72 @@ export default function CheckInPage() {
             value={weight}
             onChange={e => setWeight(e.target.value)}
             required
+            placeholder="e.g. 82.5"
             className="bg-navy-mid border border-white/20 text-white/85 px-3 py-2.5 text-sm focus:outline-none focus:border-gold w-full"
           />
         </Field>
 
-        <Field number={3} label="How did you get on with your food this week?" hint="Where did things go right/wrong — keep it brief">
-          <Textarea value={dietSummary} onChange={setDietSummary} placeholder="How was your nutrition overall?" />
+        <Field number={3} label="How did you get on with your food this week?">
+          <ButtonGroup options={DIET_OPTIONS} value={dietRating} onChange={setDietRating} />
         </Field>
 
-        <Field number={4} label="How many training sessions did you complete?" hint="Out of what was planned">
+        <Field number={4} label="Training this week">
+          <ButtonGroup options={TRAINING_OPTIONS} value={trainingCompleted} onChange={setTrainingCompleted} />
+        </Field>
+
+        <Field number={5} label="Energy this week">
+          <Slider value={energyScore} onChange={setEnergyScore} />
+        </Field>
+
+        <Field number={6} label="Sleep this week">
+          <Slider value={sleepScore} onChange={setSleepScore} />
+        </Field>
+
+        <Field number={7} label="Hunger this week">
+          <Slider value={hungerScore} onChange={setHungerScore} />
+        </Field>
+
+        <Field number={8} label="Cravings this week">
+          <Slider value={cravingsScore} onChange={setCravingsScore} />
+        </Field>
+
+        <Field number={9} label="Average daily steps">
           <input
-            type="text"
-            value={trainingSessions}
-            onChange={e => setTrainingSessions(e.target.value)}
-            required
-            placeholder="e.g. 3 out of 4"
-            className="bg-navy-mid border border-white/20 text-white/85 px-3 py-2.5 text-sm focus:outline-none focus:border-gold w-full"
-          />
-        </Field>
-
-        <Field number={5} label="How was your energy this week?" hint="Throughout the day + in the gym">
-          <Textarea value={energySummary} onChange={setEnergySummary} placeholder="Energy levels day-to-day and during training..." />
-        </Field>
-
-        <Field number={6} label="How was your sleep this week?" hint="Hours + quality">
-          <Textarea value={sleepSummary} onChange={setSleepSummary} placeholder="How many hours and how did you feel?" />
-        </Field>
-
-        <Field number={7} label="What was your biggest win this week?">
-          <Textarea value={biggestWin} onChange={setBiggestWin} placeholder="What went really well?" />
-        </Field>
-
-        <Field number={8} label="What was your biggest challenge this week?">
-          <Textarea value={mainChallenge} onChange={setMainChallenge} placeholder="What was the hardest part?" />
-        </Field>
-
-        <Field number={9} label="What needs the most focus going into next week?">
-          <Textarea value={focusNextWeek} onChange={setFocusNextWeek} placeholder="What will you prioritise?" />
-        </Field>
-
-        <Field number={10} label="What can you do to make next week better?" hint="1–2 simple things">
-          <Textarea value={improveNextWeek} onChange={setImproveNextWeek} placeholder="Specific actions you'll take..." />
-        </Field>
-
-        <Field number={11} label="Is there anything you need from me right now?" hint="Keep it short — support, changes, questions etc.">
-          <Textarea value={coachSupport} onChange={setCoachSupport} placeholder="Anything you need from your coach?" />
-        </Field>
-
-        <Field number={12} label="Average daily steps" hint="if tracked">
-          <input
-            type="text"
+            type="number"
             value={avgSteps}
             onChange={e => setAvgSteps(e.target.value)}
-            required
-            placeholder="e.g. 8,500 or N/A"
+            placeholder="e.g. 8500"
             className="bg-navy-mid border border-white/20 text-white/85 px-3 py-2.5 text-sm focus:outline-none focus:border-gold w-full"
           />
         </Field>
 
-        <Field number={13} label="Anything else I should know?" hint="Optional">
-          <Textarea value={anythingElse} onChange={setAnythingElse} placeholder="Anything else worth mentioning..." required={false} />
+        <Field number={10} label="Biggest win this week">
+          <ShortText value={biggestWin} onChange={setBiggestWin} placeholder="What went really well?" />
         </Field>
+
+        <Field number={11} label="Biggest challenge this week">
+          <ShortText value={mainChallenge} onChange={setMainChallenge} placeholder="What was the hardest part?" />
+        </Field>
+
+        <Field number={12} label="What needs most focus next week?">
+          <ButtonGroup options={FOCUS_OPTIONS} value={focusAreas} onChange={setFocusAreas} />
+        </Field>
+
+        <Field number={13} label="What can you do to make next week better?">
+          <ShortText value={improveNextWeek} onChange={setImproveNextWeek} placeholder="1–2 specific actions..." />
+        </Field>
+
+        <Field number={14} label="Do you need anything from me?">
+          <ShortText value={coachSupport} onChange={setCoachSupport} placeholder="Support, changes, questions..." required={false} />
+        </Field>
+
+        <Field number={15} label="Anything else I should know?">
+          <ShortText value={anythingElse} onChange={setAnythingElse} placeholder="Anything else worth mentioning..." required={false} />
+        </Field>
+
+        {validationError && (
+          <p className="text-red-400 text-sm">Please fill in all required fields and make a selection for food, training, and focus.</p>
+        )}
 
         <Button type="submit" variant="primary" size="lg" className="w-full mt-2">
           Submit Check-In

@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { getLastWeightsForClient } from '@/lib/supabase/logbook'
 import { ClientDetailTabs } from './ClientDetailTabs'
 import type { Client, WeeklyCheckin, MidweekCheck, Programme, NutritionTargets, Habit, MealPlan, Supplement } from '@/lib/types'
 
@@ -23,6 +24,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     { data: restMealPlan },
     { data: supplements },
     { count: unreadMessages },
+    lastWeights,
   ] = await Promise.all([
     supabase.from('clients').select('*').eq('id', id).single<Client>(),
     supabase.from('weekly_checkins').select('*').eq('client_id', id).order('check_in_date', { ascending: false }),
@@ -44,6 +46,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
       .eq('client_id', id)
       .eq('sender_role', 'client')
       .eq('is_read', false),
+    getLastWeightsForClient(id),
   ])
 
   if (!client) {
@@ -89,6 +92,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         supplements={(supplements as Supplement[]) || []}
         weekNumber={weekNumber}
         unreadMessages={unreadMessages ?? 0}
+        lastWeights={lastWeights}
       />
     </div>
   )

@@ -67,17 +67,27 @@ export interface WeeklyCheckin {
   week_number: number
   check_in_date: string
   weight: number
-  week_summary: string
-  sleep_summary: string
-  biggest_win: string
-  diet_summary: string
-  training_sessions: string
-  energy_summary: string
-  main_challenge: string
-  focus_next_week: string
-  improve_next_week: string
-  coach_support: string
-  avg_steps: string
+  // New structured fields
+  week_score: number | null
+  energy_score: number | null
+  sleep_score: number | null
+  hunger_score: number | null
+  cravings_score: number | null
+  diet_rating: string | null
+  training_completed: string | null
+  focus_areas: string | null
+  // Legacy text fields (kept for backward compat)
+  week_summary: string | null
+  diet_summary: string | null
+  training_sessions: string | null
+  energy_summary: string | null
+  sleep_summary: string | null
+  focus_next_week: string | null
+  biggest_win: string | null
+  main_challenge: string | null
+  improve_next_week: string | null
+  coach_support: string | null
+  avg_steps: string | null
   anything_else: string | null
   coach_notes: string | null
   created_at: string

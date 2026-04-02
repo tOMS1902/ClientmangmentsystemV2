@@ -5,18 +5,6 @@ import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import type { Client } from '@/lib/types'
 
-async function getClients(): Promise<Client[]> {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
-  const { data } = await supabase
-    .from('clients')
-    .select('*')
-    .eq('coach_id', user.id)
-    .order('full_name')
-  return data ?? []
-}
-
 function getWeekStart(): string {
   const now = new Date()
   const day = now.getDay()
@@ -35,8 +23,14 @@ function getWeekNumber(startDate: string): number {
 
 export default async function ClientsPage() {
   const supabase = await createServerSupabaseClient()
-  const clients = await getClients()
+  const { data: { user } } = await supabase.auth.getUser()
   const weekStart = getWeekStart()
+
+  const { data: clients } = user ? await supabase
+    .from('clients')
+    .select('*')
+    .eq('coach_id', user.id)
+    .order('full_name') : { data: [] }
 
   const [{ data: midweekRows }, { data: weeklyRows }] = await Promise.all([
     supabase.from('midweek_checks').select('client_id').gte('submitted_at', weekStart),
@@ -46,8 +40,9 @@ export default async function ClientsPage() {
   const midweekSubmitted = new Set((midweekRows || []).map(r => r.client_id))
   const weeklySubmitted = new Set((weeklyRows || []).map(r => r.client_id))
 
-  const active = clients.filter(c => c.is_active)
-  const inactive = clients.filter(c => !c.is_active)
+  const allClients: Client[] = clients ?? []
+  const active = allClients.filter(c => c.is_active)
+  const inactive = allClients.filter(c => !c.is_active)
 
   return (
     <div className="max-w-6xl">

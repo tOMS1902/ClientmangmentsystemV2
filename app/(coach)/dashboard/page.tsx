@@ -4,19 +4,6 @@ import { GoldRule } from '@/components/ui/GoldRule'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import type { Client } from '@/lib/types'
 
-async function getClients(): Promise<Client[]> {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
-  const { data } = await supabase
-    .from('clients')
-    .select('*')
-    .eq('coach_id', user.id)
-    .eq('is_active', true)
-    .order('full_name')
-  return data ?? []
-}
-
 function getWeekStart(): string {
   const now = new Date()
   const day = now.getDay()
@@ -35,8 +22,17 @@ function getWeekNumber(startDate: string): number {
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient()
-  const clients = await getClients()
+  const { data: { user } } = await supabase.auth.getUser()
   const weekStart = getWeekStart()
+
+  const { data: clientsData } = user ? await supabase
+    .from('clients')
+    .select('*')
+    .eq('coach_id', user.id)
+    .eq('is_active', true)
+    .order('full_name') : { data: [] }
+
+  const clients: Client[] = clientsData ?? []
 
   const [{ data: midweekRows }, { data: weeklyRows }] = await Promise.all([
     supabase

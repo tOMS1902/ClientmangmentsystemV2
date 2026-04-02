@@ -38,20 +38,33 @@ export const MidweekCheckSchema = z.object({
 
 // ─── Weekly Check-Ins ─────────────────────────────────────────────────────────
 
+const score10 = z.number().int().min(1).max(10)
+
 export const CheckInSchema = z.object({
   weight: z.number().min(20).max(300),
-  week_summary: nonEmptyStr(500),
-  diet_summary: nonEmptyStr(500),
-  training_sessions: nonEmptyStr(100),
-  energy_summary: nonEmptyStr(500),
-  sleep_summary: nonEmptyStr(500),
-  biggest_win: nonEmptyStr(500),
-  main_challenge: nonEmptyStr(500),
-  focus_next_week: nonEmptyStr(500),
-  improve_next_week: nonEmptyStr(500),
-  coach_support: nonEmptyStr(500),
-  avg_steps: nonEmptyStr(20),
+  // New structured fields
+  week_score: score10.optional(),
+  energy_score: score10.optional(),
+  sleep_score: score10.optional(),
+  hunger_score: score10.optional(),
+  cravings_score: score10.optional(),
+  diet_rating: z.enum(['on_track', 'mostly_on_track', 'mixed', 'off_track']).optional(),
+  training_completed: z.enum(['all', 'missed_1', 'missed_2plus', 'none']).optional(),
+  focus_areas: optionalStr(100),
+  // Text fields (required for new form, optional for legacy)
+  biggest_win: optionalStr(500),
+  main_challenge: optionalStr(500),
+  improve_next_week: optionalStr(500),
+  coach_support: optionalStr(500),
+  avg_steps: optionalStr(20),
   anything_else: optionalStr(500),
+  // Legacy fields kept optional for backward compat
+  week_summary: optionalStr(500),
+  diet_summary: optionalStr(500),
+  training_sessions: optionalStr(100),
+  energy_summary: optionalStr(500),
+  sleep_summary: optionalStr(500),
+  focus_next_week: optionalStr(500),
 })
 
 // ─── Programmes ───────────────────────────────────────────────────────────────

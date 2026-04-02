@@ -14,6 +14,7 @@ export default function ProgrammePage() {
   const [loading, setLoading] = useState(true)
   const [expandedDay, setExpandedDay] = useState<string | null>(null)
   const [activeSession, setActiveSession] = useState<ProgrammeDay | null>(null)
+  const [activeSessionLastLog, setActiveSessionLastLog] = useState<SessionLog | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   const [expandedLog, setExpandedLog] = useState<string | null>(null)
 
@@ -57,7 +58,7 @@ export default function ProgrammePage() {
         >
           ← Back to programme
         </button>
-        <SessionLogger day={activeSession} onComplete={() => setActiveSession(null)} />
+        <SessionLogger day={activeSession} lastSession={activeSessionLastLog} onComplete={() => { setActiveSession(null); setActiveSessionLastLog(null) }} />
       </div>
     )
   }
@@ -186,7 +187,14 @@ export default function ProgrammePage() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={e => { e.stopPropagation(); setActiveSession(day) }}
+                    onClick={e => {
+                      e.stopPropagation()
+                      const lastLog = sessionLogs
+                        .filter(l => l.programme_day_id === day.id)
+                        .sort((a, b) => new Date(b.log_date).getTime() - new Date(a.log_date).getTime())[0] ?? null
+                      setActiveSessionLastLog(lastLog)
+                      setActiveSession(day)
+                    }}
                   >
                     Start Session
                   </Button>

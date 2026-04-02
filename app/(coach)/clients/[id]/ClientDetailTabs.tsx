@@ -27,6 +27,7 @@ interface ClientDetailTabsProps {
   supplements: Supplement[]
   weekNumber: number
   unreadMessages?: number
+  lastWeights: Record<string, number | null>
 }
 
 type Tab = 'overview' | 'midweek' | 'checkins' | 'training' | 'nutrition' | 'onboarding' | 'messages' | 'photos'
@@ -335,6 +336,27 @@ function MidweekChecksTab({ client, midweekChecks }: { client: Client; midweekCh
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
+const DIET_LABELS: Record<string, string> = {
+  on_track: 'On track',
+  mostly_on_track: 'Mostly on track',
+  mixed: 'Mixed',
+  off_track: 'Off track',
+}
+
+const TRAINING_LABELS: Record<string, string> = {
+  all: 'All sessions done',
+  missed_1: 'Missed 1',
+  missed_2plus: 'Missed 2+',
+  none: 'None',
+}
+
+function ScorePill({ value, max = 10 }: { value: number | null; max?: number }) {
+  if (value == null) return null
+  const pct = value / max
+  const color = pct >= 0.7 ? 'text-green-400' : pct >= 0.4 ? 'text-amber-400' : 'text-red-400'
+  return <span className={`font-semibold ${color}`}>{value}<span className="text-grey-muted text-xs">/{max}</span></span>
+}
+
 function CheckInsTab({ clientId, checkins, checkInDay }: { clientId: string; checkins: WeeklyCheckin[]; checkInDay: string }) {
   const router = useRouter()
   const [notes, setNotes] = useState<Record<string, string>>(
@@ -372,6 +394,14 @@ function CheckInsTab({ clientId, checkins, checkInDay }: { clientId: string; che
     setSavingDay(false)
   }
 
+  // Build chart data (oldest → newest)
+  const sorted = [...checkins].reverse()
+  const weightData = sorted.map(c => c.weight).filter(Boolean) as number[]
+  const weekScoreData = sorted.map(c => c.week_score).filter((v): v is number => v != null)
+  const hungerData = sorted.map(c => c.hunger_score).filter((v): v is number => v != null)
+  const cravingsData = sorted.map(c => c.cravings_score).filter((v): v is number => v != null)
+  const hasCharts = weightData.length >= 2 || weekScoreData.length >= 2
+
   return (
     <div className="flex flex-col gap-6">
       {/* Check-in day setting */}
@@ -400,6 +430,43 @@ function CheckInsTab({ clientId, checkins, checkInDay }: { clientId: string; che
         </p>
       </div>
 
+      {/* Progress charts */}
+      {hasCharts && (
+        <div className="bg-navy-card border border-white/8 p-5">
+          <p className="text-xs text-grey-muted mb-4" style={{ fontFamily: 'var(--font-label)' }}>TRENDS</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {weightData.length >= 2 && (
+              <div>
+                <p className="text-xs text-grey-muted mb-1">Weight</p>
+                <p className="text-white text-sm mb-2">{weightData[weightData.length - 1]}kg</p>
+                <SparkLine data={weightData} width={120} height={36} />
+              </div>
+            )}
+            {weekScoreData.length >= 2 && (
+              <div>
+                <p className="text-xs text-grey-muted mb-1">Weekly Score</p>
+                <p className="text-white text-sm mb-2">{weekScoreData[weekScoreData.length - 1]}/10</p>
+                <SparkLine data={weekScoreData} width={120} height={36} />
+              </div>
+            )}
+            {hungerData.length >= 2 && (
+              <div>
+                <p className="text-xs text-grey-muted mb-1">Hunger</p>
+                <p className="text-white text-sm mb-2">{hungerData[hungerData.length - 1]}/10</p>
+                <SparkLine data={hungerData} width={120} height={36} color="#6b7280" />
+              </div>
+            )}
+            {cravingsData.length >= 2 && (
+              <div>
+                <p className="text-xs text-grey-muted mb-1">Cravings</p>
+                <p className="text-white text-sm mb-2">{cravingsData[cravingsData.length - 1]}/10</p>
+                <SparkLine data={cravingsData} width={120} height={36} color="#6b7280" />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {checkins.map(checkin => (
         <div key={checkin.id} className="bg-navy-card border border-white/8 p-6">
           <div className="flex items-center justify-between mb-4">
@@ -411,34 +478,75 @@ function CheckInsTab({ clientId, checkins, checkInDay }: { clientId: string; che
                 {new Date(checkin.check_in_date).toLocaleDateString('en-IE', { weekday: 'long', day: 'numeric', month: 'long' })}
               </p>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-            {[
-              { label: 'Weight', value: `${checkin.weight}kg` },
-              { label: 'Week Summary', value: checkin.week_summary },
-              { label: 'Food', value: checkin.diet_summary },
-              { label: 'Training Sessions', value: checkin.training_sessions },
-              { label: 'Energy', value: checkin.energy_summary },
-              { label: 'Sleep', value: checkin.sleep_summary },
-              { label: 'Biggest Win', value: checkin.biggest_win },
-              { label: 'Biggest Challenge', value: checkin.main_challenge },
-              { label: 'Focus Next Week', value: checkin.focus_next_week },
-              { label: 'Make Next Week Better', value: checkin.improve_next_week },
-              { label: 'Support Needed', value: checkin.coach_support },
-              { label: 'Avg Steps', value: checkin.avg_steps },
-            ].map(item => item.value ? (
-              <div key={item.label}>
-                <p className="text-grey-muted mb-0.5">{item.label}</p>
-                <p className="text-white/85">{item.value}</p>
-              </div>
-            ) : null)}
-            {checkin.anything_else && (
-              <div className="col-span-2">
-                <p className="text-grey-muted mb-0.5">Anything Else</p>
-                <p className="text-white/85">{checkin.anything_else}</p>
+            {checkin.week_score != null && (
+              <div className="text-right">
+                <p className="text-xs text-grey-muted mb-0.5">Week Score</p>
+                <ScorePill value={checkin.week_score} />
               </div>
             )}
           </div>
+
+          <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+            <div><p className="text-grey-muted mb-0.5">Weight</p><p className="text-white/85">{checkin.weight}kg</p></div>
+
+            {/* New structured fields */}
+            {checkin.diet_rating && (
+              <div><p className="text-grey-muted mb-0.5">Food</p><p className="text-white/85">{DIET_LABELS[checkin.diet_rating] ?? checkin.diet_rating}</p></div>
+            )}
+            {checkin.training_completed && (
+              <div><p className="text-grey-muted mb-0.5">Training</p><p className="text-white/85">{TRAINING_LABELS[checkin.training_completed] ?? checkin.training_completed}</p></div>
+            )}
+            {checkin.energy_score != null && (
+              <div><p className="text-grey-muted mb-0.5">Energy</p><ScorePill value={checkin.energy_score} /></div>
+            )}
+            {checkin.sleep_score != null && (
+              <div><p className="text-grey-muted mb-0.5">Sleep</p><ScorePill value={checkin.sleep_score} /></div>
+            )}
+            {checkin.hunger_score != null && (
+              <div><p className="text-grey-muted mb-0.5">Hunger</p><ScorePill value={checkin.hunger_score} /></div>
+            )}
+            {checkin.cravings_score != null && (
+              <div><p className="text-grey-muted mb-0.5">Cravings</p><ScorePill value={checkin.cravings_score} /></div>
+            )}
+            {checkin.avg_steps && (
+              <div><p className="text-grey-muted mb-0.5">Avg Steps</p><p className="text-white/85">{checkin.avg_steps}</p></div>
+            )}
+            {checkin.focus_areas && (
+              <div><p className="text-grey-muted mb-0.5">Focus Next Week</p><p className="text-white/85">{checkin.focus_areas}</p></div>
+            )}
+            {checkin.biggest_win && (
+              <div className="col-span-2"><p className="text-grey-muted mb-0.5">Biggest Win</p><p className="text-white/85">{checkin.biggest_win}</p></div>
+            )}
+            {checkin.main_challenge && (
+              <div className="col-span-2"><p className="text-grey-muted mb-0.5">Biggest Challenge</p><p className="text-white/85">{checkin.main_challenge}</p></div>
+            )}
+            {checkin.improve_next_week && (
+              <div className="col-span-2"><p className="text-grey-muted mb-0.5">Make Next Week Better</p><p className="text-white/85">{checkin.improve_next_week}</p></div>
+            )}
+            {checkin.coach_support && (
+              <div className="col-span-2"><p className="text-grey-muted mb-0.5">Support Needed</p><p className="text-white/85">{checkin.coach_support}</p></div>
+            )}
+            {checkin.anything_else && (
+              <div className="col-span-2"><p className="text-grey-muted mb-0.5">Anything Else</p><p className="text-white/85">{checkin.anything_else}</p></div>
+            )}
+            {/* Legacy text fields fallback */}
+            {checkin.week_summary && !checkin.week_score && (
+              <div className="col-span-2"><p className="text-grey-muted mb-0.5">Week Summary</p><p className="text-white/85">{checkin.week_summary}</p></div>
+            )}
+            {checkin.diet_summary && !checkin.diet_rating && (
+              <div className="col-span-2"><p className="text-grey-muted mb-0.5">Food</p><p className="text-white/85">{checkin.diet_summary}</p></div>
+            )}
+            {checkin.energy_summary && !checkin.energy_score && (
+              <div className="col-span-2"><p className="text-grey-muted mb-0.5">Energy</p><p className="text-white/85">{checkin.energy_summary}</p></div>
+            )}
+            {checkin.sleep_summary && !checkin.sleep_score && (
+              <div className="col-span-2"><p className="text-grey-muted mb-0.5">Sleep</p><p className="text-white/85">{checkin.sleep_summary}</p></div>
+            )}
+            {checkin.training_sessions && !checkin.training_completed && (
+              <div><p className="text-grey-muted mb-0.5">Training Sessions</p><p className="text-white/85">{checkin.training_sessions}</p></div>
+            )}
+          </div>
+
           <div>
             <label className="text-xs text-grey-muted block mb-1">Coach Notes</label>
             <textarea
@@ -576,6 +684,7 @@ export function ClientDetailTabs({
   supplements,
   weekNumber,
   unreadMessages = 0,
+  lastWeights,
 }: ClientDetailTabsProps) {
   const [activeTab, setActiveTab] = useState<Tab>('overview')
 
@@ -638,7 +747,7 @@ export function ClientDetailTabs({
       {activeTab === 'checkins' && <CheckInsTab clientId={client.id} checkins={checkins} checkInDay={client.check_in_day} />}
       {activeTab === 'training' && (
         <div className="bg-navy-card border border-white/8 p-6">
-          <ProgrammeEditor clientId={client.id} initialProgrammes={programmes} />
+          <ProgrammeEditor clientId={client.id} initialProgrammes={programmes} initialLastWeights={lastWeights} />
         </div>
       )}
       {activeTab === 'nutrition' && (
