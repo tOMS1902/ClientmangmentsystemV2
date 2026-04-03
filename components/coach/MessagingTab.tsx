@@ -25,7 +25,7 @@ export function MessagingTab({ clientId, clientName, clientUserId }: MessagingTa
 
   useEffect(() => {
     const supabase = createClientSupabaseClient()
-    supabase.auth.getUser().then(({ data }) => setMyUserId(data.user?.id ?? null))
+    supabase.auth.getUser().then(({ data }: { data: { user: { id: string } | null } }) => setMyUserId(data.user?.id ?? null))
   }, [])
 
   const { ready: encReady, error: encError, encrypt, decrypt, encryptImageBytes, decryptImageBytes } = useEncryption(myUserId, clientUserId)
