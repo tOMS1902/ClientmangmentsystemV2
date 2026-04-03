@@ -74,7 +74,7 @@ export function MessagingTab({ clientId, clientName, clientUserId }: MessagingTa
         schema: 'public',
         table: 'messages',
         filter: `client_id=eq.${clientId}`,
-      }, async payload => {
+      }, async (payload: { new: unknown }) => {
         const newMsg = payload.new as Message
         setMessages(prev => prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg])
         let body = '[Could not decrypt]'
