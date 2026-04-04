@@ -1,4 +1,5 @@
 import { ClientCard } from '@/components/coach/ClientCard'
+import { GlobalAIChat } from '@/components/coach/GlobalAIChat'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
@@ -83,6 +84,11 @@ export default async function DashboardPage() {
             <div className="text-sm text-grey-muted">{stat.sub}</div>
           </div>
         ))}
+      </div>
+
+      {/* Global AI Chat */}
+      <div className="mb-10">
+        <GlobalAIChat />
       </div>
 
       {/* All clients */}

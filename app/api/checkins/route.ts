@@ -53,5 +53,18 @@ export async function POST(request: Request) {
     console.error('[checkins] insert error:', insertError)
     return NextResponse.json({ error: 'Failed to save check-in' }, { status: 500 })
   }
+
+  // Fire-and-forget: trigger AI check-in report (do not await)
+  if (checkin && process.env.NEXT_PUBLIC_APP_URL && process.env.INTERNAL_API_KEY) {
+    fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ai/checkin-report`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-internal-key': process.env.INTERNAL_API_KEY,
+      },
+      body: JSON.stringify({ checkinId: checkin.id, clientId: clientRecord.id }),
+    }).catch(err => console.error('[checkins] Failed to trigger AI report:', err))
+  }
+
   return NextResponse.json(checkin, { status: 201 })
 }

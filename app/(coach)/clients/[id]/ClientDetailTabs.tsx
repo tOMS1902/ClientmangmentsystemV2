@@ -13,6 +13,7 @@ import { HabitManager } from '@/components/coach/HabitManager'
 import { SupplementsEditor } from '@/components/coach/SupplementsEditor'
 import { MessagingTab } from '@/components/coach/MessagingTab'
 import { PhotosTab } from '@/components/client/tabs/PhotosTab'
+import { AITab } from '@/components/coach/AITab'
 import type { Client, WeeklyCheckin, MidweekCheck, Programme, NutritionTargets, Habit, MealPlan, Supplement, TrackingStatus } from '@/lib/types'
 
 interface ClientDetailTabsProps {
@@ -30,7 +31,7 @@ interface ClientDetailTabsProps {
   lastWeights: Record<string, number | null>
 }
 
-type Tab = 'overview' | 'midweek' | 'checkins' | 'training' | 'nutrition' | 'onboarding' | 'messages' | 'photos'
+type Tab = 'overview' | 'midweek' | 'checkins' | 'training' | 'nutrition' | 'onboarding' | 'messages' | 'photos' | 'ai'
 
 const ONBOARDING_SECTIONS = [
   {
@@ -699,6 +700,7 @@ export function ClientDetailTabs({
     { id: 'onboarding', label: 'Onboarding', badge: needsApproval },
     { id: 'messages', label: 'Messages', badge: unreadMessages > 0 },
     { id: 'photos', label: 'Photos' },
+    { id: 'ai', label: 'AI' },
   ]
 
   return (
@@ -776,6 +778,9 @@ export function ClientDetailTabs({
       )}
       {activeTab === 'photos' && (
         <PhotosTab clientId={client.id} weekNumber={weekNumber} checkins={checkins} />
+      )}
+      {activeTab === 'ai' && (
+        <AITab clientId={client.id} clientName={client.full_name} />
       )}
     </div>
   )
