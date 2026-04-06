@@ -14,6 +14,7 @@ import { SupplementsEditor } from '@/components/coach/SupplementsEditor'
 import { MessagingTab } from '@/components/coach/MessagingTab'
 import { PhotosTab } from '@/components/client/tabs/PhotosTab'
 import { AITab } from '@/components/coach/AITab'
+import { ClientPortalManager } from '@/components/coach/ClientPortalManager'
 import type { Client, WeeklyCheckin, MidweekCheck, Programme, NutritionTargets, Habit, MealPlan, Supplement, TrackingStatus } from '@/lib/types'
 
 interface ClientDetailTabsProps {
@@ -29,9 +30,10 @@ interface ClientDetailTabsProps {
   weekNumber: number
   unreadMessages?: number
   lastWeights: Record<string, number | null>
+  badges: string[]
 }
 
-type Tab = 'overview' | 'midweek' | 'checkins' | 'training' | 'nutrition' | 'onboarding' | 'messages' | 'photos' | 'ai'
+type Tab = 'overview' | 'midweek' | 'checkins' | 'training' | 'nutrition' | 'onboarding' | 'messages' | 'photos' | 'portal' | 'ai'
 
 const ONBOARDING_SECTIONS = [
   {
@@ -686,6 +688,7 @@ export function ClientDetailTabs({
   weekNumber,
   unreadMessages = 0,
   lastWeights,
+  badges,
 }: ClientDetailTabsProps) {
   const [activeTab, setActiveTab] = useState<Tab>('overview')
 
@@ -700,6 +703,7 @@ export function ClientDetailTabs({
     { id: 'onboarding', label: 'Onboarding', badge: needsApproval },
     { id: 'messages', label: 'Messages', badge: unreadMessages > 0 },
     { id: 'photos', label: 'Photos' },
+    { id: 'portal', label: 'Portal' },
     { id: 'ai', label: 'AI' },
   ]
 
@@ -778,6 +782,18 @@ export function ClientDetailTabs({
       )}
       {activeTab === 'photos' && (
         <PhotosTab clientId={client.id} weekNumber={weekNumber} checkins={checkins} />
+      )}
+      {activeTab === 'portal' && (
+        <div className="bg-navy-card border border-white/8 p-6">
+          <ClientPortalManager
+            clientId={client.id}
+            weekNumber={weekNumber}
+            initialGoalEventName={client.goal_event_name}
+            initialGoalEventDate={client.goal_event_date}
+            initialWelcomeVideoUrl={client.welcome_video_url}
+            initialBadges={badges}
+          />
+        </div>
       )}
       {activeTab === 'ai' && (
         <AITab clientId={client.id} clientName={client.full_name} />

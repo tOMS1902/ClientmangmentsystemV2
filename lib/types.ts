@@ -7,6 +7,7 @@ export interface Profile {
   email: string
   onboarding_complete: boolean
   created_at: string
+  avatar_url?: string | null
 }
 
 export interface Client {
@@ -27,6 +28,10 @@ export interface Client {
   portal_access: boolean
   track_weight: boolean
   created_at: string
+  goal_event_name?: string | null
+  goal_event_date?: string | null
+  welcome_video_url?: string | null
+  welcome_video_views?: number
 }
 
 export interface NutritionTargets {
@@ -225,4 +230,21 @@ export interface CheckInPhoto {
   uploaded_by: 'client' | 'coach'
   created_at: string
   signed_url?: string  // generated on-demand, not stored in DB
+}
+
+export interface WeeklyLoomVideo {
+  id: string
+  client_id: string
+  coach_id: string
+  loom_url: string
+  week_number: number
+  created_at: string
+}
+
+export interface ClientBadge {
+  id: string
+  client_id: string
+  badge_key: string
+  awarded_at: string
+  awarded_by: string
 }

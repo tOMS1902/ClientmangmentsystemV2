@@ -23,6 +23,9 @@ export const ClientPatchSchema = z.object({
   is_active: z.boolean().optional(),
   portal_access: z.boolean().optional(),
   track_weight: z.boolean().optional(),
+  goal_event_name: z.string().max(200).trim().optional().nullable(),
+  goal_event_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  welcome_video_url: z.string().max(500).trim().optional().nullable(),
 })
 
 // ─── Midweek Checks ───────────────────────────────────────────────────────────

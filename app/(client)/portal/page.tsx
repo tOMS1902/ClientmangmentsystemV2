@@ -6,6 +6,13 @@ import { GoldRule } from '@/components/ui/GoldRule'
 import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
 import type { WeeklyCheckin, Habit, HabitLog, MidweekCheck } from '@/lib/types'
+import { WeeklyScorecard } from '@/components/client/portal/WeeklyScorecard'
+import { LoomVideoCard } from '@/components/client/portal/LoomVideoCard'
+import { CheckInStreak } from '@/components/client/portal/CheckInStreak'
+import { BadgeWall } from '@/components/client/portal/BadgeWall'
+import { GoalCountdown } from '@/components/client/portal/GoalCountdown'
+import { FloatingMessageButton } from '@/components/client/portal/FloatingMessageButton'
+import { WelcomeVideo } from '@/components/client/portal/WelcomeVideo'
 
 
 function getGreeting(name: string): string {
@@ -84,11 +91,17 @@ export default async function PortalHomePage() {
     { data: midweekChecks },
     { data: habits },
     { data: habitLogData },
+    { data: loomVideo },
+    { data: badgesData },
+    { data: coachProfile },
   ] = await Promise.all([
     supabase.from('weekly_checkins').select('*').eq('client_id', clientId).order('check_in_date', { ascending: false }),
     supabase.from('midweek_checks').select('*').eq('client_id', clientId).order('submitted_at', { ascending: false }).limit(10),
     supabase.from('habits').select('*').eq('client_id', clientId).eq('is_active', true),
     supabase.from('habit_logs').select('*').eq('client_id', clientId).gte('log_date', from14Days),
+    supabase.from('weekly_loom_videos').select('*').eq('client_id', clientId).order('week_number', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('client_badges').select('badge_key').eq('client_id', clientId),
+    supabase.from('profiles').select('full_name, avatar_url').eq('id', clientRecord.coach_id).single(),
   ])
 
   const todayHabitLogs = habitLogData?.filter(l => l.log_date === today) || []
@@ -109,8 +122,30 @@ export default async function PortalHomePage() {
     return diff <= 7
   }) || null
 
+  // Compute checkinSubmittedThisWeek
+  const monday = new Date()
+  const d = monday.getDay()
+  monday.setDate(monday.getDate() - (d === 0 ? 6 : d - 1))
+  monday.setHours(0, 0, 0, 0)
+  const weekStartDate = monday.toISOString().split('T')[0]
+  const checkinSubmittedThisWeek = (checkins ?? []).some(c => c.check_in_date >= weekStartDate)
+
+  const unlockedBadgeKeys = (badgesData ?? []).map((b: { badge_key: string }) => b.badge_key)
+
+  const coachName = coachProfile?.full_name ?? 'Your Coach'
+  const coachAvatarUrl = coachProfile?.avatar_url ?? null
+
   return (
     <div>
+      {/* Welcome video — top of page, client component */}
+      {clientRecord.welcome_video_url && (clientRecord.welcome_video_views ?? 0) < 2 && (
+        <WelcomeVideo
+          loomUrl={clientRecord.welcome_video_url}
+          viewCount={clientRecord.welcome_video_views ?? 0}
+          clientName={clientRecord.full_name}
+        />
+      )}
+
       {/* Greeting */}
       <div className="mb-8">
         <h1
@@ -122,6 +157,25 @@ export default async function PortalHomePage() {
         <p className="text-grey-muted">{formatDate(new Date())}</p>
       </div>
 
+      {/* Goal countdown */}
+      {(clientRecord.goal_event_name || clientRecord.goal_weight) && (
+        <div className="mb-6">
+          <GoalCountdown
+            goalEventName={clientRecord.goal_event_name}
+            goalEventDate={clientRecord.goal_event_date}
+            goalWeight={clientRecord.goal_weight}
+            currentWeight={latestCheckin?.weight ?? clientRecord.current_weight}
+          />
+        </div>
+      )}
+
+      {/* Latest weekly Loom video from coach */}
+      {loomVideo && (
+        <div className="mb-6">
+          <LoomVideoCard loomUrl={loomVideo.loom_url} weekNumber={loomVideo.week_number} />
+        </div>
+      )}
+
       {/* Weekly check-in due banner */}
       {isCheckinDay && !checkins?.find(c => c.check_in_date === today) && (
         <div className="bg-gold/15 border border-gold/30 p-4 mb-6 flex items-center justify-between">
@@ -131,6 +185,16 @@ export default async function PortalHomePage() {
           </Link>
         </div>
       )}
+
+      {/* Weekly scorecard */}
+      <div className="mb-8">
+        <WeeklyScorecard
+          trainingCompleted={latestCheckin?.training_completed ?? null}
+          dietRating={latestCheckin?.diet_rating ?? null}
+          sleepScore={latestCheckin?.sleep_score ?? null}
+          checkinSubmittedThisWeek={checkinSubmittedThisWeek}
+        />
+      </div>
 
       {/* Midweek check widget */}
       {thisWeekMidweek ? (
@@ -163,6 +227,11 @@ export default async function PortalHomePage() {
         </div>
       ) : null}
 
+      {/* Compliance streak */}
+      <div className="mb-8">
+        <CheckInStreak checkins={(checkins ?? []) as WeeklyCheckin[]} />
+      </div>
+
       {/* Start today's session */}
       <Link href="/portal/programme?day=today">
         <div className="bg-navy-card border border-gold/30 hover:border-gold p-5 mb-8 flex items-center justify-between transition-colors cursor-pointer">
@@ -182,7 +251,7 @@ export default async function PortalHomePage() {
 
       {/* Weight trend */}
       {weightHistory.length > 1 && (
-        <div className="bg-navy-card border border-white/8 p-6">
+        <div className="bg-navy-card border border-white/8 p-6 mb-8">
           <Eyebrow>Weight Trend</Eyebrow>
           <GoldRule />
           <div className="flex items-end gap-8 mt-4">
@@ -196,6 +265,14 @@ export default async function PortalHomePage() {
           </div>
         </div>
       )}
+
+      {/* Badge wall */}
+      <div className="mb-8">
+        <BadgeWall unlockedKeys={unlockedBadgeKeys} />
+      </div>
+
+      {/* Floating message button — fixed position */}
+      <FloatingMessageButton coachName={coachName} coachAvatarUrl={coachAvatarUrl} />
     </div>
   )
 }

@@ -25,6 +25,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     { data: supplements },
     { count: unreadMessages },
     lastWeights,
+    { data: badgesData },
   ] = await Promise.all([
     supabase.from('clients').select('*').eq('id', id).single<Client>(),
     supabase.from('weekly_checkins').select('*').eq('client_id', id).order('check_in_date', { ascending: false }),
@@ -47,6 +48,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
       .eq('sender_role', 'client')
       .eq('is_read', false),
     getLastWeightsForClient(id),
+    supabase.from('client_badges').select('badge_key').eq('client_id', id),
   ])
 
   if (!client) {
@@ -93,6 +95,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         weekNumber={weekNumber}
         unreadMessages={unreadMessages ?? 0}
         lastWeights={lastWeights}
+        badges={(badgesData as { badge_key: string }[] | null)?.map(b => b.badge_key) ?? []}
       />
     </div>
   )
