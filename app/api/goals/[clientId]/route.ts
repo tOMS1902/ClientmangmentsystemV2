@@ -10,13 +10,13 @@ export async function GET(
   const { data: { user }, error } = await supabase.auth.getUser()
   if (!user || error) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: badges } = await supabase
-    .from('client_badges')
+  const { data: goals } = await supabase
+    .from('client_goals')
     .select('*')
     .eq('client_id', clientId)
-    .order('awarded_at', { ascending: true })
+    .order('event_date', { ascending: true })
 
-  return NextResponse.json({ badges: badges ?? [] })
+  return NextResponse.json({ goals: goals ?? [] })
 }
 
 export async function POST(
@@ -31,17 +31,17 @@ export async function POST(
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'coach') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { badge_key } = await req.json()
-  if (!badge_key?.trim()) return NextResponse.json({ error: 'Badge label is required' }, { status: 400 })
+  const { event_name, event_date } = await req.json()
+  if (!event_name?.trim() || !event_date) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 
   const { data, error: insertError } = await supabase
-    .from('client_badges')
-    .upsert({ client_id: clientId, badge_key, awarded_by: 'coach' }, { onConflict: 'client_id,badge_key' })
+    .from('client_goals')
+    .insert({ client_id: clientId, event_name: event_name.trim(), event_date })
     .select()
     .single()
 
-  if (insertError) return NextResponse.json({ error: 'Failed to award badge' }, { status: 500 })
-  return NextResponse.json({ badge: data })
+  if (insertError) return NextResponse.json({ error: 'Failed to add goal' }, { status: 500 })
+  return NextResponse.json({ goal: data })
 }
 
 export async function DELETE(
@@ -56,7 +56,7 @@ export async function DELETE(
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'coach') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { badge_key } = await req.json()
-  await supabase.from('client_badges').delete().eq('client_id', clientId).eq('badge_key', badge_key)
+  const { goal_id } = await req.json()
+  await supabase.from('client_goals').delete().eq('id', goal_id).eq('client_id', clientId)
   return NextResponse.json({ ok: true })
 }

@@ -94,6 +94,7 @@ export default async function PortalHomePage() {
     { data: loomVideo },
     { data: badgesData },
     { data: coachProfile },
+    { data: goalsData },
   ] = await Promise.all([
     supabase.from('weekly_checkins').select('*').eq('client_id', clientId).order('check_in_date', { ascending: false }),
     supabase.from('midweek_checks').select('*').eq('client_id', clientId).order('submitted_at', { ascending: false }).limit(10),
@@ -102,6 +103,7 @@ export default async function PortalHomePage() {
     supabase.from('weekly_loom_videos').select('*').eq('client_id', clientId).order('week_number', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('client_badges').select('badge_key').eq('client_id', clientId),
     supabase.from('profiles').select('full_name, avatar_url').eq('id', clientRecord.coach_id).single(),
+    supabase.from('client_goals').select('*').eq('client_id', clientId).order('event_date', { ascending: true }),
   ])
 
   const todayHabitLogs = habitLogData?.filter(l => l.log_date === today) || []
@@ -157,8 +159,19 @@ export default async function PortalHomePage() {
         <p className="text-grey-muted">{formatDate(new Date())}</p>
       </div>
 
-      {/* Goal countdown */}
-      {(clientRecord.goal_event_name || clientRecord.goal_weight) && (
+      {/* Goal countdowns */}
+      {(goalsData ?? []).length > 0 && (
+        <div className="flex flex-col gap-3 mb-6">
+          {(goalsData as { id: string; event_name: string; event_date: string }[]).map(goal => (
+            <GoalCountdown
+              key={goal.id}
+              goalEventName={goal.event_name}
+              goalEventDate={goal.event_date}
+            />
+          ))}
+        </div>
+      )}
+      {!(goalsData ?? []).length && (clientRecord.goal_event_name || clientRecord.goal_weight) && (
         <div className="mb-6">
           <GoalCountdown
             goalEventName={clientRecord.goal_event_name}

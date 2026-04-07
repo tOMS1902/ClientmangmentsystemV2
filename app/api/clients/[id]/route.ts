@@ -45,3 +45,22 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (updateError) return NextResponse.json({ error: 'Update failed' }, { status: 500 })
   return NextResponse.json(client)
 }
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (!user || error) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'coach') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const { error: deleteError } = await supabase
+    .from('clients')
+    .delete()
+    .eq('id', id)
+    .eq('coach_id', user.id)
+
+  if (deleteError) return NextResponse.json({ error: 'Delete failed' }, { status: 500 })
+  return NextResponse.json({ ok: true })
+}

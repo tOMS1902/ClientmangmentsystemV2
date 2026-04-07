@@ -109,6 +109,56 @@ function statusColor(v: TrackingStatus) {
   return 'text-red-400'
 }
 
+function DeleteClientButton({ clientId, clientName }: { clientId: string; clientName: string }) {
+  const router = useRouter()
+  const [confirming, setConfirming] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleDelete() {
+    setDeleting(true)
+    const res = await fetch(`/api/clients/${clientId}`, { method: 'DELETE' })
+    if (res.ok) {
+      router.push('/clients')
+    } else {
+      setDeleting(false)
+      setConfirming(false)
+    }
+  }
+
+  if (confirming) {
+    return (
+      <div className="flex items-center gap-3">
+        <p className="text-xs text-red-400">Delete {clientName}? This cannot be undone.</p>
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          className="text-xs text-red-400 border border-red-400/40 px-3 py-1.5 hover:bg-red-400/10 transition-colors disabled:opacity-50"
+          style={{ fontFamily: 'var(--font-label)' }}
+        >
+          {deleting ? 'Deleting...' : 'Confirm Delete'}
+        </button>
+        <button
+          onClick={() => setConfirming(false)}
+          className="text-xs text-grey-muted hover:text-white transition-colors"
+          style={{ fontFamily: 'var(--font-label)' }}
+        >
+          Cancel
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <button
+      onClick={() => setConfirming(true)}
+      className="text-xs text-red-400/60 hover:text-red-400 transition-colors border border-red-400/20 px-3 py-1.5"
+      style={{ fontFamily: 'var(--font-label)' }}
+    >
+      Delete Client
+    </button>
+  )
+}
+
 function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProps, 'client' | 'checkins' | 'weekNumber'>) {
   const latestCheckin = checkins[0] || null
   const [goalWeight, setGoalWeight] = useState(client.goal_weight || 0)
@@ -232,6 +282,18 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
           </div>
         </div>
       )}
+
+      {/* Danger Zone */}
+      <div className="bg-navy-card border border-red-900/30 p-6 mt-2">
+        <p className="text-xs text-red-400/70 mb-3" style={{ fontFamily: 'var(--font-label)', letterSpacing: '2px' }}>DANGER ZONE</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-white/85 text-sm">Delete Client</p>
+            <p className="text-grey-muted text-xs">Permanently removes all client data. This cannot be undone.</p>
+          </div>
+          <DeleteClientButton clientId={client.id} clientName={client.full_name} />
+        </div>
+      </div>
     </div>
   )
 }
@@ -788,8 +850,6 @@ export function ClientDetailTabs({
           <ClientPortalManager
             clientId={client.id}
             weekNumber={weekNumber}
-            initialGoalEventName={client.goal_event_name}
-            initialGoalEventDate={client.goal_event_date}
             initialWelcomeVideoUrl={client.welcome_video_url}
             initialBadges={badges}
           />
