@@ -1,5 +1,6 @@
 import { ClientCard } from '@/components/coach/ClientCard'
 import { GlobalAIChat } from '@/components/coach/GlobalAIChat'
+import { ActivityFeed } from '@/components/coach/ActivityFeed'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
@@ -84,6 +85,15 @@ export default async function DashboardPage() {
             <div className="text-sm text-grey-muted">{stat.sub}</div>
           </div>
         ))}
+      </div>
+
+      {/* Activity Feed */}
+      <div className="mb-10">
+        <Eyebrow>Recent Activity</Eyebrow>
+        <GoldRule className="mb-0" />
+        <div className="bg-navy-card border border-white/8">
+          <ActivityFeed />
+        </div>
       </div>
 
       {/* Global AI Chat */}

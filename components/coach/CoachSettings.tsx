@@ -1,19 +1,22 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Eyebrow } from '@/components/ui/Eyebrow'
+import { createClientSupabaseClient } from '@/lib/supabase/client'
 
 interface CoachSettingsProps {
   initialAvatarUrl: string | null
   coachName: string
   coachEmail: string
+  coachId: string
 }
 
-export function CoachSettings({ initialAvatarUrl, coachName, coachEmail }: CoachSettingsProps) {
+export function CoachSettings({ initialAvatarUrl, coachName, coachEmail, coachId }: CoachSettingsProps) {
   const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl ?? '')
-  const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [msg, setMsg] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const initials = coachName
     .split(' ')
@@ -22,16 +25,45 @@ export function CoachSettings({ initialAvatarUrl, coachName, coachEmail }: Coach
     .slice(0, 2)
     .toUpperCase()
 
-  async function save() {
-    setSaving(true)
-    const res = await fetch('/api/coach-avatar', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ avatar_url: avatarUrl || null }),
-    })
-    setSaving(false)
-    setMsg(res.ok ? 'Saved' : 'Failed to save')
-    setTimeout(() => setMsg(''), 2000)
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    setMsg('')
+
+    try {
+      const supabase = createClientSupabaseClient()
+      const ext = file.name.split('.').pop()
+      const path = `${coachId}/avatar.${ext}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('coach-avatars')
+        .upload(path, file, { upsert: true })
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('coach-avatars')
+        .getPublicUrl(path)
+
+      // Save URL to profile
+      const res = await fetch('/api/coach-avatar', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatar_url: publicUrl }),
+      })
+
+      if (!res.ok) throw new Error('Failed to save')
+
+      setAvatarUrl(publicUrl)
+      setMsg('Photo updated')
+    } catch {
+      setMsg('Upload failed')
+    } finally {
+      setUploading(false)
+      setTimeout(() => setMsg(''), 3000)
+    }
   }
 
   return (
@@ -52,19 +84,21 @@ export function CoachSettings({ initialAvatarUrl, coachName, coachEmail }: Coach
           </div>
         </div>
         <div className="flex flex-col gap-3">
-          <label className="text-xs text-grey-muted" style={{ fontFamily: 'var(--font-label)' }}>PROFILE PHOTO URL</label>
+          <label className="text-xs text-grey-muted" style={{ fontFamily: 'var(--font-label)' }}>PROFILE PHOTO</label>
           <input
-            type="url"
-            value={avatarUrl}
-            onChange={e => setAvatarUrl(e.target.value)}
-            placeholder="https://... (direct image URL)"
-            className="bg-navy-deep border border-white/20 text-white/85 placeholder:text-grey-muted px-3 py-2 text-sm focus:outline-none focus:border-gold"
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={handleFileChange}
           />
-          <p className="text-grey-muted text-xs">Paste a direct image URL. This appears on the client&apos;s &quot;Message Coach&quot; button.</p>
           <div className="flex items-center gap-3">
-            <Button size="sm" onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save Photo'}</Button>
+            <Button size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+              {uploading ? 'Uploading...' : 'Upload Photo'}
+            </Button>
             {msg && <span className="text-xs text-grey-muted">{msg}</span>}
           </div>
+          <p className="text-grey-muted text-xs">JPEG, PNG or WebP. This appears on the client&apos;s &quot;Message Coach&quot; button.</p>
         </div>
       </div>
     </div>

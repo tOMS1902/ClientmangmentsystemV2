@@ -14,6 +14,7 @@ const navLinks = [
   { href: '/portal/programme', label: 'Training' },
   { href: '/portal/photos', label: 'Photos' },
   { href: '/portal/messages', label: 'Messages' },
+  { href: '/portal/settings', label: 'Settings' },
 ]
 
 export default function ClientLayout({ children }: { children: React.ReactNode }) {

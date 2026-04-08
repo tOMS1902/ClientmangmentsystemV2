@@ -6,6 +6,7 @@ import { GoldRule } from '@/components/ui/GoldRule'
 import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
 import type { WeeklyCheckin, Habit, HabitLog, MidweekCheck } from '@/lib/types'
+import { displayWeight, unitLabel, type WeightUnit } from '@/lib/units'
 import { WeeklyScorecard } from '@/components/client/portal/WeeklyScorecard'
 import { LoomVideoCard } from '@/components/client/portal/LoomVideoCard'
 import { CheckInStreak } from '@/components/client/portal/CheckInStreak'
@@ -109,7 +110,9 @@ export default async function PortalHomePage() {
   const todayHabitLogs = habitLogData?.filter(l => l.log_date === today) || []
   const streaks = calculateStreaks(habits || [], habitLogData || [])
 
-  const weightHistory = [...(checkins || [])].reverse().map(c => c.weight)
+  const unit: WeightUnit = clientRecord.weight_unit === 'lbs' ? 'lbs' : 'kg'
+  const ul = unitLabel(unit)
+  const weightHistory = [...(checkins || [])].reverse().map(c => displayWeight(c.weight, unit))
   const latestCheckin = checkins?.[0] || null
 
   const dayOfWeek = new Date().toLocaleDateString('en-IE', { weekday: 'long' })
@@ -149,7 +152,7 @@ export default async function PortalHomePage() {
       )}
 
       {/* Greeting */}
-      <div className="mb-8">
+      <div className="mb-6">
         <h1
           className="text-3xl text-white mb-1"
           style={{ fontFamily: 'var(--font-display)' }}
@@ -158,6 +161,24 @@ export default async function PortalHomePage() {
         </h1>
         <p className="text-grey-muted">{formatDate(new Date())}</p>
       </div>
+
+      {/* ─── Check-in reminders — first on mobile ─────────────────────────── */}
+      {isCheckinDay && !checkins?.find(c => c.check_in_date === today) && (
+        <div className="bg-gold/15 border border-gold/30 p-4 mb-4 flex items-center justify-between">
+          <p className="text-white/85 text-sm">Your weekly check-in is due today.</p>
+          <Link href="/portal/checkin">
+            <Button variant="ghost" size="sm">Submit →</Button>
+          </Link>
+        </div>
+      )}
+      {!thisWeekMidweek && isMidweekDay && (
+        <div className="bg-gold/15 border border-gold/30 p-4 mb-6 flex items-center justify-between">
+          <p className="text-white/85 text-sm">Quick one — how are things going this week?</p>
+          <Link href="/portal/checkin/midweek">
+            <Button variant="primary" size="sm">Check In →</Button>
+          </Link>
+        </div>
+      )}
 
       {/* Goal countdowns */}
       {(goalsData ?? []).length > 0 && (
@@ -189,16 +210,6 @@ export default async function PortalHomePage() {
         </div>
       )}
 
-      {/* Weekly check-in due banner */}
-      {isCheckinDay && !checkins?.find(c => c.check_in_date === today) && (
-        <div className="bg-gold/15 border border-gold/30 p-4 mb-6 flex items-center justify-between">
-          <p className="text-white/85 text-sm">Your weekly check-in is due today.</p>
-          <Link href="/portal/checkin">
-            <Button variant="ghost" size="sm">Submit Check-In →</Button>
-          </Link>
-        </div>
-      )}
-
       {/* Weekly scorecard */}
       <div className="mb-8">
         <WeeklyScorecard
@@ -209,36 +220,35 @@ export default async function PortalHomePage() {
         />
       </div>
 
-      {/* Midweek check widget */}
-      {thisWeekMidweek ? (
+      {/* Midweek check widget — submitted summary */}
+      {thisWeekMidweek && (
         <div className="border border-green-700 p-5 mb-6">
           <p className="text-xs text-green-400 mb-3" style={{ fontFamily: 'var(--font-label)' }}>MIDWEEK CHECK — SUBMITTED</p>
           <div className="grid grid-cols-3 gap-3 text-sm">
-            <div>
-              <p className="text-grey-muted text-xs mb-0.5">Training</p>
-              <p className={trackStatusColor(thisWeekMidweek.training_on_track)}>{trackStatusLabel(thisWeekMidweek.training_on_track)}</p>
-            </div>
-            <div>
-              <p className="text-grey-muted text-xs mb-0.5">Food</p>
-              <p className={trackStatusColor(thisWeekMidweek.food_on_track)}>{trackStatusLabel(thisWeekMidweek.food_on_track)}</p>
-            </div>
-            <div>
-              <p className="text-grey-muted text-xs mb-0.5">Energy</p>
-              <p className="text-white">{thisWeekMidweek.energy_level}/5</p>
-            </div>
+            {thisWeekMidweek.training_on_track && (
+              <div>
+                <p className="text-grey-muted text-xs mb-0.5">Training</p>
+                <p className={trackStatusColor(thisWeekMidweek.training_on_track)}>{trackStatusLabel(thisWeekMidweek.training_on_track)}</p>
+              </div>
+            )}
+            {thisWeekMidweek.food_on_track && (
+              <div>
+                <p className="text-grey-muted text-xs mb-0.5">Food</p>
+                <p className={trackStatusColor(thisWeekMidweek.food_on_track)}>{trackStatusLabel(thisWeekMidweek.food_on_track)}</p>
+              </div>
+            )}
+            {thisWeekMidweek.energy_level != null && (
+              <div>
+                <p className="text-grey-muted text-xs mb-0.5">Energy</p>
+                <p className="text-white">{thisWeekMidweek.energy_level}/5</p>
+              </div>
+            )}
           </div>
           {thisWeekMidweek.biggest_blocker && (
             <p className="text-grey-muted text-xs mt-3">{thisWeekMidweek.biggest_blocker}</p>
           )}
         </div>
-      ) : isMidweekDay ? (
-        <div className="bg-gold/15 border border-gold/30 p-4 mb-6 flex items-center justify-between">
-          <p className="text-white/85 text-sm">Quick one — how are things going this week?</p>
-          <Link href="/portal/checkin/midweek">
-            <Button variant="primary" size="sm">Check In →</Button>
-          </Link>
-        </div>
-      ) : null}
+      )}
 
       {/* Compliance streak */}
       <div className="mb-8">
@@ -271,9 +281,9 @@ export default async function PortalHomePage() {
             <SparkLine data={weightHistory} width={200} height={50} />
             <div className="text-sm">
               <p className="text-3xl text-white mb-1" style={{ fontFamily: 'var(--font-display)' }}>
-                {latestCheckin?.weight ?? '—'}kg
+                {latestCheckin ? displayWeight(latestCheckin.weight, unit) : '—'}{ul}
               </p>
-              <p className="text-grey-muted text-xs">Goal: {clientRecord.goal_weight}kg</p>
+              <p className="text-grey-muted text-xs">Goal: {displayWeight(clientRecord.goal_weight, unit)}{ul}</p>
             </div>
           </div>
         </div>

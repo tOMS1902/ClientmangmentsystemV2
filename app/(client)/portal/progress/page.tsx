@@ -2,13 +2,15 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import type { WeeklyCheckin, Client, NutritionTargets } from '@/lib/types'
+import { displayWeight, unitLabel, type WeightUnit } from '@/lib/units'
 
-function WeightChart({ checkins, goalWeight }: { checkins: WeeklyCheckin[]; goalWeight: number }) {
+function WeightChart({ checkins, goalWeight, unit }: { checkins: WeeklyCheckin[]; goalWeight: number; unit: WeightUnit }) {
   if (checkins.length < 2) return <p className="text-grey-muted text-sm">Not enough data yet.</p>
 
   const sorted = [...checkins].sort((a, b) => a.week_number - b.week_number)
-  const weights = sorted.map(c => c.weight)
-  const minW = Math.min(...weights, goalWeight) - 2
+  const weights = sorted.map(c => displayWeight(c.weight, unit))
+  const displayGoal = displayWeight(goalWeight, unit)
+  const minW = Math.min(...weights, displayGoal) - 2
   const maxW = Math.max(...weights) + 2
   const range = maxW - minW
 
@@ -23,13 +25,14 @@ function WeightChart({ checkins, goalWeight }: { checkins: WeeklyCheckin[]; goal
   const chartH = height - padT - padB
 
   const points = sorted.map((c, i) => {
+    const w = displayWeight(c.weight, unit)
     const x = padL + (i / (sorted.length - 1)) * chartW
-    const y = padT + ((maxW - c.weight) / range) * chartH
-    return { x, y, week: c.week_number, weight: c.weight }
+    const y = padT + ((maxW - w) / range) * chartH
+    return { x, y, week: c.week_number, weight: w }
   })
 
   const polyline = points.map(p => `${p.x},${p.y}`).join(' ')
-  const goalY = padT + ((maxW - goalWeight) / range) * chartH
+  const goalY = padT + ((maxW - displayGoal) / range) * chartH
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full">
@@ -85,13 +88,16 @@ export default async function ProgressPage() {
   ])
 
   const sortedCheckins = [...(checkins || [])].sort((a, b) => a.week_number - b.week_number)
+  const unit: WeightUnit = clientRecord.weight_unit === 'lbs' ? 'lbs' : 'kg'
+  const ul = unitLabel(unit)
 
   const totalWeeks = checkins?.length ? Math.max(...checkins.map(c => c.week_number)) : 0
   const latestCheckin = checkins?.[0]
   const latestWeight = latestCheckin?.weight ?? null
-  const totalLost = latestWeight != null && clientRecord.start_weight
+  const totalLostKg = latestWeight != null && clientRecord.start_weight
     ? Math.max(0, clientRecord.start_weight - latestWeight)
     : 0
+  const totalLost = displayWeight(totalLostKg, unit)
 
   return (
     <div>
@@ -109,7 +115,7 @@ export default async function ProgressPage() {
         {clientRecord.track_weight && (
           <div className="bg-navy-card border border-white/8 p-5">
             <Eyebrow className="block mb-2">Total Lost</Eyebrow>
-            <div className="text-3xl text-white" style={{ fontFamily: 'var(--font-display)' }}>{totalLost.toFixed(1)}kg</div>
+            <div className="text-3xl text-white" style={{ fontFamily: 'var(--font-display)' }}>{totalLost.toFixed(1)}{ul}</div>
           </div>
         )}
       </div>
@@ -120,7 +126,7 @@ export default async function ProgressPage() {
           <Eyebrow>Weight History</Eyebrow>
           <GoldRule />
           <div className="mt-4">
-            <WeightChart checkins={sortedCheckins} goalWeight={clientRecord.goal_weight} />
+            <WeightChart checkins={sortedCheckins} goalWeight={clientRecord.goal_weight} unit={unit} />
           </div>
         </div>
       )}
@@ -134,7 +140,7 @@ export default async function ProgressPage() {
             {checkins.map(c => (
               <div key={c.id} className="flex items-center justify-between py-2 border-b border-white/8 text-sm">
                 <span className="text-grey-muted">Week {c.week_number}</span>
-                <span className="text-white">{c.weight ? `${c.weight}kg` : '—'}</span>
+                <span className="text-white">{c.weight ? `${displayWeight(c.weight, unit)}${ul}` : '—'}</span>
                 <span className="text-grey-muted">
                   {new Date(c.check_in_date).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' })}
                 </span>

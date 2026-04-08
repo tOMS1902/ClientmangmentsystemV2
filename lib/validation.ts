@@ -26,17 +26,19 @@ export const ClientPatchSchema = z.object({
   goal_event_name: z.string().max(200).trim().optional().nullable(),
   goal_event_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   welcome_video_url: z.string().max(500).trim().optional().nullable(),
+  weight_unit: z.enum(['kg', 'lbs']).optional(),
 })
 
 // ─── Midweek Checks ───────────────────────────────────────────────────────────
 
 export const MidweekCheckSchema = z.object({
   current_weight: positiveNum.nullable().optional(),
-  training_on_track: z.enum(['yes', 'slightly_off', 'off']),
-  food_on_track: z.enum(['yes', 'slightly_off', 'off']),
-  energy_level: score,
-  steps_on_track: z.boolean(),
+  training_on_track: z.enum(['yes', 'slightly_off', 'off']).optional().nullable(),
+  food_on_track: z.enum(['yes', 'slightly_off', 'off']).optional().nullable(),
+  energy_level: score.optional().nullable(),
+  steps_on_track: z.boolean().optional().nullable(),
   biggest_blocker: optionalStr(500),
+  voice_note_url: z.string().url().optional().nullable(),
 })
 
 // ─── Weekly Check-Ins ─────────────────────────────────────────────────────────
@@ -44,7 +46,7 @@ export const MidweekCheckSchema = z.object({
 const score10 = z.number().int().min(1).max(10)
 
 export const CheckInSchema = z.object({
-  weight: z.number().min(20).max(300),
+  weight: z.number().min(0).max(300).optional().nullable(),
   // New structured fields
   week_score: score10.optional(),
   energy_score: score10.optional(),
@@ -68,6 +70,7 @@ export const CheckInSchema = z.object({
   energy_summary: optionalStr(500),
   sleep_summary: optionalStr(500),
   focus_next_week: optionalStr(500),
+  voice_note_url: z.string().url().optional().nullable(),
 })
 
 // ─── Programmes ───────────────────────────────────────────────────────────────

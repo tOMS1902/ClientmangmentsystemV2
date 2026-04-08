@@ -15,6 +15,7 @@ import { MessagingTab } from '@/components/coach/MessagingTab'
 import { PhotosTab } from '@/components/client/tabs/PhotosTab'
 import { AITab } from '@/components/coach/AITab'
 import { ClientPortalManager } from '@/components/coach/ClientPortalManager'
+import { VoicePlayer } from '@/components/VoicePlayer'
 import type { Client, WeeklyCheckin, MidweekCheck, Programme, NutritionTargets, Habit, MealPlan, Supplement, TrackingStatus } from '@/lib/types'
 
 interface ClientDetailTabsProps {
@@ -393,6 +394,12 @@ function MidweekChecksTab({ client, midweekChecks }: { client: Client; midweekCh
               <p className="text-white/85 text-sm">{check.biggest_blocker}</p>
             </div>
           )}
+          {check.voice_note_url && (
+            <div className="mt-4 pt-4 border-t border-white/8">
+              <p className="text-grey-muted text-xs mb-2">Voice Note</p>
+              <VoicePlayer url={check.voice_note_url} />
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -611,6 +618,13 @@ function CheckInsTab({ clientId, checkins, checkInDay }: { clientId: string; che
               <div><p className="text-grey-muted mb-0.5">Training Sessions</p><p className="text-white/85">{checkin.training_sessions}</p></div>
             )}
           </div>
+
+          {checkin.voice_note_url && (
+            <div className="mb-4 pt-3 border-t border-white/8">
+              <p className="text-xs text-grey-muted mb-2">Voice Note</p>
+              <VoicePlayer url={checkin.voice_note_url} />
+            </div>
+          )}
 
           <div>
             <label className="text-xs text-grey-muted block mb-1">Coach Notes</label>

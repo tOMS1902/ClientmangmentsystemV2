@@ -32,6 +32,7 @@ export interface Client {
   goal_event_date?: string | null
   welcome_video_url?: string | null
   welcome_video_views?: number
+  weight_unit?: 'kg' | 'lbs'
 }
 
 export interface NutritionTargets {
@@ -64,6 +65,7 @@ export interface MidweekCheck {
   energy_level: number
   steps_on_track: boolean
   biggest_blocker: string | null
+  voice_note_url?: string | null
 }
 
 export interface WeeklyCheckin {
@@ -96,6 +98,7 @@ export interface WeeklyCheckin {
   anything_else: string | null
   coach_notes: string | null
   created_at: string
+  voice_note_url?: string | null
 }
 
 export interface Programme {
