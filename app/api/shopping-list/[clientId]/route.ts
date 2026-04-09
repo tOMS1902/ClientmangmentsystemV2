@@ -12,7 +12,7 @@ export async function GET(
 
   const { data: items } = await supabase
     .from('custom_shopping_items')
-    .select('id, name, note, action, created_at')
+    .select('id, name, amount, note, action, created_at')
     .eq('client_id', clientId)
     .order('created_at', { ascending: true })
 
@@ -36,9 +36,10 @@ export async function POST(
     return NextResponse.json({ error: 'items array is required' }, { status: 400 })
   }
 
-  const rows = items.map((item: { name: string; note?: string; action: 'add' | 'remove' }) => ({
+  const rows = items.map((item: { name: string; amount?: string; note?: string; action: 'add' | 'remove' }) => ({
     client_id: clientId,
     name: item.name,
+    amount: item.amount ?? null,
     note: item.note ?? null,
     action: item.action,
   }))

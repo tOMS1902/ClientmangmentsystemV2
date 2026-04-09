@@ -9,6 +9,12 @@ interface Goal {
   event_date: string
 }
 
+interface Milestone {
+  id: string
+  label: string
+  is_unlocked: boolean
+}
+
 interface ClientPortalManagerProps {
   clientId: string
   weekNumber: number
@@ -37,16 +43,23 @@ export function ClientPortalManager({
   const [goalSaving, setGoalSaving] = useState(false)
   const [goalMsg, setGoalMsg] = useState('')
 
-  // Badges
-  const [awardedBadges, setAwardedBadges] = useState<string[]>(initialBadges)
-  const [badgeSaving, setBadgeSaving] = useState<string | null>(null)
-  const [newBadgeLabel, setNewBadgeLabel] = useState('')
-  const [badgeMsg, setBadgeMsg] = useState('')
+  // Milestones
+  const [milestones, setMilestones] = useState<Milestone[]>([])
+  const [milestoneSaving, setMilestoneSaving] = useState<string | null>(null)
+  const [newMilestoneLabel, setNewMilestoneLabel] = useState('')
+  const [milestoneMsg, setMilestoneMsg] = useState('')
 
   useEffect(() => {
     fetch(`/api/goals/${clientId}`)
       .then(r => r.json())
       .then(data => setGoals(data.goals ?? []))
+      .catch(() => {})
+  }, [clientId])
+
+  useEffect(() => {
+    fetch(`/api/milestones/${clientId}`)
+      .then(r => r.json())
+      .then(data => setMilestones(data.milestones ?? []))
       .catch(() => {})
   }, [clientId])
 
@@ -121,35 +134,49 @@ export function ClientPortalManager({
     if (res.ok) setGoals(prev => prev.filter(g => g.id !== goalId))
   }
 
-  async function addBadge() {
-    const label = newBadgeLabel.trim()
-    if (!label || awardedBadges.includes(label)) return
-    setBadgeSaving(label)
-    setBadgeMsg('')
-    const res = await fetch(`/api/badges/${clientId}`, {
+  async function addMilestone() {
+    const label = newMilestoneLabel.trim()
+    if (!label) return
+    setMilestoneSaving('new')
+    setMilestoneMsg('')
+    const res = await fetch(`/api/milestones/${clientId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ badge_key: label }),
+      body: JSON.stringify({ label }),
     })
     if (res.ok) {
-      setAwardedBadges(prev => [...prev, label])
-      setNewBadgeLabel('')
+      const data = await res.json()
+      setMilestones(prev => [...prev, data.milestone])
+      setNewMilestoneLabel('')
     } else {
-      setBadgeMsg('Failed to add')
-      setTimeout(() => setBadgeMsg(''), 2000)
+      setMilestoneMsg('Failed to add')
+      setTimeout(() => setMilestoneMsg(''), 2000)
     }
-    setBadgeSaving(null)
+    setMilestoneSaving(null)
   }
 
-  async function revokeBadge(key: string) {
-    setBadgeSaving(key)
-    const res = await fetch(`/api/badges/${clientId}`, {
+  async function toggleMilestone(m: Milestone) {
+    setMilestoneSaving(m.id)
+    const res = await fetch(`/api/milestones/${clientId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: m.id, is_unlocked: !m.is_unlocked }),
+    })
+    if (res.ok) {
+      setMilestones(prev => prev.map(x => x.id === m.id ? { ...x, is_unlocked: !m.is_unlocked } : x))
+    }
+    setMilestoneSaving(null)
+  }
+
+  async function deleteMilestone(id: string) {
+    setMilestoneSaving(id)
+    const res = await fetch(`/api/milestones/${clientId}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ badge_key: key }),
+      body: JSON.stringify({ id }),
     })
-    if (res.ok) setAwardedBadges(prev => prev.filter(k => k !== key))
-    setBadgeSaving(null)
+    if (res.ok) setMilestones(prev => prev.filter(m => m.id !== id))
+    setMilestoneSaving(null)
   }
 
   return (
@@ -244,49 +271,63 @@ export function ClientPortalManager({
         {welcomeMsg && <p className="text-xs text-grey-muted mt-2">{welcomeMsg}</p>}
       </div>
 
-      {/* Milestone Badges */}
+      {/* Milestones */}
       <div>
-        <p className="text-xs text-gold mb-3" style={{ fontFamily: 'var(--font-label)', letterSpacing: '2px' }}>MILESTONE BADGES</p>
+        <p className="text-xs text-gold mb-3" style={{ fontFamily: 'var(--font-label)', letterSpacing: '2px' }}>MILESTONES</p>
 
-        {/* Awarded badges */}
-        {awardedBadges.length > 0 ? (
+        {milestones.length > 0 ? (
           <div className="flex flex-col gap-2 mb-4">
-            {awardedBadges.map(key => (
-              <div key={key} className="flex items-center justify-between bg-navy-deep border border-white/8 px-4 py-3">
+            {milestones.map(m => (
+              <div key={m.id} className="flex items-center justify-between bg-navy-deep border border-white/8 px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <span className="text-gold text-sm">&#x2713;</span>
-                  <span className="text-white text-sm">{key}</span>
+                  <span className={`text-sm ${m.is_unlocked ? 'text-gold' : 'text-white/40'}`}>
+                    {m.is_unlocked ? '🏅' : '🔒'}
+                  </span>
+                  <span className={`text-sm ${m.is_unlocked ? 'text-white' : 'text-white/50'}`}>{m.label}</span>
+                  <span className={`text-xs px-2 py-0.5 border ${m.is_unlocked ? 'border-gold/40 text-gold' : 'border-white/10 text-grey-muted'}`} style={{ fontFamily: 'var(--font-label)' }}>
+                    {m.is_unlocked ? 'Unlocked' : 'Locked'}
+                  </span>
                 </div>
-                <button
-                  onClick={() => revokeBadge(key)}
-                  disabled={badgeSaving === key}
-                  className="text-xs text-grey-muted hover:text-red-400 transition-colors disabled:opacity-50"
-                  style={{ fontFamily: 'var(--font-label)' }}
-                >
-                  {badgeSaving === key ? '...' : 'Revoke'}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => toggleMilestone(m)}
+                    disabled={milestoneSaving === m.id}
+                    className="text-xs text-grey-muted hover:text-gold transition-colors disabled:opacity-50"
+                    style={{ fontFamily: 'var(--font-label)' }}
+                  >
+                    {milestoneSaving === m.id ? '...' : m.is_unlocked ? 'Revoke' : 'Award'}
+                  </button>
+                  <button
+                    onClick={() => deleteMilestone(m.id)}
+                    disabled={milestoneSaving === m.id}
+                    className="text-xs text-grey-muted hover:text-red-400 transition-colors disabled:opacity-50"
+                    style={{ fontFamily: 'var(--font-label)' }}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-grey-muted text-xs mb-4">No milestones awarded yet.</p>
+          <p className="text-grey-muted text-xs mb-4">No milestones defined yet.</p>
         )}
 
-        {/* Add badge form */}
+        {/* Add milestone form */}
         <div className="flex gap-3">
           <input
             type="text"
-            value={newBadgeLabel}
-            onChange={e => setNewBadgeLabel(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && addBadge()}
+            value={newMilestoneLabel}
+            onChange={e => setNewMilestoneLabel(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && addMilestone()}
             placeholder="e.g. First 5kg Lost"
             className="flex-1 bg-navy-deep border border-white/20 text-white/85 placeholder:text-grey-muted px-3 py-2 text-sm focus:outline-none focus:border-gold"
           />
-          <Button size="sm" onClick={addBadge} disabled={!!badgeSaving || !newBadgeLabel.trim()}>
-            {badgeSaving ? '...' : 'Add Badge'}
+          <Button size="sm" onClick={addMilestone} disabled={!!milestoneSaving || !newMilestoneLabel.trim()}>
+            {milestoneSaving === 'new' ? '...' : 'Add Milestone'}
           </Button>
         </div>
-        {badgeMsg && <p className="text-xs text-grey-muted mt-2">{badgeMsg}</p>}
+        {milestoneMsg && <p className="text-xs text-grey-muted mt-2">{milestoneMsg}</p>}
       </div>
 
     </div>

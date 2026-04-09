@@ -8,6 +8,7 @@ import type { MealPlan } from '@/lib/types'
 interface CustomItem {
   id: string
   name: string
+  amount: string | null
   note: string | null
   action: 'add' | 'remove'
 }
@@ -20,7 +21,7 @@ interface ShoppingListProps {
 
 interface ShoppingItem {
   name: string
-  description: string
+  amount: string
   mealName: string
 }
 
@@ -46,7 +47,7 @@ export function ShoppingList({ trainingPlan, restPlan, customItems = [] }: Shopp
         const key = item.name.toLowerCase()
         if (!seen.has(key) && !removeNames.has(key)) {
           seen.add(key)
-          items.push({ name: item.name, description: item.description, mealName: meal.name })
+          items.push({ name: item.name, amount: item.description, mealName: meal.name })
         }
       }
     }
@@ -94,12 +95,12 @@ export function ShoppingList({ trainingPlan, restPlan, customItems = [] }: Shopp
                       onChange={() => toggle(item.name)}
                       className="mt-0.5 accent-gold"
                     />
-                    <div>
+                    <div className="flex items-baseline gap-2 flex-wrap">
                       <p className={`text-sm transition-colors ${checked.has(item.name) ? 'line-through text-grey-muted' : 'text-white'}`}>
                         {item.name}
                       </p>
-                      {item.description && (
-                        <p className="text-xs text-grey-muted">{item.description}</p>
+                      {item.amount && (
+                        <p className="text-xs text-gold/70">{item.amount}</p>
                       )}
                     </div>
                   </label>
@@ -123,9 +124,14 @@ export function ShoppingList({ trainingPlan, restPlan, customItems = [] }: Shopp
                       className="mt-0.5 accent-gold"
                     />
                     <div>
-                      <p className={`text-sm transition-colors ${checked.has(item.name) ? 'line-through text-grey-muted' : 'text-white'}`}>
-                        {item.name}
-                      </p>
+                      <div className="flex items-baseline gap-2 flex-wrap">
+                        <p className={`text-sm transition-colors ${checked.has(item.name) ? 'line-through text-grey-muted' : 'text-white'}`}>
+                          {item.name}
+                        </p>
+                        {item.amount && (
+                          <p className="text-xs text-gold/70">{item.amount}</p>
+                        )}
+                      </div>
                       {item.note && (
                         <p className="text-xs text-grey-muted">{item.note}</p>
                       )}

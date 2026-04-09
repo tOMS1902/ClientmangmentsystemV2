@@ -58,7 +58,7 @@ export default function MealsPage() {
   const [supplements, setSupplements] = useState<Supplement[]>([])
   const [activeTab, setActiveTab] = useState<'training' | 'rest'>('training')
   const [loading, setLoading] = useState(true)
-  const [customItems, setCustomItems] = useState<{ id: string; name: string; note: string | null; action: 'add' | 'remove' }[]>([])
+  const [customItems, setCustomItems] = useState<{ id: string; name: string; amount: string | null; note: string | null; action: 'add' | 'remove' }[]>([])
   const [extraCalories, setExtraCalories] = useState('')
   const [savedExtra, setSavedExtra] = useState(false)
   const [savingExtra, setSavingExtra] = useState(false)

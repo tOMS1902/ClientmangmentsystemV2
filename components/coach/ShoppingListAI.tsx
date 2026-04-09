@@ -9,6 +9,7 @@ import type { MealPlan } from '@/lib/types'
 interface CustomItem {
   id: string
   name: string
+  amount: string | null
   note: string | null
   action: 'add' | 'remove'
 }
@@ -70,7 +71,7 @@ export function ShoppingListAI({ clientId, trainingPlan, restPlan }: ShoppingLis
 
   // Collect auto-generated items from meal plans (deduplicated)
   const seen = new Set<string>()
-  const planItems: string[] = []
+  const planItems: { name: string; amount: string }[] = []
   for (const plan of [trainingPlan, restPlan]) {
     if (!plan) continue
     for (const meal of plan.meals) {
@@ -78,7 +79,7 @@ export function ShoppingListAI({ clientId, trainingPlan, restPlan }: ShoppingLis
         const key = item.name.toLowerCase()
         if (!seen.has(key)) {
           seen.add(key)
-          planItems.push(item.name)
+          planItems.push({ name: item.name, amount: item.description })
         }
       }
     }
@@ -97,13 +98,16 @@ export function ShoppingListAI({ clientId, trainingPlan, restPlan }: ShoppingLis
           </p>
           {customItems.map(item => (
             <div key={item.id} className="flex items-center justify-between gap-3 py-1.5 border-b border-white/5 last:border-0">
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 flex-wrap">
                 <span className={`text-sm font-bold flex-shrink-0 ${item.action === 'add' ? 'text-green-400' : 'text-red-400'}`}>
                   {item.action === 'add' ? '+' : '−'}
                 </span>
                 <span className={`text-sm ${item.action === 'remove' ? 'line-through text-grey-muted' : 'text-white'}`}>
                   {item.name}
                 </span>
+                {item.amount && (
+                  <span className="text-xs text-gold/70 flex-shrink-0">{item.amount}</span>
+                )}
                 {item.note && <span className="text-xs text-grey-muted truncate">{item.note}</span>}
               </div>
               <button
@@ -132,8 +136,11 @@ export function ShoppingListAI({ clientId, trainingPlan, restPlan }: ShoppingLis
           </button>
           {planExpanded && (
             <div className="mt-2 flex flex-col gap-1">
-              {planItems.map(name => (
-                <p key={name} className="text-sm text-grey-muted">{name}</p>
+              {planItems.map(({ name, amount }) => (
+                <div key={name} className="flex items-baseline gap-2">
+                  <p className="text-sm text-grey-muted">{name}</p>
+                  {amount && <p className="text-xs text-gold/60">{amount}</p>}
+                </div>
               ))}
             </div>
           )}

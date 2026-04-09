@@ -9,7 +9,7 @@ const anthropic = new Anthropic()
 const tools: Anthropic.Tool[] = [
   {
     name: 'modify_shopping_list',
-    description: "Add or remove items from the client's custom shopping list. Use when the coach asks to add or remove specific foods from the shopping list.",
+    description: "Add or remove items from the client's custom shopping list. Use when the coach asks to add or remove specific foods, or change amounts/quantities on the shopping list.",
     input_schema: {
       type: 'object' as const,
       properties: {
@@ -19,6 +19,7 @@ const tools: Anthropic.Tool[] = [
             type: 'object',
             properties: {
               name: { type: 'string' },
+              amount: { type: 'string', description: 'Quantity or weight, e.g. "200g", "1 cup", "2 tbsp"' },
               note: { type: 'string' },
             },
             required: ['name'],
@@ -99,14 +100,14 @@ export async function POST(request: Request) {
 
     for (const block of toolUseBlocks) {
       if (block.name === 'modify_shopping_list') {
-        const input = block.input as { adds?: { name: string; note?: string }[]; removes?: { name: string }[] }
-        const rows: { client_id: string; name: string; note: string | null; action: 'add' | 'remove' }[] = []
+        const input = block.input as { adds?: { name: string; amount?: string; note?: string }[]; removes?: { name: string }[] }
+        const rows: { client_id: string; name: string; amount: string | null; note: string | null; action: 'add' | 'remove' }[] = []
 
         for (const item of (input.adds ?? [])) {
-          rows.push({ client_id: clientId, name: item.name, note: item.note ?? null, action: 'add' })
+          rows.push({ client_id: clientId, name: item.name, amount: item.amount ?? null, note: item.note ?? null, action: 'add' })
         }
         for (const item of (input.removes ?? [])) {
-          rows.push({ client_id: clientId, name: item.name, note: null, action: 'remove' })
+          rows.push({ client_id: clientId, name: item.name, amount: null, note: null, action: 'remove' })
         }
 
         if (rows.length > 0) {
