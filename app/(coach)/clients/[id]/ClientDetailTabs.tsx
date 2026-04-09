@@ -16,6 +16,7 @@ import { PhotosTab } from '@/components/client/tabs/PhotosTab'
 import { AITab } from '@/components/coach/AITab'
 import { ClientPortalManager } from '@/components/coach/ClientPortalManager'
 import { VoicePlayer } from '@/components/VoicePlayer'
+import { ShoppingListAI } from '@/components/coach/ShoppingListAI'
 import type { Client, WeeklyCheckin, MidweekCheck, Programme, NutritionTargets, Habit, MealPlan, Supplement, TrackingStatus } from '@/lib/types'
 
 interface ClientDetailTabsProps {
@@ -849,6 +850,13 @@ export function ClientDetailTabs({
           </div>
           <div className="bg-navy-card border border-white/8 p-6">
             <HabitManager clientId={client.id} initialHabits={habits} />
+          </div>
+          <div className="bg-navy-card border border-white/8 p-6">
+            <ShoppingListAI
+              clientId={client.id}
+              trainingPlan={trainingMealPlan}
+              restPlan={restMealPlan}
+            />
           </div>
         </div>
       )}

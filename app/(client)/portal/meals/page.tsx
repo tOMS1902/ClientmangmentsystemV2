@@ -5,6 +5,7 @@ import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import { Button } from '@/components/ui/Button'
 import type { MealPlan, Meal, Supplement } from '@/lib/types'
+import { ShoppingList } from '@/components/client/portal/ShoppingList'
 
 function MacroRow({ calories, protein, carbs, fat, muted }: { calories: number; protein: number; carbs: number; fat: number; muted?: boolean }) {
   const val = muted ? 'text-white/60' : 'text-white'
@@ -57,6 +58,7 @@ export default function MealsPage() {
   const [supplements, setSupplements] = useState<Supplement[]>([])
   const [activeTab, setActiveTab] = useState<'training' | 'rest'>('training')
   const [loading, setLoading] = useState(true)
+  const [customItems, setCustomItems] = useState<{ id: string; name: string; note: string | null; action: 'add' | 'remove' }[]>([])
   const [extraCalories, setExtraCalories] = useState('')
   const [savedExtra, setSavedExtra] = useState(false)
   const [savingExtra, setSavingExtra] = useState(false)
@@ -78,6 +80,11 @@ export default function MealsPage() {
           }
           if (suppRes.ok) {
             setSupplements(await suppRes.json())
+          }
+          const customRes = await fetch(`/api/shopping-list/${client.id}`)
+          if (customRes.ok) {
+            const data = await customRes.json()
+            setCustomItems(data.items ?? [])
           }
         }
       } catch {
@@ -198,6 +205,8 @@ export default function MealsPage() {
           </div>
         </div>
       )}
+
+      <ShoppingList trainingPlan={trainingPlan} restPlan={restPlan} customItems={customItems} />
     </div>
   )
 }
