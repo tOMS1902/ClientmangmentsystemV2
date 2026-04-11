@@ -19,26 +19,16 @@ interface ShoppingListProps {
   customItems?: CustomItem[]
 }
 
-interface ShoppingItem {
-  name: string
-  amount: string
-  mealName: string
-}
-
 export function ShoppingList({ trainingPlan, restPlan, customItems = [] }: ShoppingListProps) {
-  const [open, setOpen] = useState(true)
   const [checked, setChecked] = useState<Set<string>>(new Set())
 
-  if (!trainingPlan && !restPlan && customItems.length === 0) return null
-
-  // Names to remove (case-insensitive)
   const removeNames = new Set(
     customItems.filter(c => c.action === 'remove').map(c => c.name.toLowerCase())
   )
 
-  // Collect all items from both plans, deduplicate by name (case-insensitive), skip removes
+  // Collect all items from both plans, deduplicated by name, skip removes
   const seen = new Set<string>()
-  const items: ShoppingItem[] = []
+  const planItems: { name: string; amount: string | null }[] = []
 
   for (const plan of [trainingPlan, restPlan]) {
     if (!plan) continue
@@ -47,7 +37,7 @@ export function ShoppingList({ trainingPlan, restPlan, customItems = [] }: Shopp
         const key = item.name.toLowerCase()
         if (!seen.has(key) && !removeNames.has(key)) {
           seen.add(key)
-          items.push({ name: item.name, amount: item.description, mealName: meal.name })
+          planItems.push({ name: item.name, amount: item.description || null })
         }
       }
     }
@@ -55,94 +45,88 @@ export function ShoppingList({ trainingPlan, restPlan, customItems = [] }: Shopp
 
   const coachAdditions = customItems.filter(c => c.action === 'add')
 
-  // Group by meal name
-  const groups = items.reduce<Record<string, ShoppingItem[]>>((acc, item) => {
-    if (!acc[item.mealName]) acc[item.mealName] = []
-    acc[item.mealName].push(item)
-    return acc
-  }, {})
+  const totalItems = planItems.length + coachAdditions.length
+  const checkedCount = checked.size
 
-  function toggle(name: string) {
+  if (totalItems === 0) return null
+
+  function toggle(key: string) {
     setChecked(prev => {
       const next = new Set(prev)
-      if (next.has(name)) next.delete(name)
-      else next.add(name)
+      if (next.has(key)) next.delete(next.has(key) ? key : key)
+      else next.add(key)
       return next
     })
   }
 
+  function clearChecked() {
+    setChecked(new Set())
+  }
+
   return (
     <div className="bg-navy-card border border-white/8 p-6 mt-6">
-      <div className="flex items-center justify-between mb-1 cursor-pointer" onClick={() => setOpen(o => !o)}>
-        <Eyebrow>Shopping List</Eyebrow>
-        <span className="text-grey-muted text-xs">{open ? '▲' : '▼'}</span>
+      <div className="flex items-center justify-between mb-1">
+        <Eyebrow>Weekly Shopping List</Eyebrow>
+        {checkedCount > 0 && (
+          <button
+            onClick={clearChecked}
+            className="text-xs text-grey-muted hover:text-white transition-colors"
+            style={{ fontFamily: 'var(--font-label)' }}
+          >
+            Clear ticked ({checkedCount})
+          </button>
+        )}
       </div>
       <GoldRule />
+      <p className="text-xs text-grey-muted mt-2 mb-4">
+        {totalItems} item{totalItems !== 1 ? 's' : ''} · Tick off as you shop
+      </p>
 
-      {open && (
-        <div className="mt-4 flex flex-col gap-6">
-          {Object.entries(groups).map(([mealName, mealItems]) => (
-            <div key={mealName}>
-              <p className="text-xs text-gold/80 mb-2" style={{ fontFamily: 'var(--font-label)', letterSpacing: '1px' }}>
-                {mealName.toUpperCase()}
-              </p>
-              <div className="flex flex-col gap-2">
-                {mealItems.map(item => (
-                  <label key={item.name} className="flex items-start gap-3 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={checked.has(item.name)}
-                      onChange={() => toggle(item.name)}
-                      className="mt-0.5 accent-gold"
-                    />
-                    <div className="flex items-baseline gap-2 flex-wrap">
-                      <p className={`text-sm transition-colors ${checked.has(item.name) ? 'line-through text-grey-muted' : 'text-white'}`}>
-                        {item.name}
-                      </p>
-                      {item.amount && (
-                        <p className="text-xs text-gold/70">{item.amount}</p>
-                      )}
-                    </div>
-                  </label>
-                ))}
-              </div>
+      <div className="flex flex-col gap-2">
+        {/* Coach additions first — prominently */}
+        {coachAdditions.map(item => (
+          <label key={item.id} className="flex items-start gap-3 cursor-pointer py-1.5 border-b border-white/5 last:border-0">
+            <input
+              type="checkbox"
+              checked={checked.has(`add-${item.id}`)}
+              onChange={() => toggle(`add-${item.id}`)}
+              className="mt-0.5 accent-gold flex-shrink-0"
+            />
+            <div className="flex items-baseline gap-2 flex-wrap min-w-0">
+              <span className={`text-sm transition-colors ${checked.has(`add-${item.id}`) ? 'line-through text-grey-muted' : 'text-white'}`}>
+                {item.name}
+              </span>
+              {item.amount && (
+                <span className="text-xs text-gold/70 flex-shrink-0">{item.amount}</span>
+              )}
+              {item.note && (
+                <span className="text-xs text-grey-muted">{item.note}</span>
+              )}
+              <span className="text-xs text-gold/40 flex-shrink-0">· added by coach</span>
             </div>
-          ))}
+          </label>
+        ))}
 
-          {coachAdditions.length > 0 && (
-            <div>
-              <p className="text-xs text-gold/80 mb-2" style={{ fontFamily: 'var(--font-label)', letterSpacing: '1px' }}>
-                COACH'S ADDITIONS
-              </p>
-              <div className="flex flex-col gap-2">
-                {coachAdditions.map(item => (
-                  <label key={item.id} className="flex items-start gap-3 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={checked.has(item.name)}
-                      onChange={() => toggle(item.name)}
-                      className="mt-0.5 accent-gold"
-                    />
-                    <div>
-                      <div className="flex items-baseline gap-2 flex-wrap">
-                        <p className={`text-sm transition-colors ${checked.has(item.name) ? 'line-through text-grey-muted' : 'text-white'}`}>
-                          {item.name}
-                        </p>
-                        {item.amount && (
-                          <p className="text-xs text-gold/70">{item.amount}</p>
-                        )}
-                      </div>
-                      {item.note && (
-                        <p className="text-xs text-grey-muted">{item.note}</p>
-                      )}
-                    </div>
-                  </label>
-                ))}
-              </div>
+        {/* All meal plan items as a flat list */}
+        {planItems.map(item => (
+          <label key={item.name} className="flex items-start gap-3 cursor-pointer py-1.5 border-b border-white/5 last:border-0">
+            <input
+              type="checkbox"
+              checked={checked.has(item.name)}
+              onChange={() => toggle(item.name)}
+              className="mt-0.5 accent-gold flex-shrink-0"
+            />
+            <div className="flex items-baseline gap-2 flex-wrap min-w-0">
+              <span className={`text-sm transition-colors ${checked.has(item.name) ? 'line-through text-grey-muted' : 'text-white'}`}>
+                {item.name}
+              </span>
+              {item.amount && (
+                <span className="text-xs text-gold/70 flex-shrink-0">{item.amount}</span>
+              )}
             </div>
-          )}
-        </div>
-      )}
+          </label>
+        ))}
+      </div>
     </div>
   )
 }
