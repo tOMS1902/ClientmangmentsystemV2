@@ -394,6 +394,15 @@ Create both a training day meal plan and a rest day meal plan that hit these mac
         </div>
       )}
 
+      {plans.length > 0 && (() => {
+        const total = plans.reduce((s, p) => s + p.times_per_week, 0)
+        return (
+          <p className={`text-xs mt-2 mb-1 ${total === 7 ? 'text-gold/60' : 'text-orange-400'}`} style={{ fontFamily: 'var(--font-label)' }}>
+            {total}/7 days per week{total < 7 ? ' — shopping list will be under a full week' : total > 7 ? ' — over 7 days' : ' ✓'}
+          </p>
+        )
+      })()}
+
       {message && <p className="text-gold text-sm mt-3 mb-2">{message}</p>}
 
       {activePlan && (

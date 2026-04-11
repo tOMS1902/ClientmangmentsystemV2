@@ -94,7 +94,7 @@ export function ShoppingList({ mealPlans, customItems = [] }: ShoppingListProps)
       </div>
       <GoldRule />
       <p className="text-xs text-grey-muted mt-2 mb-4">
-        {totalItems} item{totalItems !== 1 ? 's' : ''} · Tick off as you shop
+        {totalItems} item{totalItems !== 1 ? 's' : ''} · {mealPlans.reduce((s, p) => s + (p.times_per_week ?? 1), 0)} days · Tick off as you shop
       </p>
 
       <div className="flex flex-col gap-2">

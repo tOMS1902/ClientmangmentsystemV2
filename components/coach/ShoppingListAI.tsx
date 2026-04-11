@@ -127,9 +127,19 @@ export function ShoppingListAI({ clientId, mealPlans }: ShoppingListAIProps) {
       {/* Per-plan frequency adjusters */}
       {mealPlans.length > 0 && (
         <div className="mb-5 p-4 bg-navy-deep border border-white/8">
-          <p className="text-xs text-white/40 mb-3" style={{ fontFamily: 'var(--font-label)', letterSpacing: '1px' }}>
-            ADJUST THIS WEEK
-          </p>
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <p className="text-xs text-white/40" style={{ fontFamily: 'var(--font-label)', letterSpacing: '1px' }}>
+              DAYS PER WEEK
+            </p>
+            {(() => {
+              const total = mealPlans.reduce((sum, plan) => sum + (weekOverrides[plan.day_type] ?? plan.times_per_week ?? 1), 0)
+              return (
+                <span className={`text-xs font-semibold ${total === 7 ? 'text-gold' : total > 7 ? 'text-red-400' : 'text-orange-400'}`} style={{ fontFamily: 'var(--font-label)' }}>
+                  {total}/7 days{total < 7 ? ' — shopping list is under a full week' : total > 7 ? ' — over 7 days' : ' ✓'}
+                </span>
+              )
+            })()}
+          </div>
           <div className="flex flex-col gap-3">
             {mealPlans.map(plan => {
               const freq = weekOverrides[plan.day_type] ?? plan.times_per_week ?? 1
@@ -150,14 +160,13 @@ export function ShoppingListAI({ clientId, mealPlans }: ShoppingListAIProps) {
                         {n}
                       </button>
                     ))}
-                    <span className="text-xs text-white/30 ml-1">days</span>
                   </div>
                 </div>
               )
             })}
           </div>
           <p className="text-xs text-white/30 mt-3">
-            Default from meal plan. Adjust here to preview a different week without changing the plan.
+            Set days/week per plan. Adjusting here previews without saving — update the meal plan to make it permanent.
           </p>
         </div>
       )}
@@ -166,15 +175,16 @@ export function ShoppingListAI({ clientId, mealPlans }: ShoppingListAIProps) {
       {planItems.length > 0 && (
         <div className="mb-5">
           <p className="text-xs text-white/40 mb-2" style={{ fontFamily: 'var(--font-label)', letterSpacing: '1px' }}>
-            FROM MEAL PLAN ({planItems.length} items)
+            INGREDIENT LIST ({planItems.length} items)
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col">
             {planItems.map(item => {
               const display = formatMultipliedAmount(item.perServingAmount, item.count)
               return (
-                <span key={item.name} className="text-xs bg-navy-deep border border-white/10 text-white/60 px-2.5 py-1">
-                  {item.name}{display ? ` · ${display}` : ''}
-                </span>
+                <div key={item.name} className="flex items-baseline justify-between gap-3 py-1.5 border-b border-white/5 last:border-0">
+                  <span className="text-sm text-white">{item.name}</span>
+                  {display && <span className="text-xs text-gold/70 flex-shrink-0">{display}</span>}
+                </div>
               )
             })}
           </div>
