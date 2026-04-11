@@ -163,14 +163,56 @@ function DeleteClientButton({ clientId, clientName }: { clientId: string; client
 }
 
 function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProps, 'client' | 'checkins' | 'weekNumber'>) {
+  const router = useRouter()
   const unit: WeightUnit = client.weight_unit ?? 'kg'
   const latestCheckin = checkins[0] || null
-  // Edit state stored in the client's display unit
+
+  // Weight goals edit state
   const [goalWeight, setGoalWeight] = useState(unit === 'lbs' ? kgToLbs(client.goal_weight || 0) : (client.goal_weight || 0))
   const [startWeight, setStartWeight] = useState(unit === 'lbs' ? kgToLbs(client.start_weight || 0) : (client.start_weight || 0))
   const [editingWeights, setEditingWeights] = useState(false)
   const [savingWeights, setSavingWeights] = useState(false)
   const [weightMsg, setWeightMsg] = useState('')
+
+  // Profile edit state
+  const [editingProfile, setEditingProfile] = useState(false)
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileMsg, setProfileMsg] = useState('')
+  const [fullName, setFullName] = useState(client.full_name)
+  const [phone, setPhone] = useState(client.phone || '')
+  const [startDate, setStartDate] = useState(client.start_date || '')
+  const [goalText, setGoalText] = useState(client.goal_text || '')
+  const [profileWeightUnit, setProfileWeightUnit] = useState<'kg' | 'lbs'>(client.weight_unit ?? 'kg')
+  const [trackWeight, setTrackWeight] = useState(client.track_weight ?? true)
+  const [isActive, setIsActive] = useState(client.is_active ?? true)
+
+  async function saveProfile() {
+    setSavingProfile(true)
+    setProfileMsg('')
+    const res = await fetch(`/api/clients/${client.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        full_name: fullName,
+        phone: phone || undefined,
+        start_date: startDate || undefined,
+        goal_text: goalText || undefined,
+        weight_unit: profileWeightUnit,
+        track_weight: trackWeight,
+        is_active: isActive,
+      }),
+    })
+    if (res.ok) {
+      setEditingProfile(false)
+      setProfileMsg('Saved')
+      router.refresh()
+      setTimeout(() => setProfileMsg(''), 2000)
+    } else {
+      const err = await res.json().catch(() => ({}))
+      setProfileMsg(err.error || 'Failed to save')
+    }
+    setSavingProfile(false)
+  }
 
   async function saveWeights() {
     setSavingWeights(true)
@@ -275,6 +317,82 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
           </div>
         )}
         {weightMsg && <p className="text-xs text-grey-muted mt-2">{weightMsg}</p>}
+      </div>
+
+      {/* Client Profile */}
+      <div className="bg-navy-card border border-white/8 p-6 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <Eyebrow>Client Profile</Eyebrow>
+          {!editingProfile && (
+            <button onClick={() => setEditingProfile(true)} className="text-xs text-gold" style={{ fontFamily: 'var(--font-label)' }}>Edit</button>
+          )}
+        </div>
+        <GoldRule />
+        {editingProfile ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 text-sm">
+            <div>
+              <p className="text-grey-muted mb-1">Full Name</p>
+              <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} className="w-full bg-navy-deep border border-white/20 text-white p-2 text-sm focus:outline-none focus:border-gold" />
+            </div>
+            <div>
+              <p className="text-grey-muted mb-1">Phone</p>
+              <input type="text" value={phone} onChange={e => setPhone(e.target.value)} className="w-full bg-navy-deep border border-white/20 text-white p-2 text-sm focus:outline-none focus:border-gold" />
+            </div>
+            <div>
+              <p className="text-grey-muted mb-1">Start Date</p>
+              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full bg-navy-deep border border-white/20 text-white p-2 text-sm focus:outline-none focus:border-gold" />
+            </div>
+            <div>
+              <p className="text-grey-muted mb-1">Weight Unit</p>
+              <div className="flex gap-2 mt-1">
+                {(['kg', 'lbs'] as const).map(u => (
+                  <button key={u} type="button" onClick={() => setProfileWeightUnit(u)}
+                    className={`px-4 py-1.5 text-xs border transition-colors ${profileWeightUnit === u ? 'border-gold bg-gold/10 text-gold' : 'border-white/20 text-white/60 hover:border-white/50'}`}
+                    style={{ fontFamily: 'var(--font-label)' }}>{u}</button>
+                ))}
+              </div>
+            </div>
+            <div className="sm:col-span-2">
+              <p className="text-grey-muted mb-1">Goal</p>
+              <textarea value={goalText} onChange={e => setGoalText(e.target.value)} rows={2} className="w-full bg-navy-deep border border-white/20 text-white p-2 text-sm focus:outline-none focus:border-gold resize-none" />
+            </div>
+            <div className="flex items-center gap-6">
+              <label className="flex items-center gap-2 cursor-pointer text-white/85 text-sm">
+                <input type="checkbox" checked={trackWeight} onChange={e => setTrackWeight(e.target.checked)} className="accent-gold" />
+                Track weight
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer text-white/85 text-sm">
+                <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} className="accent-gold" />
+                Active client
+              </label>
+            </div>
+            <div className="sm:col-span-2 flex gap-3 items-center">
+              <Button size="sm" variant="primary" onClick={saveProfile} disabled={savingProfile}>{savingProfile ? 'Saving...' : 'Save'}</Button>
+              <Button size="sm" variant="ghost" onClick={() => {
+                setEditingProfile(false)
+                setFullName(client.full_name)
+                setPhone(client.phone || '')
+                setStartDate(client.start_date || '')
+                setGoalText(client.goal_text || '')
+                setProfileWeightUnit(client.weight_unit ?? 'kg')
+                setTrackWeight(client.track_weight ?? true)
+                setIsActive(client.is_active ?? true)
+              }}>Cancel</Button>
+              {profileMsg && <span className={`text-xs ${profileMsg === 'Saved' ? 'text-grey-muted' : 'text-red-400'}`}>{profileMsg}</span>}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4 text-sm">
+            <div><p className="text-grey-muted mb-0.5">Name</p><p className="text-white">{client.full_name}</p></div>
+            <div><p className="text-grey-muted mb-0.5">Phone</p><p className="text-white">{client.phone || '—'}</p></div>
+            <div><p className="text-grey-muted mb-0.5">Start Date</p><p className="text-white">{client.start_date || '—'}</p></div>
+            <div><p className="text-grey-muted mb-0.5">Weight Unit</p><p className="text-white">{client.weight_unit ?? 'kg'}</p></div>
+            <div><p className="text-grey-muted mb-0.5">Track Weight</p><p className="text-white">{client.track_weight ? 'Yes' : 'No'}</p></div>
+            <div><p className="text-grey-muted mb-0.5">Status</p><p className={client.is_active ? 'text-green-400' : 'text-grey-muted'}>{client.is_active ? 'Active' : 'Inactive'}</p></div>
+            {client.goal_text && <div className="col-span-2 sm:col-span-3"><p className="text-grey-muted mb-0.5">Goal</p><p className="text-white/85">{client.goal_text}</p></div>}
+            {profileMsg && <p className="text-xs text-grey-muted">{profileMsg}</p>}
+          </div>
+        )}
       </div>
 
       {latestCheckin && (

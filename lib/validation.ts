@@ -14,6 +14,7 @@ const positiveNum = z.number().min(0)
 export const ClientPatchSchema = z.object({
   full_name: nonEmptyStr(100).optional(),
   phone: optionalStr(30),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   goal_weight: positiveNum.optional(),
   start_weight: positiveNum.optional(),
   current_weight: positiveNum.optional(),
