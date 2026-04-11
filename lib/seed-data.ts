@@ -664,6 +664,7 @@ export const SEED_MEAL_PLANS: MealPlan[] = [
     day_type: 'training',
     name: 'David — Training Day',
     is_active: true,
+    times_per_week: 4,
     meals: [
       {
         name: 'Breakfast',
@@ -704,6 +705,7 @@ export const SEED_MEAL_PLANS: MealPlan[] = [
     day_type: 'rest',
     name: 'David — Rest Day',
     is_active: true,
+    times_per_week: 3,
     meals: [
       {
         name: 'Breakfast',

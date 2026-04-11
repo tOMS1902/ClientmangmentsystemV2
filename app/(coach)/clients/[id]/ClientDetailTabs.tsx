@@ -27,8 +27,7 @@ interface ClientDetailTabsProps {
   programmes: Programme[]
   targets: NutritionTargets | null
   habits: Habit[]
-  trainingMealPlan: MealPlan | null
-  restMealPlan: MealPlan | null
+  mealPlans: MealPlan[]
   supplements: Supplement[]
   weekNumber: number
   unreadMessages?: number
@@ -893,8 +892,7 @@ export function ClientDetailTabs({
   programmes,
   targets,
   habits,
-  trainingMealPlan,
-  restMealPlan,
+  mealPlans,
   supplements,
   weekNumber,
   unreadMessages = 0,
@@ -975,8 +973,7 @@ export function ClientDetailTabs({
           <div className="bg-navy-card border border-white/8 p-6">
             <MealPlanBuilder
               clientId={client.id}
-              initialTrainingPlan={trainingMealPlan}
-              initialRestPlan={restMealPlan}
+              initialPlans={mealPlans}
             />
           </div>
           <div className="bg-navy-card border border-white/8 p-6">
@@ -988,8 +985,7 @@ export function ClientDetailTabs({
           <div className="bg-navy-card border border-white/8 p-6">
             <ShoppingListAI
               clientId={client.id}
-              trainingPlan={trainingMealPlan}
-              restPlan={restMealPlan}
+              mealPlans={mealPlans}
             />
           </div>
         </div>

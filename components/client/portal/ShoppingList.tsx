@@ -14,37 +14,53 @@ interface CustomItem {
 }
 
 interface ShoppingListProps {
-  trainingPlan: MealPlan | null
-  restPlan: MealPlan | null
+  mealPlans: MealPlan[]
   customItems?: CustomItem[]
 }
 
-export function ShoppingList({ trainingPlan, restPlan, customItems = [] }: ShoppingListProps) {
+function formatMultipliedAmount(perServing: string | null, count: number): string | null {
+  if (!perServing) return count > 1 ? `× ${count}` : null
+  const match = perServing.trim().match(/^([\d.]+)\s*([a-zA-Z]+)(.*)/)
+  if (!match) return count > 1 ? `${perServing} × ${count}` : perServing
+  const num = parseFloat(match[1])
+  const unit = match[2]
+  const rest = match[3].trim()
+  if (isNaN(num) || count <= 1) return perServing
+  const total = Math.round(num * count * 10) / 10
+  const perServingStr = `${match[1]}${unit}${rest ? ` ${rest}` : ''}`
+  return `${total}${unit} (${perServingStr} × ${count})`
+}
+
+export function ShoppingList({ mealPlans, customItems = [] }: ShoppingListProps) {
   const [checked, setChecked] = useState<Set<string>>(new Set())
 
   const removeNames = new Set(
     customItems.filter(c => c.action === 'remove').map(c => c.name.toLowerCase())
   )
 
-  // Collect all items from both plans, deduplicated by name, skip removes
-  const seen = new Set<string>()
-  const planItems: { name: string; amount: string | null }[] = []
-
-  for (const plan of [trainingPlan, restPlan]) {
-    if (!plan) continue
+  // Aggregate items across all plans, multiplied by times_per_week
+  const itemMap = new Map<string, { name: string; count: number; perServingAmount: string | null }>()
+  for (const plan of mealPlans) {
+    const freq = plan.times_per_week ?? 1
+    const seenInPlan = new Set<string>()
     for (const meal of plan.meals) {
       for (const item of meal.items) {
         const key = item.name.toLowerCase()
-        if (!seen.has(key) && !removeNames.has(key)) {
-          seen.add(key)
-          planItems.push({ name: item.name, amount: item.description || null })
+        if (!seenInPlan.has(key) && !removeNames.has(key)) {
+          seenInPlan.add(key)
+          const existing = itemMap.get(key)
+          if (existing) {
+            existing.count += freq
+          } else {
+            itemMap.set(key, { name: item.name, count: freq, perServingAmount: item.description || null })
+          }
         }
       }
     }
   }
+  const planItems = Array.from(itemMap.values())
 
   const coachAdditions = customItems.filter(c => c.action === 'add')
-
   const totalItems = planItems.length + coachAdditions.length
   const checkedCount = checked.size
 
@@ -53,7 +69,7 @@ export function ShoppingList({ trainingPlan, restPlan, customItems = [] }: Shopp
   function toggle(key: string) {
     setChecked(prev => {
       const next = new Set(prev)
-      if (next.has(key)) next.delete(next.has(key) ? key : key)
+      if (next.has(key)) next.delete(key)
       else next.add(key)
       return next
     })
@@ -83,7 +99,7 @@ export function ShoppingList({ trainingPlan, restPlan, customItems = [] }: Shopp
       </p>
 
       <div className="flex flex-col gap-2">
-        {/* Coach additions first — prominently */}
+        {/* Coach additions first */}
         {coachAdditions.map(item => (
           <label key={item.id} className="flex items-start gap-3 cursor-pointer py-1.5 border-b border-white/5 last:border-0">
             <input
@@ -107,25 +123,28 @@ export function ShoppingList({ trainingPlan, restPlan, customItems = [] }: Shopp
           </label>
         ))}
 
-        {/* All meal plan items as a flat list */}
-        {planItems.map(item => (
-          <label key={item.name} className="flex items-start gap-3 cursor-pointer py-1.5 border-b border-white/5 last:border-0">
-            <input
-              type="checkbox"
-              checked={checked.has(item.name)}
-              onChange={() => toggle(item.name)}
-              className="mt-0.5 accent-gold flex-shrink-0"
-            />
-            <div className="flex items-baseline gap-2 flex-wrap min-w-0">
-              <span className={`text-sm transition-colors ${checked.has(item.name) ? 'line-through text-grey-muted' : 'text-white'}`}>
-                {item.name}
-              </span>
-              {item.amount && (
-                <span className="text-xs text-gold/70 flex-shrink-0">{item.amount}</span>
-              )}
-            </div>
-          </label>
-        ))}
+        {/* All meal plan items with multiplied amounts */}
+        {planItems.map(item => {
+          const amountDisplay = formatMultipliedAmount(item.perServingAmount, item.count)
+          return (
+            <label key={item.name} className="flex items-start gap-3 cursor-pointer py-1.5 border-b border-white/5 last:border-0">
+              <input
+                type="checkbox"
+                checked={checked.has(item.name)}
+                onChange={() => toggle(item.name)}
+                className="mt-0.5 accent-gold flex-shrink-0"
+              />
+              <div className="flex items-baseline gap-2 flex-wrap min-w-0">
+                <span className={`text-sm transition-colors ${checked.has(item.name) ? 'line-through text-grey-muted' : 'text-white'}`}>
+                  {item.name}
+                </span>
+                {amountDisplay && (
+                  <span className="text-xs text-gold/70 flex-shrink-0">{amountDisplay}</span>
+                )}
+              </div>
+            </label>
+          )
+        })}
       </div>
     </div>
   )

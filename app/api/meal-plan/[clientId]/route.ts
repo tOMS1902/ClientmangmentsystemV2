@@ -22,13 +22,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ clie
     .select('*')
     .eq('client_id', clientId)
     .eq('is_active', true)
+    .order('created_at', { ascending: true })
 
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
 
-  const training = plans?.find(p => p.day_type === 'training') || null
-  const rest = plans?.find(p => p.day_type === 'rest') || null
-
-  return NextResponse.json({ training, rest })
+  return NextResponse.json({ plans: plans ?? [] })
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ clientId: string }> }) {
@@ -49,4 +47,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ cli
 
   if (upsertError) return NextResponse.json({ error: upsertError.message }, { status: 500 })
   return NextResponse.json(plan)
+}
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ clientId: string }> }) {
+  const { clientId } = await params
+  const supabase = await createServerSupabaseClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (!user || error) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'coach') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const { day_type } = await request.json()
+  if (!day_type) return NextResponse.json({ error: 'day_type is required' }, { status: 400 })
+
+  await supabase.from('meal_plans').delete().eq('client_id', clientId).eq('day_type', day_type)
+  return NextResponse.json({ ok: true })
 }

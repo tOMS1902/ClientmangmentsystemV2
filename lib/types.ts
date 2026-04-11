@@ -174,10 +174,11 @@ export interface HabitLog {
 export interface MealPlan {
   id: string
   client_id: string
-  day_type: 'training' | 'rest'
+  day_type: string
   name: string
   meals: Meal[]
   is_active: boolean
+  times_per_week: number
 }
 
 export interface Meal {

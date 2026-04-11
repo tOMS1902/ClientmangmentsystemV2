@@ -8,10 +8,16 @@ import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import type { MealPlan, Meal, MealItem } from '@/lib/types'
 
+interface PlanDraft {
+  day_type: string
+  name: string
+  times_per_week: number
+  meals: Meal[]
+}
+
 interface MealPlanBuilderProps {
   clientId: string
-  initialTrainingPlan: MealPlan | null
-  initialRestPlan: MealPlan | null
+  initialPlans: MealPlan[]
 }
 
 function getTotal(meals: Meal[]) {
@@ -31,13 +37,27 @@ function getTotal(meals: Meal[]) {
   }, { calories: 0, protein: 0, carbs: 0, fat: 0 })
 }
 
-function MealEditor({
-  meals,
-  onChange,
-}: {
-  meals: Meal[]
-  onChange: (meals: Meal[]) => void
-}) {
+function FreqPicker({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5, 6, 7].map(n => (
+        <button
+          key={n}
+          onClick={() => onChange(n)}
+          className={`w-7 h-7 text-xs border transition-colors ${
+            value === n
+              ? 'bg-gold text-navy-deep border-gold font-semibold'
+              : 'bg-navy-mid border-white/20 text-white/60 hover:border-white/40'
+          }`}
+        >
+          {n}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function MealEditor({ meals, onChange }: { meals: Meal[]; onChange: (meals: Meal[]) => void }) {
   const [addingMeal, setAddingMeal] = useState(false)
   const [newMealName, setNewMealName] = useState('')
   const [addingItem, setAddingItem] = useState<number | null>(null)
@@ -63,19 +83,13 @@ function MealEditor({
       carbs: parseInt(itemForm.carbs) || 0,
       fat: parseInt(itemForm.fat) || 0,
     }
-    const updated = meals.map((m, i) =>
-      i === mealIndex ? { ...m, items: [...m.items, item] } : m
-    )
-    onChange(updated)
+    onChange(meals.map((m, i) => i === mealIndex ? { ...m, items: [...m.items, item] } : m))
     setItemForm({ name: '', description: '', calories: '', protein: '', carbs: '', fat: '' })
     setAddingItem(null)
   }
 
   function deleteItem(mealIndex: number, itemIndex: number) {
-    const updated = meals.map((m, i) =>
-      i === mealIndex ? { ...m, items: m.items.filter((_, j) => j !== itemIndex) } : m
-    )
-    onChange(updated)
+    onChange(meals.map((m, i) => i === mealIndex ? { ...m, items: m.items.filter((_, j) => j !== itemIndex) } : m))
   }
 
   const total = getTotal(meals)
@@ -112,7 +126,7 @@ function MealEditor({
                   <Input placeholder="Food name" value={itemForm.name} onChange={e => setItemForm(f => ({ ...f, name: e.target.value }))} />
                 </div>
                 <div className="col-span-3">
-                  <Input placeholder="Description (e.g. 200g cooked)" value={itemForm.description} onChange={e => setItemForm(f => ({ ...f, description: e.target.value }))} />
+                  <Input placeholder="Amount/description (e.g. 200g cooked)" value={itemForm.description} onChange={e => setItemForm(f => ({ ...f, description: e.target.value }))} />
                 </div>
                 <Input placeholder="Calories" type="number" value={itemForm.calories} onChange={e => setItemForm(f => ({ ...f, calories: e.target.value }))} />
                 <Input placeholder="Protein (g)" type="number" value={itemForm.protein} onChange={e => setItemForm(f => ({ ...f, protein: e.target.value }))} />
@@ -138,7 +152,13 @@ function MealEditor({
 
       {addingMeal ? (
         <div className="flex gap-2 items-center mt-2">
-          <Input placeholder="Meal name (e.g. Breakfast)" value={newMealName} onChange={e => setNewMealName(e.target.value)} className="flex-1" />
+          <Input
+            placeholder="Meal name (e.g. Breakfast)"
+            value={newMealName}
+            onChange={e => setNewMealName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && addMeal()}
+            className="flex-1"
+          />
           <Button size="sm" variant="primary" onClick={addMeal}>Add</Button>
           <Button size="sm" variant="ghost" onClick={() => setAddingMeal(false)}>Cancel</Button>
         </div>
@@ -155,24 +175,36 @@ function MealEditor({
       <div className="mt-4 pt-3 border-t border-white/8 text-xs text-grey-muted flex items-center gap-3 flex-wrap">
         <span>Total:</span>
         <span><span className="text-white font-semibold">{total.calories}</span> kcal</span>
-        <span className="text-white/20">·</span>
+        <span className="text-white/20">&middot;</span>
         <span>P <span className="text-white font-semibold">{total.protein}g</span></span>
-        <span className="text-white/20">·</span>
+        <span className="text-white/20">&middot;</span>
         <span>C <span className="text-white font-semibold">{total.carbs}g</span></span>
-        <span className="text-white/20">·</span>
+        <span className="text-white/20">&middot;</span>
         <span>F <span className="text-white font-semibold">{total.fat}g</span></span>
       </div>
     </div>
   )
 }
 
-export function MealPlanBuilder({ clientId, initialTrainingPlan, initialRestPlan }: MealPlanBuilderProps) {
-  const [activeTab, setActiveTab] = useState<'training' | 'rest'>('training')
-  const [trainingMeals, setTrainingMeals] = useState<Meal[]>(initialTrainingPlan?.meals || [])
-  const [restMeals, setRestMeals] = useState<Meal[]>(initialRestPlan?.meals || [])
+export function MealPlanBuilder({ clientId, initialPlans }: MealPlanBuilderProps) {
+  const [plans, setPlans] = useState<PlanDraft[]>(
+    initialPlans.map(p => ({
+      day_type: p.day_type,
+      name: p.name,
+      times_per_week: p.times_per_week ?? 1,
+      meals: p.meals,
+    }))
+  )
+  const [activeTab, setActiveTab] = useState<string>(initialPlans[0]?.day_type ?? '')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
+  // New plan form
+  const [addingPlan, setAddingPlan] = useState(false)
+  const [newPlanName, setNewPlanName] = useState('')
+  const [newPlanFreq, setNewPlanFreq] = useState(7)
+
+  // Import modal
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [importStep, setImportStep] = useState<'prompt' | 'paste'>('prompt')
   const [generatedPrompt, setGeneratedPrompt] = useState('')
@@ -182,9 +214,52 @@ export function MealPlanBuilder({ clientId, initialTrainingPlan, initialRestPlan
   const [importLoading, setImportLoading] = useState(false)
   const [importError, setImportError] = useState('')
 
+  const activePlan = plans.find(p => p.day_type === activeTab)
+
+  function updateActiveMeals(meals: Meal[]) {
+    setPlans(prev => prev.map(p => p.day_type === activeTab ? { ...p, meals } : p))
+  }
+
+  function addNewPlan() {
+    if (!newPlanName.trim()) return
+    const day_type = newPlanName.trim()
+    if (plans.some(p => p.day_type === day_type)) return
+    setPlans(prev => [...prev, { day_type, name: day_type, times_per_week: newPlanFreq, meals: [] }])
+    setActiveTab(day_type)
+    setAddingPlan(false)
+    setNewPlanName('')
+    setNewPlanFreq(7)
+  }
+
+  async function deletePlan(day_type: string) {
+    await fetch(`/api/meal-plan/${clientId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ day_type }),
+    })
+    const remaining = plans.filter(p => p.day_type !== day_type)
+    setPlans(remaining)
+    if (activeTab === day_type) setActiveTab(remaining[0]?.day_type ?? '')
+  }
+
   function loadMealPlanData(data: { training_day: { meals: Meal[] }; rest_day: { meals: Meal[] } }) {
-    setTrainingMeals(data.training_day.meals || [])
-    setRestMeals(data.rest_day.meals || [])
+    setPlans(prev => {
+      const updated = [...prev]
+      const ti = updated.findIndex(p => p.day_type === 'training' || p.day_type === 'Training Day')
+      const ri = updated.findIndex(p => p.day_type === 'rest' || p.day_type === 'Rest Day')
+      if (ti >= 0) {
+        updated[ti] = { ...updated[ti], meals: data.training_day.meals }
+      } else {
+        updated.push({ day_type: 'Training Day', name: 'Training Day', times_per_week: 4, meals: data.training_day.meals })
+      }
+      if (ri >= 0) {
+        updated[ri] = { ...updated[ri], meals: data.rest_day.meals }
+      } else {
+        updated.push({ day_type: 'Rest Day', name: 'Rest Day', times_per_week: 3, meals: data.rest_day.meals })
+      }
+      return updated
+    })
+    setActiveTab(prev => prev || 'Training Day')
   }
 
   async function openImportModal() {
@@ -193,7 +268,6 @@ export function MealPlanBuilder({ clientId, initialTrainingPlan, initialRestPlan
     setImportText('')
     setCopied(false)
     setPromptLoading(true)
-
     try {
       const [onboardingRes, targetsRes] = await Promise.all([
         fetch(`/api/onboarding/${clientId}`),
@@ -264,18 +338,19 @@ Create both a training day meal plan and a rest day meal plan that hit these mac
   async function handleSave() {
     setSaving(true)
     try {
-      await Promise.all([
+      await Promise.all(plans.map(plan =>
         fetch(`/api/meal-plan/${clientId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ day_type: 'training', name: 'Training Day', meals: trainingMeals, is_active: true }),
-        }),
-        fetch(`/api/meal-plan/${clientId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ day_type: 'rest', name: 'Rest Day', meals: restMeals, is_active: true }),
-        }),
-      ])
+          body: JSON.stringify({
+            day_type: plan.day_type,
+            name: plan.name,
+            meals: plan.meals,
+            is_active: true,
+            times_per_week: plan.times_per_week,
+          }),
+        })
+      ))
       setMessage('Meal plan saved.')
       setTimeout(() => setMessage(''), 3000)
     } catch {
@@ -292,33 +367,86 @@ Create both a training day meal plan and a rest day meal plan that hit these mac
           <Button variant="ghost" size="sm" onClick={openImportModal}>
             Import with AI
           </Button>
-          <Button variant="primary" size="sm" onClick={handleSave} disabled={saving}>
+          <Button variant="primary" size="sm" onClick={handleSave} disabled={saving || plans.length === 0}>
             {saving ? 'Saving...' : 'Save Meal Plan'}
           </Button>
         </div>
       </div>
       <GoldRule />
 
-      <div className="flex gap-4 mt-4 mb-6 border-b border-white/8">
-        {(['training', 'rest'] as const).map((tab) => (
+      {plans.length === 0 ? (
+        <p className="text-grey-muted text-sm mt-4">No day types yet. Add one below.</p>
+      ) : (
+        <div className="flex gap-4 mt-4 mb-2 border-b border-white/8 overflow-x-auto scrollbar-none">
+          {plans.map(plan => (
+            <button
+              key={plan.day_type}
+              onClick={() => setActiveTab(plan.day_type)}
+              className={`pb-3 text-sm transition-colors whitespace-nowrap flex-shrink-0 ${
+                activeTab === plan.day_type ? 'text-gold border-b-2 border-gold' : 'text-grey-muted hover:text-white'
+              }`}
+              style={{ fontFamily: 'var(--font-label)' }}
+            >
+              {plan.name}
+              <span className="ml-1.5 text-xs opacity-50">{plan.times_per_week}×/wk</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {message && <p className="text-gold text-sm mt-3 mb-2">{message}</p>}
+
+      {activePlan && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-xs text-white/40" style={{ fontFamily: 'var(--font-label)' }}>DAYS/WEEK</span>
+              <FreqPicker
+                value={activePlan.times_per_week}
+                onChange={n => setPlans(prev => prev.map(p => p.day_type === activeTab ? { ...p, times_per_week: n } : p))}
+              />
+            </div>
+            <button
+              onClick={() => deletePlan(activeTab)}
+              className="text-xs text-grey-muted hover:text-red-400 flex items-center gap-1 transition-colors"
+            >
+              <Trash2 size={12} /> Delete day type
+            </button>
+          </div>
+          <MealEditor meals={activePlan.meals} onChange={updateActiveMeals} />
+        </div>
+      )}
+
+      {/* Add day type */}
+      <div className="mt-5 pt-4 border-t border-white/8">
+        {addingPlan ? (
+          <div className="flex flex-wrap gap-2 items-center">
+            <Input
+              placeholder="Day name (e.g. High Carb Day)"
+              value={newPlanName}
+              onChange={e => setNewPlanName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && addNewPlan()}
+              className="flex-1 min-w-40"
+            />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-white/40" style={{ fontFamily: 'var(--font-label)' }}>DAYS/WK</span>
+              <FreqPicker value={newPlanFreq} onChange={setNewPlanFreq} />
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="primary" onClick={addNewPlan}>Add</Button>
+              <Button size="sm" variant="ghost" onClick={() => { setAddingPlan(false); setNewPlanName('') }}>Cancel</Button>
+            </div>
+          </div>
+        ) : (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`pb-3 text-sm capitalize transition-colors ${activeTab === tab ? 'text-gold border-b-2 border-gold' : 'text-grey-muted hover:text-white'}`}
+            onClick={() => setAddingPlan(true)}
+            className="flex items-center gap-1.5 text-gold text-xs"
             style={{ fontFamily: 'var(--font-label)' }}
           >
-            {tab === 'training' ? 'Training Day' : 'Rest Day'}
+            <Plus size={14} /> Add Day Type
           </button>
-        ))}
+        )}
       </div>
-
-      {message && <p className="text-gold text-sm mb-3">{message}</p>}
-
-      {activeTab === 'training' ? (
-        <MealEditor meals={trainingMeals} onChange={setTrainingMeals} />
-      ) : (
-        <MealEditor meals={restMeals} onChange={setRestMeals} />
-      )}
 
       {/* Import modal */}
       {importModalOpen && (
@@ -330,17 +458,11 @@ Create both a training day meal plan and a rest day meal plan that hit these mac
                   Import with AI
                 </h3>
                 <div className="flex items-center gap-3 mt-1">
-                  <span
-                    className={`text-xs ${importStep === 'prompt' ? 'text-gold' : 'text-grey-muted'}`}
-                    style={{ fontFamily: 'var(--font-label)' }}
-                  >
+                  <span className={`text-xs ${importStep === 'prompt' ? 'text-gold' : 'text-grey-muted'}`} style={{ fontFamily: 'var(--font-label)' }}>
                     1. COPY PROMPT
                   </span>
                   <span className="text-white/20 text-xs">→</span>
-                  <span
-                    className={`text-xs ${importStep === 'paste' ? 'text-gold' : 'text-grey-muted'}`}
-                    style={{ fontFamily: 'var(--font-label)' }}
-                  >
+                  <span className={`text-xs ${importStep === 'paste' ? 'text-gold' : 'text-grey-muted'}`} style={{ fontFamily: 'var(--font-label)' }}>
                     2. PASTE RESPONSE
                   </span>
                 </div>
@@ -381,7 +503,7 @@ Create both a training day meal plan and a rest day meal plan that hit these mac
               ) : (
                 <>
                   <p className="text-grey-muted text-sm mb-4">
-                    Paste the AI&apos;s response below. Both training day and rest day meal plans will be loaded into the editor.
+                    Paste the AI&apos;s response below. Training day and rest day meal plans will be loaded into the editor.
                   </p>
                   <textarea
                     value={importText}

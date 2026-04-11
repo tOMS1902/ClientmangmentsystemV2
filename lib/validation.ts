@@ -153,10 +153,11 @@ const MealSchema = z.object({
 
 export const MealPlanSchema = z.object({
   client_id: uuid,
-  day_type: z.enum(['training', 'rest']),
+  day_type: z.string().min(1).max(50).trim(),
   name: nonEmptyStr(100),
   meals: z.array(MealSchema).max(10),
   is_active: z.boolean().default(true),
+  times_per_week: z.number().int().min(1).max(7).default(1),
 })
 
 // ─── Session Logs ─────────────────────────────────────────────────────────────

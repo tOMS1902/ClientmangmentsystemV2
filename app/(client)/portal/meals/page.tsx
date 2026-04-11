@@ -53,10 +53,9 @@ function MealCard({ meal }: { meal: Meal }) {
 }
 
 export default function MealsPage() {
-  const [trainingPlan, setTrainingPlan] = useState<MealPlan | null>(null)
-  const [restPlan, setRestPlan] = useState<MealPlan | null>(null)
+  const [plans, setPlans] = useState<MealPlan[]>([])
   const [supplements, setSupplements] = useState<Supplement[]>([])
-  const [activeTab, setActiveTab] = useState<'training' | 'rest'>('training')
+  const [activeTab, setActiveTab] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [customItems, setCustomItems] = useState<{ id: string; name: string; amount: string | null; note: string | null; action: 'add' | 'remove' }[]>([])
   const [extraCalories, setExtraCalories] = useState('')
@@ -75,8 +74,9 @@ export default function MealsPage() {
           ])
           if (mealRes.ok) {
             const data = await mealRes.json()
-            setTrainingPlan(data.training)
-            setRestPlan(data.rest)
+            const loadedPlans: MealPlan[] = data.plans ?? []
+            setPlans(loadedPlans)
+            if (loadedPlans.length > 0) setActiveTab(loadedPlans[0].day_type)
           }
           if (suppRes.ok) {
             setSupplements(await suppRes.json())
@@ -107,7 +107,7 @@ export default function MealsPage() {
     setSavedExtra(true)
   }
 
-  const activePlan = activeTab === 'training' ? trainingPlan : restPlan
+  const activePlan = plans.find(p => p.day_type === activeTab) ?? null
 
   const planTotal = activePlan?.meals.reduce((acc, meal) => ({
     calories: acc.calories + meal.items.reduce((a, i) => a + i.calories, 0),
@@ -121,28 +121,30 @@ export default function MealsPage() {
   return (
     <div>
       <div className="mb-6">
-        <Eyebrow>Today's Meal Plan</Eyebrow>
+        <Eyebrow>Today&apos;s Meal Plan</Eyebrow>
         <h1 className="text-3xl text-white mt-2" style={{ fontFamily: 'var(--font-display)' }}>
           Meals
         </h1>
       </div>
 
-      {/* Tab toggle */}
-      <div className="flex gap-4 mb-6 border-b border-white/8">
-        {(['training', 'rest'] as const).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`pb-3 text-sm capitalize transition-colors ${activeTab === tab ? 'text-gold border-b-2 border-gold' : 'text-grey-muted hover:text-white'}`}
-            style={{ fontFamily: 'var(--font-label)' }}
-          >
-            {tab === 'training' ? 'Training Day' : 'Rest Day'}
-          </button>
-        ))}
-      </div>
+      {/* Tab toggle — dynamic based on plans */}
+      {plans.length > 0 && (
+        <div className="flex gap-4 mb-6 border-b border-white/8 overflow-x-auto scrollbar-none">
+          {plans.map(plan => (
+            <button
+              key={plan.day_type}
+              onClick={() => setActiveTab(plan.day_type)}
+              className={`pb-3 text-sm transition-colors whitespace-nowrap flex-shrink-0 ${activeTab === plan.day_type ? 'text-gold border-b-2 border-gold' : 'text-grey-muted hover:text-white'}`}
+              style={{ fontFamily: 'var(--font-label)' }}
+            >
+              {plan.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {!activePlan ? (
-        <p className="text-grey-muted">No meal plan set for this day type yet.</p>
+        <p className="text-grey-muted">No meal plan set yet.</p>
       ) : (
         <div>
           {activePlan.meals.map((meal, i) => (
@@ -206,7 +208,7 @@ export default function MealsPage() {
         </div>
       )}
 
-      <ShoppingList trainingPlan={trainingPlan} restPlan={restPlan} customItems={customItems} />
+      <ShoppingList mealPlans={plans} customItems={customItems} />
     </div>
   )
 }

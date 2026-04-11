@@ -20,8 +20,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
     { data: programmes },
     { data: targets },
     { data: habits },
-    { data: trainingMealPlan },
-    { data: restMealPlan },
+    { data: mealPlansData },
     { data: supplements },
     { count: unreadMessages },
     lastWeights,
@@ -38,8 +37,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
       .order('created_at', { ascending: true }),
     supabase.from('nutrition_targets').select('*').eq('client_id', id).maybeSingle<NutritionTargets>(),
     supabase.from('habits').select('*').eq('client_id', id).eq('is_active', true).order('created_at'),
-    supabase.from('meal_plans').select('*').eq('client_id', id).eq('day_type', 'training').eq('is_active', true).maybeSingle<MealPlan>(),
-    supabase.from('meal_plans').select('*').eq('client_id', id).eq('day_type', 'rest').eq('is_active', true).maybeSingle<MealPlan>(),
+    supabase.from('meal_plans').select('*').eq('client_id', id).eq('is_active', true).order('created_at', { ascending: true }),
     supabase.from('supplements').select('*').eq('client_id', id).order('sort_order', { ascending: true }),
     supabase
       .from('messages')
@@ -89,8 +87,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ i
         programmes={(programmes as Programme[]) || []}
         targets={targets as NutritionTargets | null}
         habits={(habits as Habit[]) || []}
-        trainingMealPlan={trainingMealPlan as MealPlan | null}
-        restMealPlan={restMealPlan as MealPlan | null}
+        mealPlans={(mealPlansData as MealPlan[]) ?? []}
         supplements={(supplements as Supplement[]) || []}
         weekNumber={weekNumber}
         unreadMessages={unreadMessages ?? 0}
