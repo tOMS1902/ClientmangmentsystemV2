@@ -122,18 +122,15 @@ function ShortText({
   value,
   onChange,
   placeholder,
-  required = true,
 }: {
   value: string
   onChange: (v: string) => void
   placeholder?: string
-  required?: boolean
 }) {
   return (
     <textarea
       value={value}
       onChange={e => onChange(e.target.value)}
-      required={required}
       rows={2}
       placeholder={placeholder}
       className="w-full bg-navy-mid border border-white/20 text-white/85 p-3 text-sm focus:outline-none focus:border-gold resize-none"
@@ -441,7 +438,6 @@ export default function CheckInPage() {
             step="0.1"
             value={weight}
             onChange={e => setWeight(e.target.value)}
-            required
             placeholder={unit === 'lbs' ? 'e.g. 182.0' : 'e.g. 82.5'}
             className="bg-navy-mid border border-white/20 text-white/85 px-3 py-2.5 text-sm focus:outline-none focus:border-gold w-full"
           />
@@ -498,11 +494,11 @@ export default function CheckInPage() {
         </Field>
 
         <Field number={14} label="Do you need anything from me?">
-          <ShortText value={coachSupport} onChange={setCoachSupport} placeholder="Support, changes, questions..." required={false} />
+          <ShortText value={coachSupport} onChange={setCoachSupport} placeholder="Support, changes, questions..." />
         </Field>
 
         <Field number={15} label="Anything else I should know?">
-          <ShortText value={anythingElse} onChange={setAnythingElse} placeholder="Anything else worth mentioning..." required={false} />
+          <ShortText value={anythingElse} onChange={setAnythingElse} placeholder="Anything else worth mentioning..." />
         </Field>
 
         {/* Voice note */}
