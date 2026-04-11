@@ -5,7 +5,7 @@ import type { CheckInPhoto } from '@/lib/types'
 
 interface CheckInSummary {
   week_number: number
-  weight: number
+  weight: number | null
   check_in_date: string
 }
 
@@ -61,7 +61,7 @@ export function PhotoCompareView({
   const checkinB = getCheckin(weekB)
 
   const weightDelta =
-    checkinA && checkinB ? checkinB.weight - checkinA.weight : null
+    checkinA?.weight != null && checkinB?.weight != null ? checkinB.weight - checkinA.weight : null
 
   const getPhoto = (photos: CheckInPhoto[]) =>
     photos.find(p => p.photo_type === photoSide)
@@ -219,7 +219,7 @@ function PhotoPanel({ photo, loading, side, week, checkin, formatDate }: PhotoPa
         </span>
         {checkin && (
           <span className="text-grey-muted text-xs ml-2">
-            {formatDate(checkin.check_in_date)} — {checkin.weight}kg
+            {formatDate(checkin.check_in_date)}{checkin.weight != null ? ` — ${checkin.weight}kg` : ''}
           </span>
         )}
       </div>

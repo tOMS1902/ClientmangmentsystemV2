@@ -11,7 +11,7 @@ import type { CheckInPhoto } from '@/lib/types'
 interface PhotosTabProps {
   clientId: string
   weekNumber: number
-  checkins: { week_number: number; weight: number; check_in_date: string }[]
+  checkins: { week_number: number; weight: number | null; check_in_date: string }[]
 }
 
 interface PhotoSlotDisplayProps {
