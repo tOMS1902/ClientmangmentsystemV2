@@ -5,10 +5,9 @@ import type { WeeklyCheckin, Client, NutritionTargets } from '@/lib/types'
 import { displayWeight, unitLabel, type WeightUnit } from '@/lib/units'
 
 function WeightChart({ checkins, goalWeight, unit }: { checkins: WeeklyCheckin[]; goalWeight: number; unit: WeightUnit }) {
-  if (checkins.length < 2) return <p className="text-grey-muted text-sm">Not enough data yet.</p>
-
-  const sorted = [...checkins].sort((a, b) => a.week_number - b.week_number)
-  const weights = sorted.map(c => displayWeight(c.weight, unit))
+  const sorted = [...checkins].filter(c => c.weight != null).sort((a, b) => a.week_number - b.week_number)
+  if (sorted.length < 2) return <p className="text-grey-muted text-sm">Not enough data yet.</p>
+  const weights = sorted.map(c => displayWeight(c.weight!, unit))
   const displayGoal = displayWeight(goalWeight, unit)
   const minW = Math.min(...weights, displayGoal) - 2
   const maxW = Math.max(...weights) + 2
@@ -25,7 +24,7 @@ function WeightChart({ checkins, goalWeight, unit }: { checkins: WeeklyCheckin[]
   const chartH = height - padT - padB
 
   const points = sorted.map((c, i) => {
-    const w = displayWeight(c.weight, unit)
+    const w = displayWeight(c.weight!, unit)
     const x = padL + (i / (sorted.length - 1)) * chartW
     const y = padT + ((maxW - w) / range) * chartH
     return { x, y, week: c.week_number, weight: w }
