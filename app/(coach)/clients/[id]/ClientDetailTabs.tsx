@@ -18,6 +18,7 @@ import { ClientPortalManager } from '@/components/coach/ClientPortalManager'
 import { VoicePlayer } from '@/components/VoicePlayer'
 import { ShoppingListAI } from '@/components/coach/ShoppingListAI'
 import type { Client, WeeklyCheckin, MidweekCheck, Programme, NutritionTargets, Habit, MealPlan, Supplement, TrackingStatus } from '@/lib/types'
+import { displayWeight, toKg, unitLabel, kgToLbs, type WeightUnit } from '@/lib/units'
 
 interface ClientDetailTabsProps {
   client: Client
@@ -162,9 +163,11 @@ function DeleteClientButton({ clientId, clientName }: { clientId: string; client
 }
 
 function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProps, 'client' | 'checkins' | 'weekNumber'>) {
+  const unit: WeightUnit = client.weight_unit ?? 'kg'
   const latestCheckin = checkins[0] || null
-  const [goalWeight, setGoalWeight] = useState(client.goal_weight || 0)
-  const [startWeight, setStartWeight] = useState(client.start_weight || 0)
+  // Edit state stored in the client's display unit
+  const [goalWeight, setGoalWeight] = useState(unit === 'lbs' ? kgToLbs(client.goal_weight || 0) : (client.goal_weight || 0))
+  const [startWeight, setStartWeight] = useState(unit === 'lbs' ? kgToLbs(client.start_weight || 0) : (client.start_weight || 0))
   const [editingWeights, setEditingWeights] = useState(false)
   const [savingWeights, setSavingWeights] = useState(false)
   const [weightMsg, setWeightMsg] = useState('')
@@ -174,7 +177,8 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
     const res = await fetch(`/api/clients/${client.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ goal_weight: goalWeight, start_weight: startWeight }),
+      // Always save kg to DB regardless of display unit
+      body: JSON.stringify({ goal_weight: toKg(goalWeight, unit), start_weight: toKg(startWeight, unit) }),
     })
     if (res.ok) {
       setEditingWeights(false)
@@ -184,22 +188,28 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
     setSavingWeights(false)
   }
 
-  const rawGoalProgress = startWeight && goalWeight
+  // Progress uses raw kg from DB for consistency
+  const startKg = client.start_weight || 0
+  const goalKg = client.goal_weight || 0
+  const currentKg = latestCheckin?.weight ?? null
+  const rawGoalProgress = startKg && goalKg && currentKg != null
     ? Math.max(0, Math.round(
-        ((startWeight - (latestCheckin?.weight || startWeight)) /
-         (startWeight - goalWeight)) * 100
+        ((startKg - currentKg) / (startKg - goalKg)) * 100
       ))
     : 0
   const goalProgress = Math.min(100, rawGoalProgress)
   const goalExceeded = rawGoalProgress > 100
 
-  const weightHistory = [...checkins].reverse().map(c => c.weight)
+  const weightHistory = [...checkins].reverse().map(c => c.weight != null ? displayWeight(c.weight, unit) : null)
+
+  const currentWeightDisplay = currentKg != null ? `${displayWeight(currentKg, unit)}${unitLabel(unit)}` : '—'
+  const goalWeightDisplay = `${goalWeight.toFixed(1)}${unitLabel(unit)}`
 
   return (
     <div>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
         {[
-          { label: 'Current Weight', value: latestCheckin ? `${latestCheckin.weight}kg` : '—', sub: `Goal: ${goalWeight}kg` },
+          { label: 'Current Weight', value: currentWeightDisplay, sub: `Goal: ${goalWeightDisplay}` },
           { label: 'Goal Progress', value: goalExceeded ? '100%' : `${goalProgress}%`, sub: goalExceeded ? 'Goal exceeded!' : 'of weight goal' },
           { label: 'Total Weeks', value: weekNumber.toString(), sub: 'weeks coached' },
         ].map(stat => (
@@ -213,15 +223,15 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
         ))}
       </div>
 
-      {weightHistory.length > 1 && (
+      {weightHistory.filter(Boolean).length > 1 && (
         <div className="bg-navy-card border border-white/8 p-6 mb-6">
           <Eyebrow className="block mb-2">Weight History</Eyebrow>
           <div className="flex items-end gap-6">
             <SparkLine data={weightHistory} width={300} height={60} />
             <div className="text-sm text-grey-muted">
-              <p>Start: <span className="text-white">{startWeight}kg</span></p>
-              <p>Current: <span className="text-white">{latestCheckin?.weight || '—'}kg</span></p>
-              <p>Goal: <span className="text-gold">{goalWeight}kg</span></p>
+              <p>Start: <span className="text-white">{startWeight.toFixed(1)}{unitLabel(unit)}</span></p>
+              <p>Current: <span className="text-white">{currentWeightDisplay}</span></p>
+              <p>Goal: <span className="text-gold">{goalWeightDisplay}</span></p>
             </div>
           </div>
         </div>
@@ -238,26 +248,30 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
         <GoldRule />
         <div className="grid grid-cols-3 gap-4 mt-4 text-sm">
           <div>
-            <p className="text-grey-muted mb-1">Start Weight</p>
+            <p className="text-grey-muted mb-1">Start Weight ({unitLabel(unit)})</p>
             {editingWeights
               ? <input type="number" value={startWeight} onChange={e => setStartWeight(parseFloat(e.target.value) || 0)} step="0.1" className="w-full bg-navy-deep border border-white/20 text-white p-2 text-sm focus:outline-none focus:border-gold" />
-              : <p className="text-white">{startWeight}kg</p>}
+              : <p className="text-white">{startWeight.toFixed(1)}{unitLabel(unit)}</p>}
           </div>
           <div>
-            <p className="text-grey-muted mb-1">Goal Weight</p>
+            <p className="text-grey-muted mb-1">Goal Weight ({unitLabel(unit)})</p>
             {editingWeights
               ? <input type="number" value={goalWeight} onChange={e => setGoalWeight(parseFloat(e.target.value) || 0)} step="0.1" className="w-full bg-navy-deep border border-white/20 text-white p-2 text-sm focus:outline-none focus:border-gold" />
-              : <p className="text-gold">{goalWeight}kg</p>}
+              : <p className="text-gold">{goalWeight.toFixed(1)}{unitLabel(unit)}</p>}
           </div>
           <div>
             <p className="text-grey-muted mb-1">To {goalWeight < startWeight ? 'Lose' : 'Gain'}</p>
-            <p className="text-white">{Math.abs(goalWeight - startWeight).toFixed(1)}kg</p>
+            <p className="text-white">{Math.abs(goalWeight - startWeight).toFixed(1)}{unitLabel(unit)}</p>
           </div>
         </div>
         {editingWeights && (
           <div className="flex gap-3 mt-4 items-center">
             <Button size="sm" variant="primary" onClick={saveWeights} disabled={savingWeights}>{savingWeights ? 'Saving...' : 'Save'}</Button>
-            <Button size="sm" variant="ghost" onClick={() => { setEditingWeights(false); setGoalWeight(client.goal_weight || 0); setStartWeight(client.start_weight || 0) }}>Cancel</Button>
+            <Button size="sm" variant="ghost" onClick={() => {
+              setEditingWeights(false)
+              setGoalWeight(unit === 'lbs' ? kgToLbs(client.goal_weight || 0) : (client.goal_weight || 0))
+              setStartWeight(unit === 'lbs' ? kgToLbs(client.start_weight || 0) : (client.start_weight || 0))
+            }}>Cancel</Button>
           </div>
         )}
         {weightMsg && <p className="text-xs text-grey-muted mt-2">{weightMsg}</p>}
@@ -269,7 +283,7 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
           <GoldRule />
           <div className="grid grid-cols-2 gap-4 mt-4 text-sm">
             {[
-              { label: 'Weight', value: `${latestCheckin.weight}kg` },
+              { label: 'Weight', value: latestCheckin.weight != null ? `${displayWeight(latestCheckin.weight, unit)}${unitLabel(unit)}` : '—' },
               { label: 'Avg Steps', value: latestCheckin.avg_steps },
               { label: 'Biggest Win', value: latestCheckin.biggest_win },
               { label: 'Diet Summary', value: latestCheckin.diet_summary },
@@ -302,6 +316,7 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
 
 function MidweekChecksTab({ client, midweekChecks }: { client: Client; midweekChecks: MidweekCheck[] }) {
   const router = useRouter()
+  const unit: WeightUnit = client.weight_unit ?? 'kg'
   const [selectedDay, setSelectedDay] = useState(client.midweek_check_day || 'Wednesday')
   const [savingDay, setSavingDay] = useState(false)
   const [daySaved, setDaySaved] = useState(false)
@@ -364,10 +379,10 @@ function MidweekChecksTab({ client, midweekChecks }: { client: Client; midweekCh
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
-            {check.current_weight && (
+            {check.current_weight != null && (
               <div>
                 <p className="text-grey-muted mb-0.5">Weight</p>
-                <p className="text-white">{check.current_weight}kg</p>
+                <p className="text-white">{displayWeight(check.current_weight, unit)}{unitLabel(unit)}</p>
               </div>
             )}
             <div>
@@ -430,7 +445,8 @@ function ScorePill({ value, max = 10 }: { value: number | null; max?: number }) 
   return <span className={`font-semibold ${color}`}>{value}<span className="text-grey-muted text-xs">/{max}</span></span>
 }
 
-function CheckInsTab({ clientId, checkins, checkInDay }: { clientId: string; checkins: WeeklyCheckin[]; checkInDay: string }) {
+function CheckInsTab({ clientId, checkins, checkInDay, weightUnit }: { clientId: string; checkins: WeeklyCheckin[]; checkInDay: string; weightUnit: WeightUnit }) {
+  const unit = weightUnit
   const router = useRouter()
   const [notes, setNotes] = useState<Record<string, string>>(
     Object.fromEntries(checkins.map(c => [c.id, c.coach_notes || '']))
@@ -511,8 +527,8 @@ function CheckInsTab({ clientId, checkins, checkInDay }: { clientId: string; che
             {weightData.length >= 2 && (
               <div>
                 <p className="text-xs text-grey-muted mb-1">Weight</p>
-                <p className="text-white text-sm mb-2">{weightData[weightData.length - 1]}kg</p>
-                <SparkLine data={weightData} width={120} height={36} />
+                <p className="text-white text-sm mb-2">{displayWeight(weightData[weightData.length - 1], unit)}{unitLabel(unit)}</p>
+                <SparkLine data={weightData.map(w => displayWeight(w, unit))} width={120} height={36} />
               </div>
             )}
             {weekScoreData.length >= 2 && (
@@ -560,7 +576,7 @@ function CheckInsTab({ clientId, checkins, checkInDay }: { clientId: string; che
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-sm mb-4">
-            <div><p className="text-grey-muted mb-0.5">Weight</p><p className="text-white/85">{checkin.weight}kg</p></div>
+            <div><p className="text-grey-muted mb-0.5">Weight</p><p className="text-white/85">{checkin.weight != null ? `${displayWeight(checkin.weight, unit)}${unitLabel(unit)}` : '—'}</p></div>
 
             {/* New structured fields */}
             {checkin.diet_rating && (
@@ -827,7 +843,7 @@ export function ClientDetailTabs({
         <OverviewTab client={client} checkins={checkins} weekNumber={weekNumber} />
       )}
       {activeTab === 'midweek' && <MidweekChecksTab client={client} midweekChecks={midweekChecks} />}
-      {activeTab === 'checkins' && <CheckInsTab clientId={client.id} checkins={checkins} checkInDay={client.check_in_day} />}
+      {activeTab === 'checkins' && <CheckInsTab clientId={client.id} checkins={checkins} checkInDay={client.check_in_day} weightUnit={client.weight_unit ?? 'kg'} />}
       {activeTab === 'training' && (
         <div className="bg-navy-card border border-white/8 p-6">
           <ProgrammeEditor clientId={client.id} initialProgrammes={programmes} initialLastWeights={lastWeights} />

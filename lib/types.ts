@@ -73,7 +73,7 @@ export interface WeeklyCheckin {
   client_id: string
   week_number: number
   check_in_date: string
-  weight: number
+  weight: number | null
   // New structured fields
   week_score: number | null
   energy_score: number | null

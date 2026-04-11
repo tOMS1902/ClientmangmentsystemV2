@@ -379,7 +379,7 @@ export default function CheckInPage() {
                   <div className="px-4 pb-4">
                     <GoldRule />
                     <div className="grid grid-cols-2 gap-3 text-sm mt-3">
-                      <div><p className="text-grey-muted">Weight</p><p className="text-white">{displayWeight(c.weight, unit)}{unitLabel(unit)}</p></div>
+                      <div><p className="text-grey-muted">Weight</p><p className="text-white">{c.weight != null ? `${displayWeight(c.weight, unit)}${unitLabel(unit)}` : '—'}</p></div>
                       {c.week_score != null && <div><p className="text-grey-muted">Week Score</p><p className="text-white">{c.week_score}/10</p></div>}
                       {c.diet_rating && <div><p className="text-grey-muted">Food</p><p className="text-white">{labelFor(DIET_OPTIONS, c.diet_rating)}</p></div>}
                       {c.training_completed && <div><p className="text-grey-muted">Training</p><p className="text-white">{labelFor(TRAINING_OPTIONS, c.training_completed)}</p></div>}
