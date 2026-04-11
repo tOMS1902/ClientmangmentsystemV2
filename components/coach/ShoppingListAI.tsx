@@ -26,16 +26,15 @@ interface ShoppingListAIProps {
 }
 
 function formatMultipliedAmount(perServing: string | null, count: number): string | null {
-  if (!perServing) return count > 1 ? `× ${count}` : null
-  const match = perServing.trim().match(/^([\d.]+)\s*([a-zA-Z]+)(.*)/)
-  if (!match) return count > 1 ? `${perServing} × ${count}` : perServing
+  if (!perServing) return null
+  const match = perServing.trim().match(/^([\d.]+)\s*([a-zA-Z]+)/)
+  if (!match) return null
   const num = parseFloat(match[1])
   const unit = match[2]
-  const rest = match[3].trim()
-  if (isNaN(num) || count <= 1) return perServing
+  if (isNaN(num)) return null
+  if (count <= 1) return `${match[1]}${unit}`
   const total = Math.round(num * count * 10) / 10
-  const perServingStr = `${match[1]}${unit}${rest ? ` ${rest}` : ''}`
-  return `${total}${unit} (${perServingStr} × ${count})`
+  return `${total}${unit} (${match[1]}${unit} × ${count})`
 }
 
 function buildAggregatedItems(mealPlans: MealPlan[], overrides: Record<string, number>): AggregatedItem[] {
