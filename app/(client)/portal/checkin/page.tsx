@@ -208,10 +208,12 @@ export default function CheckInPage() {
   const [validationError, setValidationError] = useState(false)
   const [submittedCheckinId, setSubmittedCheckinId] = useState<string | null>(null)
   const [clientId, setClientId] = useState<string | null>(null)
+  const [clientName, setClientName] = useState<string | null>(null)
   const [checkInDay, setCheckInDay] = useState<string | null>(null)
   const [unit, setUnit] = useState<WeightUnit>('kg')
   const [voiceNoteUrl, setVoiceNoteUrl] = useState<string | null>(null)
   const [voiceOpen, setVoiceOpen] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   // Form state
   const [weekScore, setWeekScore] = useState(5)
@@ -243,6 +245,7 @@ export default function CheckInPage() {
           setCheckInDay(me.check_in_day || null)
           setClientId(me.id || null)
           setUnit(me.weight_unit === 'lbs' ? 'lbs' : 'kg')
+          setClientName(me.full_name || null)
         }
       } catch { /* ignore */ }
       setLoading(false)
@@ -270,6 +273,7 @@ export default function CheckInPage() {
 
   async function handleSubmit() {
     setSubmitting(true)
+    setSubmitError(null)
     const res = await fetch('/api/checkins', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -298,6 +302,9 @@ export default function CheckInPage() {
       setSubmittedCheckinId(newCheckin.id)
       setClientId(newCheckin.client_id)
       setSubmitted(true)
+    } else {
+      const err = await res.json().catch(() => ({}))
+      setSubmitError(err.error || 'Something went wrong. Please try again.')
     }
     setSubmitting(false)
     setConfirmOpen(false)
@@ -332,7 +339,9 @@ export default function CheckInPage() {
         <div className="mb-8">
           <Eyebrow>Check-In</Eyebrow>
           <GoldRule />
-          <p className="text-white mt-4">Your check-in for this week has been submitted.</p>
+          <p className="text-white mt-4">
+            {clientName ? `Great work, ${clientName.split(' ')[0]}! ` : ''}Your check-in has been successfully saved.
+          </p>
           <p className="text-grey-muted text-sm mt-1">
             Next check-in: next {new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-IE', { weekday: 'long' })}
           </p>
@@ -527,6 +536,10 @@ export default function CheckInPage() {
 
         {validationError && (
           <p className="text-red-400 text-sm">Please fill in all required fields — or attach a voice note to submit without them.</p>
+        )}
+
+        {submitError && (
+          <p className="text-red-400 text-sm">{submitError}</p>
         )}
 
         <Button type="submit" variant="primary" size="lg" className="w-full mt-2">
