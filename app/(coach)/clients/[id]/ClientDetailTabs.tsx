@@ -200,7 +200,7 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
   const goalProgress = Math.min(100, rawGoalProgress)
   const goalExceeded = rawGoalProgress > 100
 
-  const weightHistory = [...checkins].reverse().map(c => c.weight != null ? displayWeight(c.weight, unit) : null)
+  const weightHistory = [...checkins].reverse().map(c => c.weight != null ? displayWeight(c.weight, unit) : null).filter((w): w is number => w != null)
 
   const currentWeightDisplay = currentKg != null ? `${displayWeight(currentKg, unit)}${unitLabel(unit)}` : '—'
   const goalWeightDisplay = `${goalWeight.toFixed(1)}${unitLabel(unit)}`
