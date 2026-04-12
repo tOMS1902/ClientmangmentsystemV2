@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
-import { ClientCard } from '@/components/coach/ClientCard'
+import { ClientsListClient } from '@/components/coach/ClientsListClient'
 import { AddClientModal } from '@/components/coach/AddClientModal'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
@@ -37,12 +37,15 @@ export default async function ClientsPage() {
     supabase.from('weekly_checkins').select('client_id').gte('check_in_date', weekStart.split('T')[0]),
   ])
 
-  const midweekSubmitted = new Set((midweekRows || []).map(r => r.client_id))
-  const weeklySubmitted = new Set((weeklyRows || []).map(r => r.client_id))
+  const midweekSubmitted = (midweekRows || []).map(r => r.client_id)
+  const weeklySubmitted = (weeklyRows || []).map(r => r.client_id)
 
   const allClients: Client[] = clients ?? []
   const active = allClients.filter(c => c.is_active)
   const inactive = allClients.filter(c => !c.is_active)
+
+  const weekNumbers: Record<string, number> = {}
+  allClients.forEach(c => { weekNumbers[c.id] = getWeekNumber(c.start_date) })
 
   return (
     <div className="max-w-6xl">
@@ -60,45 +63,13 @@ export default async function ClientsPage() {
         <AddClientModal />
       </div>
 
-      {/* Active clients */}
-      <div className="mb-10">
-        <Eyebrow className="block mb-3">
-          Active — {active.length}
-        </Eyebrow>
-        {active.length === 0 ? (
-          <p className="text-grey-muted text-sm">No active clients yet. Add one above.</p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {active.map((client) => (
-              <ClientCard
-                key={client.id}
-                client={client}
-                weekNumber={getWeekNumber(client.start_date)}
-                midweekSubmitted={midweekSubmitted.has(client.id)}
-                weeklySubmitted={weeklySubmitted.has(client.id)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Inactive clients */}
-      {inactive.length > 0 && (
-        <div>
-          <Eyebrow className="block mb-3">Inactive — {inactive.length}</Eyebrow>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 opacity-50">
-            {inactive.map((client) => (
-              <ClientCard
-                key={client.id}
-                client={client}
-                weekNumber={getWeekNumber(client.start_date)}
-                midweekSubmitted={midweekSubmitted.has(client.id)}
-                weeklySubmitted={weeklySubmitted.has(client.id)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+      <ClientsListClient
+        active={active}
+        inactive={inactive}
+        weekNumbers={weekNumbers}
+        midweekSubmitted={midweekSubmitted}
+        weeklySubmitted={weeklySubmitted}
+      />
     </div>
   )
 }

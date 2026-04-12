@@ -203,6 +203,7 @@ export default function CheckInPage() {
   const [submitting, setSubmitting] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [validationError, setValidationError] = useState(false)
+  const [validationErrorMsg, setValidationErrorMsg] = useState('')
   const [submittedCheckinId, setSubmittedCheckinId] = useState<string | null>(null)
   const [clientId, setClientId] = useState<string | null>(null)
   const [clientName, setClientName] = useState<string | null>(null)
@@ -258,14 +259,20 @@ export default function CheckInPage() {
 
   function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault()
-    // Voice note alone is enough — skip field validation
+    if (!weight) {
+      setValidationError(true)
+      setValidationErrorMsg('Please enter your bodyweight.')
+      return
+    }
     if (!voiceNoteUrl) {
       if (!dietRating || !trainingCompleted || !focusAreas || !biggestWin.trim() || !mainChallenge.trim() || !improveNextWeek.trim()) {
         setValidationError(true)
+        setValidationErrorMsg('Please fill in all required fields — or attach a voice note to submit without them.')
         return
       }
     }
     setValidationError(false)
+    setValidationErrorMsg('')
     setConfirmOpen(true)
   }
 
@@ -460,7 +467,7 @@ export default function CheckInPage() {
 
         {voiceNoteUrl && (
           <div className="flex items-center gap-3 bg-gold/5 border border-gold/20 px-4 py-3">
-            <span className="text-gold text-sm flex-1">Voice note recorded — the questions below are now optional.</span>
+            <span className="text-gold text-sm flex-1">Voice note recorded — enter your weight below, then submit.</span>
             <button
               type="button"
               onClick={() => setShowFormFields(v => !v)}
@@ -472,12 +479,7 @@ export default function CheckInPage() {
           </div>
         )}
 
-        {(!voiceNoteUrl || showFormFields) && <>
-
-        <Field number={1} label="How was your week overall?">
-          <Slider value={weekScore} onChange={setWeekScore} />
-        </Field>
-
+        {/* Weight is always required — visible even when voice note recorded */}
         <Field number={2} label={`Current weight (${unitLabel(unit)})`}>
           <input
             type="number"
@@ -487,6 +489,12 @@ export default function CheckInPage() {
             placeholder={unit === 'lbs' ? 'e.g. 182.0' : 'e.g. 82.5'}
             className="bg-navy-mid border border-white/20 text-white/85 px-3 py-2.5 text-sm focus:outline-none focus:border-gold w-full"
           />
+        </Field>
+
+        {(!voiceNoteUrl || showFormFields) && <>
+
+        <Field number={1} label="How was your week overall?">
+          <Slider value={weekScore} onChange={setWeekScore} />
         </Field>
 
         <Field number={3} label="How did you get on with your food this week?">
@@ -550,7 +558,7 @@ export default function CheckInPage() {
         </>}
 
         {validationError && (
-          <p className="text-red-400 text-sm">Please fill in all required fields — or attach a voice note to submit without them.</p>
+          <p className="text-red-400 text-sm">{validationErrorMsg}</p>
         )}
 
         {submitError && (

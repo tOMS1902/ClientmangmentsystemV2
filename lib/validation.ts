@@ -28,6 +28,7 @@ export const ClientPatchSchema = z.object({
   goal_event_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   welcome_video_url: z.string().max(500).trim().optional().nullable(),
   weight_unit: z.enum(['kg', 'lbs']).optional(),
+  loom_sent: z.boolean().optional(),
 })
 
 // ─── Midweek Checks ───────────────────────────────────────────────────────────

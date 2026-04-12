@@ -33,6 +33,7 @@ export interface Client {
   welcome_video_url?: string | null
   welcome_video_views?: number
   weight_unit?: 'kg' | 'lbs'
+  loom_sent?: boolean
 }
 
 export interface NutritionTargets {

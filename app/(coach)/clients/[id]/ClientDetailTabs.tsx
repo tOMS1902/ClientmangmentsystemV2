@@ -184,6 +184,7 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
   const [profileWeightUnit, setProfileWeightUnit] = useState<'kg' | 'lbs'>(client.weight_unit ?? 'kg')
   const [trackWeight, setTrackWeight] = useState(client.track_weight ?? true)
   const [isActive, setIsActive] = useState(client.is_active ?? true)
+  const [loomSent, setLoomSent] = useState(client.loom_sent ?? false)
 
   async function saveProfile() {
     setSavingProfile(true)
@@ -248,6 +249,27 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
 
   return (
     <div>
+      {/* Loom Sent toggle */}
+      <div className="flex items-center gap-3 mb-6">
+        <span className="text-xs text-grey-muted" style={{ fontFamily: 'var(--font-label)' }}>LOOM</span>
+        <button
+          type="button"
+          onClick={async () => {
+            const newVal = !loomSent
+            setLoomSent(newVal)
+            await fetch(`/api/clients/${client.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ loom_sent: newVal }),
+            })
+          }}
+          className={`text-xs px-3 py-1.5 border transition-colors ${loomSent ? 'border-blue-400 text-blue-400 bg-blue-400/10' : 'border-white/20 text-white/50 hover:border-white/50'}`}
+          style={{ fontFamily: 'var(--font-label)' }}
+        >
+          {loomSent ? '✓ Loom sent' : 'Mark Loom sent'}
+        </button>
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
         {[
           { label: 'Current Weight', value: currentWeightDisplay, sub: `Goal: ${goalWeightDisplay}` },
@@ -562,16 +584,95 @@ function ScorePill({ value, max = 10 }: { value: number | null; max?: number }) 
   return <span className={`font-semibold ${color}`}>{value}<span className="text-grey-muted text-xs">/{max}</span></span>
 }
 
-function CheckInsTab({ clientId, checkins, checkInDay, weightUnit }: { clientId: string; checkins: WeeklyCheckin[]; checkInDay: string; weightUnit: WeightUnit }) {
+function CheckinEditRow({ checkin, unit, onSave }: { checkin: WeeklyCheckin; unit: WeightUnit; onSave: (updated: WeeklyCheckin) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [weight, setWeight] = useState(checkin.weight != null ? String(displayWeight(checkin.weight, unit)) : '')
+  const [weekScore, setWeekScore] = useState(String(checkin.week_score ?? ''))
+  const [coachNotes, setCoachNotes] = useState(checkin.coach_notes ?? '')
+  const [saving, setSaving] = useState(false)
+
+  async function save() {
+    setSaving(true)
+    const res = await fetch(`/api/checkins/${checkin.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        weight: weight ? toKg(parseFloat(weight), unit) : null,
+        week_score: weekScore ? parseInt(weekScore) : null,
+        coach_notes: coachNotes || null,
+      }),
+    })
+    if (res.ok) {
+      const updated = await res.json()
+      onSave(updated)
+      setEditing(false)
+    }
+    setSaving(false)
+  }
+
+  if (!editing) {
+    return (
+      <button
+        onClick={() => setEditing(true)}
+        className="text-xs text-white/40 hover:text-gold transition-colors"
+        style={{ fontFamily: 'var(--font-label)' }}
+      >
+        Edit
+      </button>
+    )
+  }
+
+  return (
+    <div className="mt-3 pt-3 border-t border-white/8 flex flex-col gap-2">
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="text-xs text-grey-muted block mb-1">Weight ({unitLabel(unit)})</label>
+          <input type="number" step="0.1" value={weight} onChange={e => setWeight(e.target.value)}
+            className="w-full bg-navy-mid border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold" />
+        </div>
+        <div>
+          <label className="text-xs text-grey-muted block mb-1">Week Score</label>
+          <input type="number" min={1} max={10} value={weekScore} onChange={e => setWeekScore(e.target.value)}
+            className="w-full bg-navy-mid border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold" />
+        </div>
+      </div>
+      <div>
+        <label className="text-xs text-grey-muted block mb-1">Coach Notes</label>
+        <textarea value={coachNotes} onChange={e => setCoachNotes(e.target.value)} rows={2}
+          className="w-full bg-navy-mid border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold resize-none" />
+      </div>
+      <div className="flex gap-2">
+        <button onClick={save} disabled={saving}
+          className="text-xs px-3 py-1.5 bg-gold/10 border border-gold/40 text-gold hover:bg-gold/20 transition-colors disabled:opacity-50"
+          style={{ fontFamily: 'var(--font-label)' }}>
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+        <button onClick={() => setEditing(false)}
+          className="text-xs px-3 py-1.5 border border-white/20 text-white/50 hover:text-white/85 transition-colors"
+          style={{ fontFamily: 'var(--font-label)' }}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function CheckInsTab({ clientId, checkins: initialCheckins, checkInDay, weightUnit }: { clientId: string; checkins: WeeklyCheckin[]; checkInDay: string; weightUnit: WeightUnit }) {
   const unit = weightUnit
   const router = useRouter()
+  const [checkins, setCheckins] = useState<WeeklyCheckin[]>(initialCheckins)
   const [notes, setNotes] = useState<Record<string, string>>(
-    Object.fromEntries(checkins.map(c => [c.id, c.coach_notes || '']))
+    Object.fromEntries(initialCheckins.map(c => [c.id, c.coach_notes || '']))
   )
   const [saved, setSaved] = useState<Record<string, boolean>>({})
   const [selectedDay, setSelectedDay] = useState(checkInDay || 'Monday')
   const [savingDay, setSavingDay] = useState(false)
   const [daySaved, setDaySaved] = useState(false)
+
+  function handleCheckinSave(updated: WeeklyCheckin) {
+    setCheckins(prev => prev.map(c => c.id === updated.id ? updated : c))
+    setNotes(prev => ({ ...prev, [updated.id]: updated.coach_notes || '' }))
+  }
 
   async function saveNotes(checkinId: string) {
     const res = await fetch(`/api/checkins/${checkinId}`, {
@@ -684,12 +785,15 @@ function CheckInsTab({ clientId, checkins, checkInDay, weightUnit }: { clientId:
                 {new Date(checkin.check_in_date).toLocaleDateString('en-IE', { weekday: 'long', day: 'numeric', month: 'long' })}
               </p>
             </div>
-            {checkin.week_score != null && (
-              <div className="text-right">
-                <p className="text-xs text-grey-muted mb-0.5">Week Score</p>
-                <ScorePill value={checkin.week_score} />
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              {checkin.week_score != null && (
+                <div className="text-right">
+                  <p className="text-xs text-grey-muted mb-0.5">Week Score</p>
+                  <ScorePill value={checkin.week_score} />
+                </div>
+              )}
+              <CheckinEditRow checkin={checkin} unit={unit} onSave={handleCheckinSave} />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3 text-sm mb-4">
