@@ -13,6 +13,7 @@ export function AddClientModal() {
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [skipOnboarding, setSkipOnboarding] = useState(false)
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -21,10 +22,8 @@ export function AddClientModal() {
     setLoading(true)
     setError(null)
     const fd = new FormData(e.currentTarget)
-    const body = {
+    const body: Record<string, unknown> = {
       full_name: fd.get('full_name'),
-      email: fd.get('email'),
-      password: fd.get('password'),
       phone: fd.get('phone'),
       start_date: fd.get('start_date'),
       start_weight: parseFloat(fd.get('start_weight') as string),
@@ -34,6 +33,13 @@ export function AddClientModal() {
       check_in_day: fd.get('check_in_day'),
       is_active: true,
       portal_access: false,
+      skip_onboarding: skipOnboarding,
+    }
+    if (!skipOnboarding) {
+      body.email = fd.get('email')
+      body.password = fd.get('password')
+    } else {
+      body.email = fd.get('email') || null
     }
     const res = await fetch('/api/clients', {
       method: 'POST',
@@ -78,9 +84,31 @@ export function AddClientModal() {
             </div>
 
             <form onSubmit={handleSubmit} className="px-6 py-6 flex flex-col gap-4">
+
+              {/* Onboarding toggle */}
+              <div className="flex items-center gap-3 p-3 border border-white/10 bg-navy-card">
+                <button
+                  type="button"
+                  onClick={() => setSkipOnboarding(v => !v)}
+                  className={`w-10 h-5 rounded-full transition-colors relative flex-shrink-0 ${skipOnboarding ? 'bg-gold' : 'bg-white/20'}`}
+                >
+                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${skipOnboarding ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </button>
+                <div>
+                  <p className="text-sm text-white/85">Skip onboarding / no portal access</p>
+                  <p className="text-xs text-grey-muted">Add manually using previous data. Portal can be enabled later.</p>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <Input label="Full Name" name="full_name" required placeholder="Jane Smith" />
-                <Input label="Email" name="email" type="email" required placeholder="jane@email.com" />
+                <Input
+                  label={skipOnboarding ? 'Email (optional)' : 'Email'}
+                  name="email"
+                  type="email"
+                  required={!skipOnboarding}
+                  placeholder="jane@email.com"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -88,7 +116,9 @@ export function AddClientModal() {
                 <Input label="Start Date" name="start_date" type="date" required defaultValue={today} />
               </div>
 
-              <Input label="Password" name="password" type="password" required placeholder="Set a login password" />
+              {!skipOnboarding && (
+                <Input label="Password" name="password" type="password" required placeholder="Set a login password" />
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <Input label="Start Weight (kg)" name="start_weight" type="number" step="0.1" required placeholder="80" />

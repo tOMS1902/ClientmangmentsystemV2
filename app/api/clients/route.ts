@@ -29,7 +29,19 @@ export async function POST(request: Request) {
   if (profile?.role !== 'coach') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await request.json()
-  const { password, ...clientFields } = body
+  const { password, skip_onboarding, ...clientFields } = body
+
+  if (skip_onboarding) {
+    // No auth user — insert client record with user_id = null
+    const { data: client, error: insertError } = await supabase
+      .from('clients')
+      .insert({ ...clientFields, coach_id: user.id, user_id: null, portal_access: false })
+      .select()
+      .single()
+
+    if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+    return NextResponse.json(client, { status: 201 })
+  }
 
   // Create the auth user — the DB trigger auto-creates their profile
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
