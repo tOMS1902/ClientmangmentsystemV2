@@ -14,10 +14,9 @@ interface CustomItem {
   action: 'add' | 'remove'
 }
 
-interface AggregatedItem {
+interface ShoppingListItem {
   name: string
-  count: number
-  perServingAmount: string | null
+  amount: string | null
 }
 
 interface ShoppingListAIProps {
@@ -25,39 +24,84 @@ interface ShoppingListAIProps {
   mealPlans: MealPlan[]
 }
 
-function formatMultipliedAmount(perServing: string | null, count: number): string | null {
-  if (!perServing) return null
-  const match = perServing.trim().match(/^([\d.]+)\s*([a-zA-Z]+)/)
-  if (!match) return null
-  const num = parseFloat(match[1])
-  const unit = match[2]
-  if (isNaN(num)) return null
-  if (count <= 1) return `${match[1]}${unit}`
-  const total = Math.round(num * count * 10) / 10
-  return `${total}${unit} (${match[1]}${unit} × ${count})`
+function parseIngredientLine(line: string): { name: string; numValue: number | null; unit: string } {
+  const trimmed = line.trim()
+  // Fraction: "1/4 avocado", "1/2 cup oats"
+  let m = trimmed.match(/^(\d+)\/(\d+)\s*([a-zA-Z]*)\s+(.+)$/)
+  if (m) {
+    return { name: m[4].trim(), numValue: parseInt(m[1]) / parseInt(m[2]), unit: m[3].toLowerCase() }
+  }
+  // Number + optional unit + name: "100g turkey breast", "2 eggs", "1 tortilla (60g)"
+  m = trimmed.match(/^(\d+\.?\d*)\s*([a-zA-Z]*)\s+(.+)$/)
+  if (m) {
+    return { name: m[3].trim(), numValue: parseFloat(m[1]), unit: m[2].toLowerCase() }
+  }
+  return { name: trimmed, numValue: null, unit: '' }
 }
 
-function buildAggregatedItems(mealPlans: MealPlan[], overrides: Record<string, number>): AggregatedItem[] {
-  const itemMap = new Map<string, AggregatedItem>()
+function formatIngredientAmount(total: number, unit: string): string {
+  const rounded = Math.round(total * 10) / 10
+  return unit ? `${rounded}${unit}` : `${rounded}`
+}
+
+function buildShoppingItems(mealPlans: MealPlan[], overrides: Record<string, number>): ShoppingListItem[] {
+  // key → { name, totalValue (numeric sum), unit, legacyCount, legacyPerServing }
+  const map = new Map<string, { name: string; totalValue: number | null; unit: string; legacyCount: number; legacyPerServing: string | null }>()
+
   for (const plan of mealPlans) {
     const freq = overrides[plan.day_type] ?? plan.times_per_week ?? 1
     const seenInPlan = new Set<string>()
+
     for (const meal of plan.meals) {
       for (const item of meal.items) {
-        const key = item.name.toLowerCase()
-        if (!seenInPlan.has(key)) {
+        if (item.ingredients && item.ingredients.length > 0) {
+          for (const line of item.ingredients) {
+            const { name, numValue, unit } = parseIngredientLine(line)
+            const key = `${name.toLowerCase()}|${unit}`
+            if (seenInPlan.has(key)) continue
+            seenInPlan.add(key)
+            const existing = map.get(key)
+            if (numValue !== null) {
+              if (existing) {
+                existing.totalValue = (existing.totalValue ?? 0) + numValue * freq
+              } else {
+                map.set(key, { name, totalValue: numValue * freq, unit, legacyCount: 0, legacyPerServing: null })
+              }
+            } else {
+              if (!existing) {
+                map.set(key, { name, totalValue: null, unit: '', legacyCount: 0, legacyPerServing: null })
+              }
+            }
+          }
+        } else {
+          // Legacy: no ingredients defined — use item name
+          const key = `${item.name.toLowerCase()}|legacy`
+          if (seenInPlan.has(key)) continue
           seenInPlan.add(key)
-          const existing = itemMap.get(key)
+          const existing = map.get(key)
           if (existing) {
-            existing.count += freq
+            existing.legacyCount += freq
           } else {
-            itemMap.set(key, { name: item.name, count: freq, perServingAmount: item.description || null })
+            map.set(key, { name: item.name, totalValue: null, unit: '', legacyCount: freq, legacyPerServing: item.description || null })
           }
         }
       }
     }
   }
-  return Array.from(itemMap.values())
+
+  return Array.from(map.values()).map(entry => {
+    if (entry.totalValue !== null) {
+      return { name: entry.name, amount: formatIngredientAmount(entry.totalValue, entry.unit) }
+    }
+    if (entry.legacyCount > 0 && entry.legacyPerServing) {
+      const m = entry.legacyPerServing.trim().match(/^([\d.]+)\s*([a-zA-Z]+)/)
+      if (m) {
+        const total = Math.round(parseFloat(m[1]) * entry.legacyCount * 10) / 10
+        return { name: entry.name, amount: entry.legacyCount <= 1 ? `${m[1]}${m[2]}` : `${total}${m[2]} (${m[1]}${m[2]} × ${entry.legacyCount})` }
+      }
+    }
+    return { name: entry.name, amount: null }
+  })
 }
 
 export function ShoppingListAI({ clientId, mealPlans }: ShoppingListAIProps) {
@@ -113,7 +157,7 @@ export function ShoppingListAI({ clientId, mealPlans }: ShoppingListAIProps) {
     setCustomItems(prev => prev.filter(item => item.id !== id))
   }
 
-  const planItems = buildAggregatedItems(mealPlans, weekOverrides)
+  const planItems = buildShoppingItems(mealPlans, weekOverrides)
 
   return (
     <div>
@@ -178,15 +222,12 @@ export function ShoppingListAI({ clientId, mealPlans }: ShoppingListAIProps) {
             INGREDIENT LIST ({planItems.length} items)
           </p>
           <div className="flex flex-col">
-            {planItems.map(item => {
-              const display = formatMultipliedAmount(item.perServingAmount, item.count)
-              return (
-                <div key={item.name} className="flex items-baseline justify-between gap-3 py-1.5 border-b border-white/5 last:border-0">
-                  <span className="text-sm text-white">{item.name}</span>
-                  {display && <span className="text-xs text-gold/70 flex-shrink-0">{display}</span>}
-                </div>
-              )
-            })}
+            {planItems.map(item => (
+              <div key={item.name} className="flex items-baseline justify-between gap-3 py-1.5 border-b border-white/5 last:border-0">
+                <span className="text-sm text-white">{item.name}</span>
+                {item.amount && <span className="text-xs text-gold/70 flex-shrink-0">{item.amount}</span>}
+              </div>
+            ))}
           </div>
         </div>
       )}

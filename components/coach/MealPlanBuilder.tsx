@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Trash2, Plus, Copy, Check } from 'lucide-react'
+import { Trash2, Plus, Copy, Check, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Eyebrow } from '@/components/ui/Eyebrow'
@@ -61,7 +61,8 @@ function MealEditor({ meals, onChange }: { meals: Meal[]; onChange: (meals: Meal
   const [addingMeal, setAddingMeal] = useState(false)
   const [newMealName, setNewMealName] = useState('')
   const [addingItem, setAddingItem] = useState<number | null>(null)
-  const [itemForm, setItemForm] = useState({ name: '', description: '', calories: '', protein: '', carbs: '', fat: '' })
+  const [itemForm, setItemForm] = useState({ name: '', description: '', calories: '', protein: '', carbs: '', fat: '', ingredients: '' })
+  const [suggestingIngredients, setSuggestingIngredients] = useState(false)
 
   function addMeal() {
     if (!newMealName.trim()) return
@@ -74,6 +75,24 @@ function MealEditor({ meals, onChange }: { meals: Meal[]; onChange: (meals: Meal
     onChange(meals.filter((_, i) => i !== index))
   }
 
+  async function suggestIngredients() {
+    if (!itemForm.name.trim() || suggestingIngredients) return
+    setSuggestingIngredients(true)
+    try {
+      const res = await fetch('/api/ai/suggest-ingredients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mealName: itemForm.name, description: itemForm.description }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setItemForm(f => ({ ...f, ingredients: (data.ingredients as string[]).join('\n') }))
+      }
+    } finally {
+      setSuggestingIngredients(false)
+    }
+  }
+
   function addItem(mealIndex: number) {
     const item: MealItem = {
       name: itemForm.name,
@@ -82,9 +101,10 @@ function MealEditor({ meals, onChange }: { meals: Meal[]; onChange: (meals: Meal
       protein: parseInt(itemForm.protein) || 0,
       carbs: parseInt(itemForm.carbs) || 0,
       fat: parseInt(itemForm.fat) || 0,
+      ingredients: itemForm.ingredients.split('\n').map(l => l.trim()).filter(l => l.length > 0),
     }
     onChange(meals.map((m, i) => i === mealIndex ? { ...m, items: [...m.items, item] } : m))
-    setItemForm({ name: '', description: '', calories: '', protein: '', carbs: '', fat: '' })
+    setItemForm({ name: '', description: '', calories: '', protein: '', carbs: '', fat: '', ingredients: '' })
     setAddingItem(null)
   }
 
@@ -107,14 +127,19 @@ function MealEditor({ meals, onChange }: { meals: Meal[]; onChange: (meals: Meal
           <div className="p-4">
             {meal.items.map((item, itemIndex) => (
               <div key={itemIndex} className="flex items-start justify-between py-2 border-b border-white/8 last:border-0">
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-sm text-white">{item.name}</p>
                   {item.description && <p className="text-xs text-grey-muted">{item.description}</p>}
                   <p className="text-xs text-grey-muted mt-0.5">
                     {item.calories} kcal &middot; {item.protein}g protein &middot; {item.carbs}g carbs &middot; {item.fat}g fat
                   </p>
+                  {item.ingredients && item.ingredients.length > 0 && (
+                    <p className="text-xs text-white/30 mt-1 leading-relaxed">
+                      {item.ingredients.join(' · ')}
+                    </p>
+                  )}
                 </div>
-                <button onClick={() => deleteItem(mealIndex, itemIndex)} className="text-grey-muted hover:text-white ml-4 mt-1">
+                <button onClick={() => deleteItem(mealIndex, itemIndex)} className="text-grey-muted hover:text-white ml-4 mt-1 flex-shrink-0">
                   <Trash2 size={12} />
                 </button>
               </div>
@@ -123,7 +148,7 @@ function MealEditor({ meals, onChange }: { meals: Meal[]; onChange: (meals: Meal
             {addingItem === mealIndex ? (
               <div className="mt-3 grid grid-cols-3 gap-2">
                 <div className="col-span-3">
-                  <Input placeholder="Food name" value={itemForm.name} onChange={e => setItemForm(f => ({ ...f, name: e.target.value }))} />
+                  <Input placeholder="Food name (e.g. Turkey &amp; Avocado Wrap)" value={itemForm.name} onChange={e => setItemForm(f => ({ ...f, name: e.target.value }))} />
                 </div>
                 <div className="col-span-3">
                   <Input placeholder="Amount/description (e.g. 200g cooked)" value={itemForm.description} onChange={e => setItemForm(f => ({ ...f, description: e.target.value }))} />
@@ -132,6 +157,29 @@ function MealEditor({ meals, onChange }: { meals: Meal[]; onChange: (meals: Meal
                 <Input placeholder="Protein (g)" type="number" value={itemForm.protein} onChange={e => setItemForm(f => ({ ...f, protein: e.target.value }))} />
                 <Input placeholder="Carbs (g)" type="number" value={itemForm.carbs} onChange={e => setItemForm(f => ({ ...f, carbs: e.target.value }))} />
                 <Input placeholder="Fat (g)" type="number" value={itemForm.fat} onChange={e => setItemForm(f => ({ ...f, fat: e.target.value }))} />
+                <div className="col-span-3 mt-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-white/40" style={{ fontFamily: 'var(--font-label)', letterSpacing: '0.5px' }}>
+                      SHOPPING LIST INGREDIENTS
+                    </span>
+                    <button
+                      type="button"
+                      onClick={suggestIngredients}
+                      disabled={suggestingIngredients || !itemForm.name.trim()}
+                      className="flex items-center gap-1 text-xs text-gold/70 hover:text-gold disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <Sparkles size={11} />
+                      {suggestingIngredients ? 'Suggesting…' : 'Suggest'}
+                    </button>
+                  </div>
+                  <textarea
+                    value={itemForm.ingredients}
+                    onChange={e => setItemForm(f => ({ ...f, ingredients: e.target.value }))}
+                    rows={4}
+                    placeholder={'One ingredient per line:\n100g sliced turkey breast\n1/4 avocado\nlettuce'}
+                    className="w-full bg-navy-deep border border-white/20 text-white/85 px-3 py-2 text-xs focus:outline-none focus:border-gold resize-none placeholder:text-white/20 leading-relaxed"
+                  />
+                </div>
                 <div className="col-span-3 flex gap-2 mt-1">
                   <Button size="sm" variant="primary" onClick={() => addItem(mealIndex)}>Add Item</Button>
                   <Button size="sm" variant="ghost" onClick={() => setAddingItem(null)}>Cancel</Button>

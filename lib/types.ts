@@ -194,6 +194,7 @@ export interface MealItem {
   protein: number
   carbs: number
   fat: number
+  ingredients?: string[]
 }
 
 export interface Supplement {
