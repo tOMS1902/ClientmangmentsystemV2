@@ -34,6 +34,8 @@ export interface Client {
   welcome_video_views?: number
   weight_unit?: 'kg' | 'lbs'
   loom_sent?: boolean
+  weekly_checkin_enabled?: boolean
+  midweek_check_enabled?: boolean
 }
 
 export interface NutritionTargets {

@@ -185,6 +185,7 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
   const [trackWeight, setTrackWeight] = useState(client.track_weight ?? true)
   const [isActive, setIsActive] = useState(client.is_active ?? true)
   const [loomSent, setLoomSent] = useState(client.loom_sent ?? false)
+  const [weeklyCheckinEnabled, setWeeklyCheckinEnabled] = useState(client.weekly_checkin_enabled ?? true)
 
   async function saveProfile() {
     setSavingProfile(true)
@@ -200,6 +201,7 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
         weight_unit: profileWeightUnit,
         track_weight: trackWeight,
         is_active: isActive,
+        weekly_checkin_enabled: weeklyCheckinEnabled,
       }),
     })
     if (res.ok) {
@@ -377,7 +379,7 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
               <p className="text-grey-muted mb-1">Goal</p>
               <textarea value={goalText} onChange={e => setGoalText(e.target.value)} rows={2} className="w-full bg-navy-deep border border-white/20 text-white p-2 text-sm focus:outline-none focus:border-gold resize-none" />
             </div>
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-6 flex-wrap">
               <label className="flex items-center gap-2 cursor-pointer text-white/85 text-sm">
                 <input type="checkbox" checked={trackWeight} onChange={e => setTrackWeight(e.target.checked)} className="accent-gold" />
                 Track weight
@@ -385,6 +387,10 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
               <label className="flex items-center gap-2 cursor-pointer text-white/85 text-sm">
                 <input type="checkbox" checked={isActive} onChange={e => setIsActive(e.target.checked)} className="accent-gold" />
                 Active client
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer text-white/85 text-sm">
+                <input type="checkbox" checked={weeklyCheckinEnabled} onChange={e => setWeeklyCheckinEnabled(e.target.checked)} className="accent-gold" />
+                Weekly check-in
               </label>
             </div>
             <div className="sm:col-span-2 flex gap-3 items-center">
@@ -398,6 +404,7 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
                 setProfileWeightUnit(client.weight_unit ?? 'kg')
                 setTrackWeight(client.track_weight ?? true)
                 setIsActive(client.is_active ?? true)
+                setWeeklyCheckinEnabled(client.weekly_checkin_enabled ?? true)
               }}>Cancel</Button>
               {profileMsg && <span className={`text-xs ${profileMsg === 'Saved' ? 'text-grey-muted' : 'text-red-400'}`}>{profileMsg}</span>}
             </div>
@@ -410,6 +417,7 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
             <div><p className="text-grey-muted mb-0.5">Weight Unit</p><p className="text-white">{client.weight_unit ?? 'kg'}</p></div>
             <div><p className="text-grey-muted mb-0.5">Track Weight</p><p className="text-white">{client.track_weight ? 'Yes' : 'No'}</p></div>
             <div><p className="text-grey-muted mb-0.5">Status</p><p className={client.is_active ? 'text-green-400' : 'text-grey-muted'}>{client.is_active ? 'Active' : 'Inactive'}</p></div>
+            <div><p className="text-grey-muted mb-0.5">Weekly Check-In</p><p className={(client.weekly_checkin_enabled ?? true) ? 'text-green-400' : 'text-grey-muted'}>{(client.weekly_checkin_enabled ?? true) ? 'Enabled' : 'Disabled'}</p></div>
             {client.goal_text && <div className="col-span-2 sm:col-span-3"><p className="text-grey-muted mb-0.5">Goal</p><p className="text-white/85">{client.goal_text}</p></div>}
             {profileMsg && <p className="text-xs text-grey-muted">{profileMsg}</p>}
           </div>
@@ -459,6 +467,8 @@ function MidweekChecksTab({ client, midweekChecks }: { client: Client; midweekCh
   const [selectedDay, setSelectedDay] = useState(client.midweek_check_day || 'Wednesday')
   const [savingDay, setSavingDay] = useState(false)
   const [daySaved, setDaySaved] = useState(false)
+  const [midweekEnabled, setMidweekEnabled] = useState(client.midweek_check_enabled ?? true)
+  const [savingEnabled, setSavingEnabled] = useState(false)
 
   async function saveMidweekDay() {
     setSavingDay(true)
@@ -475,32 +485,62 @@ function MidweekChecksTab({ client, midweekChecks }: { client: Client; midweekCh
     setSavingDay(false)
   }
 
+  async function toggleMidweekEnabled() {
+    setSavingEnabled(true)
+    const newVal = !midweekEnabled
+    const res = await fetch(`/api/clients/${client.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ midweek_check_enabled: newVal }),
+    })
+    if (res.ok) setMidweekEnabled(newVal)
+    setSavingEnabled(false)
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      {/* Midweek check day setting */}
+      {/* Midweek check settings */}
       <div className="bg-navy-card border border-white/8 p-5">
-        <p className="text-xs text-grey-muted mb-3" style={{ fontFamily: 'var(--font-label)' }}>MIDWEEK CHECK DAY</p>
-        <div className="flex items-center gap-3 flex-wrap">
-          <select
-            value={selectedDay}
-            onChange={e => setSelectedDay(e.target.value)}
-            className="bg-navy-mid border border-white/20 text-white/85 px-3 py-2 text-sm focus:outline-none focus:border-gold"
-          >
-            {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs text-grey-muted" style={{ fontFamily: 'var(--font-label)' }}>MIDWEEK CHECK-IN</p>
           <button
-            onClick={saveMidweekDay}
-            disabled={savingDay}
-            className="text-xs text-gold disabled:opacity-50"
+            onClick={toggleMidweekEnabled}
+            disabled={savingEnabled}
+            className={`text-xs px-3 py-1.5 border transition-colors disabled:opacity-50 ${midweekEnabled ? 'border-green-500/60 text-green-400 bg-green-500/10 hover:bg-green-500/20' : 'border-white/20 text-white/50 hover:border-white/50'}`}
             style={{ fontFamily: 'var(--font-label)' }}
           >
-            {savingDay ? 'Saving...' : 'Save'}
+            {savingEnabled ? '...' : midweekEnabled ? '✓ Enabled' : 'Disabled'}
           </button>
-          {daySaved && <span className="text-xs text-grey-muted">Saved</span>}
         </div>
-        <p className="text-xs text-grey-muted mt-2">
-          The client will see a midweek check-in prompt on their dashboard on this day.
-        </p>
+        {midweekEnabled && (
+          <>
+            <p className="text-xs text-grey-muted mb-3" style={{ fontFamily: 'var(--font-label)' }}>CHECK DAY</p>
+            <div className="flex items-center gap-3 flex-wrap">
+              <select
+                value={selectedDay}
+                onChange={e => setSelectedDay(e.target.value)}
+                className="bg-navy-mid border border-white/20 text-white/85 px-3 py-2 text-sm focus:outline-none focus:border-gold"
+              >
+                {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+              <button
+                onClick={saveMidweekDay}
+                disabled={savingDay}
+                className="text-xs text-gold disabled:opacity-50"
+                style={{ fontFamily: 'var(--font-label)' }}
+              >
+                {savingDay ? 'Saving...' : 'Save'}
+              </button>
+              {daySaved && <span className="text-xs text-grey-muted">Saved</span>}
+            </div>
+            <p className="text-xs text-grey-muted mt-2">
+              The client will see a midweek check-in prompt on their dashboard on this day.
+            </p>
+          </>
+        )}
+        {!midweekEnabled && (
+          <p className="text-xs text-grey-muted mt-1">Midweek check-in is off — no prompt will appear on the client&apos;s dashboard.</p>
+        )}
       </div>
 
       {!midweekChecks.length ? (
@@ -933,23 +973,13 @@ function OnboardingTab({ client }: { client: Client }) {
     )
   }
 
-  if (!responses) {
-    return (
-      <div className="bg-navy-card border border-white/8 p-6">
-        <p className="text-grey-muted text-sm">
-          Client has signed up but has not completed onboarding yet.
-        </p>
-      </div>
-    )
-  }
-
   return (
     <div>
       {!approved ? (
         <div className="border border-gold/40 bg-gold/8 p-5 mb-6 flex items-center justify-between">
           <div>
-            <p className="text-white text-sm mb-0.5">Onboarding complete</p>
-            <p className="text-grey-muted text-xs">Review the responses below, then grant portal access.</p>
+            <p className="text-white text-sm mb-0.5">{responses ? 'Onboarding complete' : 'Account created — no onboarding submitted'}</p>
+            <p className="text-grey-muted text-xs">{responses ? 'Review the responses below, then grant portal access.' : 'Grant portal access to let this client log in.'}</p>
           </div>
           <Button size="sm" onClick={handleApprove} disabled={approving}>
             {approving ? 'Approving…' : 'Approve Access'}
@@ -961,30 +991,38 @@ function OnboardingTab({ client }: { client: Client }) {
         </div>
       )}
 
-      <div className="flex flex-col gap-8">
-        {ONBOARDING_SECTIONS.map(section => (
-          <div key={section.title}>
-            <p className="text-gold text-xs mb-3" style={{ fontFamily: 'var(--font-label)' }}>
-              {section.title.toUpperCase()}
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {section.fields.map(field =>
-                responses[field.key] ? (
-                  <div
-                    key={field.key}
-                    className={`bg-navy-card border border-white/8 p-4 ${field.wide ? 'sm:col-span-2' : ''}`}
-                  >
-                    <p className="text-grey-muted text-xs mb-1.5" style={{ fontFamily: 'var(--font-label)' }}>
-                      {field.label.toUpperCase()}
-                    </p>
-                    <p className="text-white/85 text-sm whitespace-pre-wrap">{responses[field.key]}</p>
-                  </div>
-                ) : null
-              )}
+      {!responses && (
+        <div className="bg-navy-card border border-white/8 p-6">
+          <p className="text-grey-muted text-sm">No onboarding responses submitted yet.</p>
+        </div>
+      )}
+
+      {responses && (
+        <div className="flex flex-col gap-8">
+          {ONBOARDING_SECTIONS.map(section => (
+            <div key={section.title}>
+              <p className="text-gold text-xs mb-3" style={{ fontFamily: 'var(--font-label)' }}>
+                {section.title.toUpperCase()}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {section.fields.map(field =>
+                  responses[field.key] ? (
+                    <div
+                      key={field.key}
+                      className={`bg-navy-card border border-white/8 p-4 ${field.wide ? 'sm:col-span-2' : ''}`}
+                    >
+                      <p className="text-grey-muted text-xs mb-1.5" style={{ fontFamily: 'var(--font-label)' }}>
+                        {field.label.toUpperCase()}
+                      </p>
+                      <p className="text-white/85 text-sm whitespace-pre-wrap">{responses[field.key]}</p>
+                    </div>
+                  ) : null
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

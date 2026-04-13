@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { HabitTracker } from '@/components/client/HabitTracker'
 import { SparkLine } from '@/components/ui/SparkLine'
 import { Eyebrow } from '@/components/ui/Eyebrow'
@@ -80,6 +81,7 @@ export default async function PortalHomePage() {
     .single()
 
   if (!clientRecord) return <p className="text-grey-muted">Client record not found.</p>
+  if (!clientRecord.portal_access) redirect('/portal/pending')
 
   const clientId = clientRecord.id
   const today = new Date().toISOString().split('T')[0]
@@ -114,10 +116,12 @@ export default async function PortalHomePage() {
   const latestCheckin = checkins?.[0] || null
 
   const dayOfWeek = new Date().toLocaleDateString('en-IE', { weekday: 'long' })
-  const isCheckinDay = clientRecord.check_in_day === dayOfWeek
-  const isMidweekDay = clientRecord.midweek_check_day
-    ? dayOfWeek === clientRecord.midweek_check_day
-    : dayOfWeek === 'Wednesday'
+  const isCheckinDay = (clientRecord.weekly_checkin_enabled ?? true) && clientRecord.check_in_day === dayOfWeek
+  const isMidweekDay = (clientRecord.midweek_check_enabled ?? true) && (
+    clientRecord.midweek_check_day
+      ? dayOfWeek === clientRecord.midweek_check_day
+      : dayOfWeek === 'Wednesday'
+  )
 
   // Midweek check — submitted within the last 7 days?
   const thisWeekMidweek = (midweekChecks as MidweekCheck[] | null)?.find(c => {
@@ -182,7 +186,7 @@ export default async function PortalHomePage() {
           ))}
         </div>
       )}
-      {!(goalsData ?? []).length && (clientRecord.goal_event_name || clientRecord.goal_weight) && (
+      {!(goalsData ?? []).length && !!(clientRecord.goal_event_name || clientRecord.goal_weight) && (
         <div className="mb-6">
           <GoalCountdown
             goalEventName={clientRecord.goal_event_name}

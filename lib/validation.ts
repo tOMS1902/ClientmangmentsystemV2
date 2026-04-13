@@ -29,6 +29,8 @@ export const ClientPatchSchema = z.object({
   welcome_video_url: z.string().max(500).trim().optional().nullable(),
   weight_unit: z.enum(['kg', 'lbs']).optional(),
   loom_sent: z.boolean().optional(),
+  weekly_checkin_enabled: z.boolean().optional(),
+  midweek_check_enabled: z.boolean().optional(),
 })
 
 // ─── Midweek Checks ───────────────────────────────────────────────────────────
