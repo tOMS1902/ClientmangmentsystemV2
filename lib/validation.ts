@@ -197,3 +197,78 @@ export function parseBody<T>(schema: z.ZodSchema<T>, data: unknown):
   }
   return { success: true, data: result.data }
 }
+
+// ─── Diagnostics ─────────────────────────────────────────────────────────────
+
+export const DiagnosticReportCreateSchema = z.object({
+  client_id: uuid,
+  report_type: z.enum(['bloodwork', 'genetics']).default('bloodwork'),
+  report_title: z.string().min(1).max(200).trim().default('Blood Diagnostics Report'),
+  report_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  lab_source: z.string().max(200).trim().default(''),
+})
+
+export const DiagnosticReportPatchSchema = z.object({
+  report_title: z.string().min(1).max(200).trim().optional(),
+  report_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  lab_source: z.string().max(200).trim().optional(),
+  health_score: z.number().int().min(0).max(100).optional(),
+  coach_summary: z.string().max(5000).trim().optional(),
+  loom_url: z.string().url().max(500).optional().or(z.literal('')),
+  loom_description: z.string().max(300).trim().optional(),
+  action_nutrition: z.string().max(2000).trim().optional(),
+  action_training: z.string().max(2000).trim().optional(),
+  action_recovery: z.string().max(2000).trim().optional(),
+  action_supplements: z.string().max(2000).trim().optional(),
+  action_followup: z.string().max(2000).trim().optional(),
+  pdf_file_url: z.string().max(500).trim().optional(),
+  status: z.enum(['draft', 'published']).optional(),
+})
+
+export const MarkerInputSchema = z.object({
+  marker_name: z.string().min(1).max(200).trim(),
+  value: z.number(),
+  unit: z.string().max(50).trim().default(''),
+  reference_range_low: z.number(),
+  reference_range_high: z.number(),
+  category: z.string().max(100).optional(),
+  short_explanation: z.string().max(1000).optional(),
+  coach_note: z.string().max(1000).optional(),
+})
+
+export const MarkerBulkSchema = z.object({
+  markers: z.array(MarkerInputSchema).min(1).max(200),
+})
+
+export const MarkerPatchSchema = z.object({
+  marker_name: z.string().min(1).max(200).trim().optional(),
+  value: z.number().optional(),
+  unit: z.string().max(50).trim().optional(),
+  reference_range_low: z.number().optional(),
+  reference_range_high: z.number().optional(),
+  status: z.enum(['optimal', 'borderline-low', 'borderline-high', 'low', 'high']).optional(),
+  category: z.string().max(100).optional(),
+  short_explanation: z.string().max(1000).optional(),
+  coach_note: z.string().max(1000).optional(),
+  recommendation: z.string().max(1000).optional(),
+  display_order: z.number().int().min(0).optional(),
+})
+
+export const InsightPatchSchema = z.object({
+  title: z.string().min(1).max(80).trim().optional(),
+  description: z.string().max(2000).trim().optional(),
+  category: z.enum(['priority-focus', 'key-risks', 'nutrition', 'training', 'recovery', 'general']).optional(),
+  priority: z.enum(['high', 'medium', 'low']).optional(),
+  coach_note: z.string().max(1000).optional(),
+  recommendation: z.string().max(1000).optional(),
+  display_order: z.number().int().min(0).optional(),
+})
+
+export const InsightManualSchema = z.object({
+  insights: z.array(z.object({
+    title: z.string().min(1).max(80).trim(),
+    description: z.string().max(2000).trim(),
+    category: z.enum(['priority-focus', 'key-risks', 'nutrition', 'training', 'recovery', 'general']),
+    priority: z.enum(['high', 'medium', 'low']),
+  })).min(1).max(100),
+})

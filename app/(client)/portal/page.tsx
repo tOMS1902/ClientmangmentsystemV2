@@ -96,6 +96,7 @@ export default async function PortalHomePage() {
     { data: milestonesData },
     { data: coachProfile },
     { data: goalsData },
+    { data: diagnosticReports },
   ] = await Promise.all([
     supabase.from('weekly_checkins').select('*').eq('client_id', clientId).order('check_in_date', { ascending: false }),
     supabase.from('midweek_checks').select('*').eq('client_id', clientId).order('submitted_at', { ascending: false }).limit(10),
@@ -105,6 +106,7 @@ export default async function PortalHomePage() {
     supabase.from('client_milestones').select('id, label, is_unlocked').eq('client_id', clientId).order('display_order', { ascending: true }),
     supabase.from('profiles').select('full_name, avatar_url').eq('id', clientRecord.coach_id).single(),
     supabase.from('client_goals').select('*').eq('client_id', clientId).order('event_date', { ascending: true }),
+    supabase.from('diagnostic_reports').select('id, report_title, report_date, report_type, health_score').eq('client_id', clientId).eq('status', 'published').order('report_date', { ascending: false }),
   ])
 
   const todayHabitLogs = habitLogData?.filter(l => l.log_date === today) || []
@@ -272,6 +274,36 @@ export default async function PortalHomePage() {
       <div className="mb-8">
         <BadgeWall milestones={milestones} />
       </div>
+
+      {/* Diagnostic reports */}
+      {(diagnosticReports ?? []).length > 0 && (
+        <div className="bg-navy-card border border-white/8 p-6 mb-8">
+          <Eyebrow>Diagnostic Reports</Eyebrow>
+          <GoldRule />
+          <div className="flex flex-col gap-3 mt-4">
+            {(diagnosticReports as { id: string; report_title: string; report_date: string; report_type: string; health_score: number }[]).map(report => (
+              <Link
+                key={report.id}
+                href={`/portal/reports/${report.id}`}
+                className="flex items-center justify-between p-3 border border-white/8 hover:border-gold/30 hover:bg-white/4 transition-colors group"
+              >
+                <div>
+                  <p className="text-sm text-white group-hover:text-gold transition-colors">{report.report_title}</p>
+                  <p className="text-xs text-grey-muted mt-0.5">{new Date(report.report_date).toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  {report.health_score > 0 && (
+                    <span className={`text-sm font-medium ${report.health_score >= 80 ? 'text-green-400' : report.health_score >= 60 ? 'text-amber-400' : 'text-red-400'}`}>
+                      {report.health_score}%
+                    </span>
+                  )}
+                  <span className="text-grey-muted group-hover:text-gold transition-colors">→</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Floating message button — fixed position */}
       <FloatingMessageButton coachName={coachName} coachAvatarUrl={coachAvatarUrl} />

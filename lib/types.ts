@@ -256,3 +256,93 @@ export interface ClientBadge {
   awarded_at: string
   awarded_by: string
 }
+
+// ─── Diagnostics ─────────────────────────────────────────────────────────────
+
+export type DiagnosticReportType = 'bloodwork' | 'genetics'
+export type DiagnosticReportStatus = 'draft' | 'published'
+export type MarkerStatus = 'optimal' | 'borderline-low' | 'borderline-high' | 'low' | 'high'
+export type MarkerCategory =
+  | 'Results of Interest'
+  | 'Full Blood Count'
+  | 'Iron Status'
+  | 'Heart Health'
+  | 'Diabetes Health'
+  | 'Metabolic Syndrome'
+  | 'Kidney Health'
+  | 'Liver Health'
+  | 'Nutritional Health'
+  | 'Muscle & Joint Health'
+  | 'Bone Health'
+  | 'Infection & Inflammation'
+  | 'Pituitary & Adrenal Health'
+  | 'Thyroid Health'
+  | 'Stress Health'
+  | 'Hormonal Health'
+
+export type InsightCategory = 'priority-focus' | 'key-risks' | 'nutrition' | 'training' | 'recovery' | 'general'
+export type InsightPriority = 'high' | 'medium' | 'low'
+
+export interface DiagnosticReport {
+  id: string
+  client_id: string
+  coach_id: string
+  report_type: DiagnosticReportType
+  report_title: string
+  report_date: string
+  lab_source: string
+  health_score: number
+  coach_summary: string
+  loom_url: string
+  loom_description: string
+  action_nutrition: string
+  action_training: string
+  action_recovery: string
+  action_supplements: string
+  action_followup: string
+  pdf_file_url: string
+  status: DiagnosticReportStatus
+  created_at: string
+  updated_at: string
+}
+
+export interface DiagnosticMarker {
+  id: string
+  report_id: string
+  marker_name: string
+  value: number
+  unit: string
+  reference_range_low: number
+  reference_range_high: number
+  status: MarkerStatus
+  category: MarkerCategory
+  short_explanation: string
+  coach_note: string
+  recommendation: string
+  is_flagged: boolean
+  display_order: number
+  created_at: string
+}
+
+export interface DiagnosticInsight {
+  id: string
+  report_id: string
+  title: string
+  description: string
+  category: InsightCategory
+  priority: InsightPriority
+  coach_note: string
+  recommendation: string
+  display_order: number
+  created_at: string
+}
+
+export interface ParsedMarkerInput {
+  marker_name: string
+  value: number
+  unit: string
+  reference_range_low: number
+  reference_range_high: number
+  short_explanation?: string
+  category?: MarkerCategory
+}

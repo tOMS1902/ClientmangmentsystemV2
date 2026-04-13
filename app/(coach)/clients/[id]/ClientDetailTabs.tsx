@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import { Button } from '@/components/ui/Button'
@@ -35,7 +36,7 @@ interface ClientDetailTabsProps {
   badges: string[]
 }
 
-type Tab = 'overview' | 'midweek' | 'checkins' | 'training' | 'nutrition' | 'onboarding' | 'messages' | 'photos' | 'portal' | 'ai'
+type Tab = 'overview' | 'midweek' | 'checkins' | 'training' | 'nutrition' | 'onboarding' | 'messages' | 'photos' | 'portal' | 'ai' | 'diagnostics'
 
 const ONBOARDING_SECTIONS = [
   {
@@ -1056,6 +1057,7 @@ export function ClientDetailTabs({
     { id: 'photos', label: 'Photos' },
     { id: 'portal', label: 'Portal' },
     { id: 'ai', label: 'AI' },
+    { id: 'diagnostics', label: 'Diagnostics' },
   ]
 
   return (
@@ -1151,6 +1153,29 @@ export function ClientDetailTabs({
       )}
       {activeTab === 'ai' && (
         <AITab clientId={client.id} clientName={client.full_name} />
+      )}
+      {activeTab === 'diagnostics' && (
+        <div className="bg-navy-card border border-white/8 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-lg text-white" style={{ fontFamily: 'var(--font-display)' }}>Diagnostic Reports</h2>
+              <p className="text-sm text-grey-muted mt-1">Blood work and genetics reports for this client</p>
+            </div>
+            <Link
+              href={`/clients/${client.id}/reports/new`}
+              className="px-4 py-2 text-sm bg-gold text-navy-dark font-medium hover:bg-gold/90 transition-colors"
+              style={{ fontFamily: 'var(--font-label)' }}
+            >
+              + New Report
+            </Link>
+          </div>
+          <Link
+            href={`/clients/${client.id}/reports`}
+            className="flex items-center justify-between p-4 border border-white/8 hover:border-gold/30 hover:bg-white/4 transition-colors group"
+          >
+            <span className="text-sm text-grey-muted group-hover:text-white transition-colors">View all reports →</span>
+          </Link>
+        </div>
       )}
     </div>
   )
