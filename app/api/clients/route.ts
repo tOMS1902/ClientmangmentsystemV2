@@ -56,7 +56,7 @@ export async function POST(request: Request) {
   // Insert the client record with user_id already linked
   const { data: client, error: insertError } = await supabase
     .from('clients')
-    .insert({ ...clientFields, coach_id: user.id, user_id: authData.user.id })
+    .insert({ ...clientFields, coach_id: user.id, user_id: authData.user.id, portal_access: true })
     .select()
     .single()
 
