@@ -24,8 +24,7 @@ export function FloatingMessageButton({ coachName, coachAvatarUrl }: FloatingMes
           )}
         </div>
         <div>
-          <p className="text-white text-xs font-semibold" style={{ fontFamily: 'var(--font-label)' }}>Message Coach</p>
-          <p className="text-grey-muted text-xs">{coachName.split(' ')[0]}</p>
+          <p className="text-white text-xs font-semibold" style={{ fontFamily: 'var(--font-label)' }}>Message {coachName.split(' ')[0]}</p>
         </div>
       </div>
     </Link>
