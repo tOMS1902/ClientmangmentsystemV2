@@ -66,5 +66,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: insertError.message }, { status: 500 })
   }
 
+  // Insert placeholder onboarding_responses so the client skips the intake form
+  await supabase
+    .from('onboarding_responses')
+    .insert({ client_id: authData.user.id, responses: {} })
+
   return NextResponse.json(client, { status: 201 })
 }
