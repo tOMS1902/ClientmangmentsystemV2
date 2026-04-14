@@ -1,9 +1,20 @@
+import { redirect } from 'next/navigation'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { ClientPortalNav } from '@/components/client/ClientPortalNav'
 
 export default async function ClientLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createServerSupabaseClient()
   const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) redirect('/login')
+
+  const { data: legalProfile } = await supabase
+    .from('profiles')
+    .select('legal_onboarding_complete')
+    .eq('id', user.id)
+    .single()
+
+  if (!legalProfile?.legal_onboarding_complete) redirect('/onboarding')
 
   let showReports = false
   if (user) {

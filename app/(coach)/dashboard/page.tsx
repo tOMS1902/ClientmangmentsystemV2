@@ -36,7 +36,9 @@ export default async function DashboardPage() {
 
   const clients: Client[] = clientsData ?? []
 
-  const [{ data: midweekRows }, { data: weeklyRows }] = await Promise.all([
+  const clientUserIds = clients.map(c => c.user_id).filter(Boolean) as string[]
+
+  const [{ data: midweekRows }, { data: weeklyRows }, { data: legalRows }] = await Promise.all([
     supabase
       .from('midweek_checks')
       .select('client_id')
@@ -45,10 +47,14 @@ export default async function DashboardPage() {
       .from('weekly_checkins')
       .select('client_id')
       .gte('check_in_date', weekStart.split('T')[0]),
+    clientUserIds.length > 0
+      ? supabase.from('profiles').select('id, legal_onboarding_complete').in('id', clientUserIds)
+      : Promise.resolve({ data: [] as { id: string; legal_onboarding_complete: boolean | null }[] }),
   ])
 
   const midweekSubmitted = new Set((midweekRows || []).map(r => r.client_id))
   const weeklySubmitted = new Set((weeklyRows || []).map(r => r.client_id))
+  const legalDone = new Set((legalRows || []).filter(r => r.legal_onboarding_complete).map(r => r.id))
 
   const totalActive = clients.filter(c => c.is_active).length
   const midweekCount = clients.filter(c => midweekSubmitted.has(c.id)).length
@@ -113,6 +119,7 @@ export default async function DashboardPage() {
               weekNumber={getWeekNumber(client.start_date)}
               midweekSubmitted={midweekSubmitted.has(client.id)}
               weeklySubmitted={weeklySubmitted.has(client.id)}
+              legalOnboardingComplete={client.user_id ? legalDone.has(client.user_id) : false}
             />
           ))}
           {clients.length === 0 && (

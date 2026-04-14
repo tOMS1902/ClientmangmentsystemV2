@@ -36,7 +36,7 @@ interface ClientDetailTabsProps {
   badges: string[]
 }
 
-type Tab = 'overview' | 'midweek' | 'checkins' | 'training' | 'nutrition' | 'onboarding' | 'messages' | 'photos' | 'portal' | 'ai' | 'diagnostics'
+type Tab = 'overview' | 'midweek' | 'checkins' | 'training' | 'nutrition' | 'onboarding' | 'legal' | 'messages' | 'photos' | 'portal' | 'ai' | 'diagnostics'
 
 const ONBOARDING_SECTIONS = [
   {
@@ -931,6 +931,144 @@ function CheckInsTab({ clientId, checkins: initialCheckins, checkInDay, weightUn
   )
 }
 
+interface LegalSubmission {
+  submitted_at: string; first_name: string; last_name: string; email: string; dob: string
+  country: string; role: string | null; firm: string | null; ip_address: string | null
+  parq_q1: boolean; parq_q2: boolean; parq_q3: boolean; parq_q4: boolean
+  parq_q5: boolean; parq_q6: boolean; parq_q7: boolean; parq_q8: boolean
+  parq_health_details: string; parq_medications: string
+  bloodwork_consent: string; genetics_consent: string
+  photo_storage_consent: string; photo_marketing_consent: string
+  digital_signature: string; signature_date: string
+}
+
+const PARQ_LABELS = [
+  'Heart condition / exercise only under medical supervision',
+  'Chest pain or discomfort during physical activity',
+  'Chest pain when not exercising (past month)',
+  'Faint, dizzy, or loss of balance/consciousness',
+  'Bone, joint, or muscular problem that could worsen with exercise',
+  'On blood pressure or heart medication',
+  'Pregnant or given birth in last 6 months',
+  'Other reason not to exercise at this time',
+]
+
+function LegalOnboardingTab({ client }: { client: Client }) {
+  const [sub, setSub] = useState<LegalSubmission | null | undefined>(undefined)
+
+  useEffect(() => {
+    if (!client.user_id) { setSub(null); return }
+    fetch(`/api/onboarding/legal/${client.id}`)
+      .then(r => r.json())
+      .then(d => setSub(d ?? null))
+      .catch(() => setSub(null))
+  }, [client.id, client.user_id])
+
+  if (sub === undefined) return <p className="text-grey-muted text-sm">Loading...</p>
+
+  if (!client.user_id) {
+    return (
+      <div className="bg-navy-card border border-white/8 p-6">
+        <p className="text-grey-muted text-sm">Client has not created a portal account yet. Legal onboarding cannot be completed until they sign up.</p>
+      </div>
+    )
+  }
+
+  if (!sub) {
+    return (
+      <div className="bg-navy-card border border-white/8 p-6">
+        <div className="flex items-center gap-3 mb-2">
+          <span className="text-red-400 text-lg">✗</span>
+          <p className="text-white text-sm font-medium">Legal onboarding not yet completed</p>
+        </div>
+        <p className="text-grey-muted text-xs">The client must complete the legal onboarding form before accessing the portal. They will be redirected automatically on next login.</p>
+      </div>
+    )
+  }
+
+  const parqYesIndexes = [sub.parq_q1,sub.parq_q2,sub.parq_q3,sub.parq_q4,sub.parq_q5,sub.parq_q6,sub.parq_q7,sub.parq_q8]
+    .map((v, i) => v ? i : -1).filter(i => i >= 0)
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Status banner */}
+      <div className="border border-green-400/30 bg-green-400/5 p-4 flex items-center gap-3">
+        <span className="text-green-400 text-lg">✓</span>
+        <div>
+          <p className="text-white text-sm font-medium">Legal onboarding complete</p>
+          <p className="text-grey-muted text-xs">Signed {new Date(sub.submitted_at).toLocaleString('en-IE', { day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit' })}</p>
+        </div>
+      </div>
+
+      {/* PAR-Q flags */}
+      {parqYesIndexes.length > 0 && (
+        <div className="border border-amber-400/40 bg-amber-400/5 p-4">
+          <p className="text-amber-400 text-xs mb-3" style={{ fontFamily: 'var(--font-label)', letterSpacing: '1px', textTransform: 'uppercase' }}>
+            ⚠ PAR-Q — {parqYesIndexes.length} YES Answer{parqYesIndexes.length > 1 ? 's' : ''}
+          </p>
+          {parqYesIndexes.map(i => (
+            <p key={i} className="text-sm text-amber-200 mb-1">• {PARQ_LABELS[i]}</p>
+          ))}
+        </div>
+      )}
+
+      {/* Details grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {[
+          { label: 'Full Name', value: `${sub.first_name} ${sub.last_name}` },
+          { label: 'Email', value: sub.email },
+          { label: 'Date of Birth', value: sub.dob },
+          { label: 'Country', value: sub.country },
+          { label: 'Role', value: sub.role || '—' },
+          { label: 'Firm', value: sub.firm || '—' },
+          { label: 'Digital Signature', value: sub.digital_signature },
+          { label: 'Signature Date', value: sub.signature_date },
+          { label: 'IP Address', value: sub.ip_address || '—' },
+        ].map(({ label, value }) => (
+          <div key={label} className="bg-navy-card border border-white/8 p-4">
+            <p className="text-grey-muted text-xs mb-1.5" style={{ fontFamily: 'var(--font-label)', textTransform: 'uppercase', letterSpacing: '1px' }}>{label}</p>
+            <p className="text-white/85 text-sm">{value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Consents */}
+      <div>
+        <p className="text-gold text-xs mb-3" style={{ fontFamily: 'var(--font-label)', letterSpacing: '2px', textTransform: 'uppercase' }}>Consent Choices</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[
+            { label: 'Bloodwork Review', value: sub.bloodwork_consent },
+            { label: 'Genetic Testing', value: sub.genetics_consent },
+            { label: 'Progress Photos (Storage)', value: sub.photo_storage_consent },
+            { label: 'Progress Photos (Marketing)', value: sub.photo_marketing_consent },
+          ].map(({ label, value }) => (
+            <div key={label} className="bg-navy-card border border-white/8 p-4">
+              <p className="text-grey-muted text-xs mb-1.5" style={{ fontFamily: 'var(--font-label)', textTransform: 'uppercase', letterSpacing: '1px' }}>{label}</p>
+              <p className={`text-sm font-medium ${value === 'consented' ? 'text-green-400' : value === 'declined' ? 'text-grey-muted' : 'text-grey-muted'}`}>
+                {value === 'consented' ? '✓ Consented' : value === 'not_applicable' ? '— Not applicable' : '✗ Declined'}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Health details */}
+      <div className="bg-navy-card border border-white/8 p-4">
+        <p className="text-grey-muted text-xs mb-1.5" style={{ fontFamily: 'var(--font-label)', textTransform: 'uppercase', letterSpacing: '1px' }}>Health Details (PAR-Q)</p>
+        <p className="text-white/85 text-sm whitespace-pre-wrap">{sub.parq_health_details}</p>
+      </div>
+      <div className="bg-navy-card border border-white/8 p-4">
+        <p className="text-grey-muted text-xs mb-1.5" style={{ fontFamily: 'var(--font-label)', textTransform: 'uppercase', letterSpacing: '1px' }}>Medications</p>
+        <p className="text-white/85 text-sm whitespace-pre-wrap">{sub.parq_medications}</p>
+      </div>
+
+      <p className="text-grey-muted text-xs">
+        This is a legal record. It must not be deleted without a formal GDPR erasure request from the client. Contact calumfraserfitness@gmail.com to process an erasure request.
+      </p>
+    </div>
+  )
+}
+
 function OnboardingTab({ client }: { client: Client }) {
   const router = useRouter()
   const [responses, setResponses] = useState<Record<string, string> | null>(null)
@@ -1053,6 +1191,7 @@ export function ClientDetailTabs({
     { id: 'training', label: 'Training' },
     { id: 'nutrition', label: 'Nutrition' },
     { id: 'onboarding', label: 'Onboarding', badge: needsApproval },
+    { id: 'legal', label: 'Legal' },
     { id: 'messages', label: 'Messages', badge: unreadMessages > 0 },
     { id: 'photos', label: 'Photos' },
     { id: 'portal', label: 'Portal' },
@@ -1135,6 +1274,7 @@ export function ClientDetailTabs({
         </div>
       )}
       {activeTab === 'onboarding' && <OnboardingTab client={client} />}
+      {activeTab === 'legal' && <LegalOnboardingTab client={client} />}
       {activeTab === 'messages' && (
         <MessagingTab clientId={client.id} clientName={client.full_name} clientUserId={client.user_id} />
       )}
