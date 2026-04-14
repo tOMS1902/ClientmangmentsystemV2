@@ -426,6 +426,35 @@ export default async function ClientReportPage({
         )}
       </div>
 
+      {/* ── From your coach ───────────────────────────────────────────────────── */}
+      {report.coach_summary && (
+        <div
+          style={{
+            backgroundColor: S,
+            border: `1px solid ${B}`,
+            borderRadius: 12,
+            padding: '20px 24px',
+            marginBottom: 24,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: GO,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              marginBottom: 10,
+            }}
+          >
+            From Your Coach
+          </div>
+          <p style={{ fontSize: 13, color: TC, lineHeight: 1.8, margin: 0 }}>
+            {report.coach_summary}
+          </p>
+        </div>
+      )}
+
       {/* ── Loom card ─────────────────────────────────────────────────────────── */}
       {report.loom_url && (
         <a
@@ -468,8 +497,11 @@ export default async function ClientReportPage({
         </a>
       )}
 
-      {/* ── From your coach ───────────────────────────────────────────────────── */}
-      {report.coach_summary && (
+      {/* ── Action plan ───────────────────────────────────────────────────────── */}
+      {(report.action_nutrition ||
+        report.action_training ||
+        report.action_recovery ||
+        report.action_supplements) && (
         <div
           style={{
             backgroundColor: S,
@@ -486,14 +518,55 @@ export default async function ClientReportPage({
               color: GO,
               textTransform: 'uppercase',
               letterSpacing: '0.06em',
-              marginBottom: 10,
+              marginBottom: 16,
             }}
           >
-            From Your Coach
+            Your Action Plan
           </div>
-          <p style={{ fontSize: 13, color: TC, lineHeight: 1.8, margin: 0 }}>
-            {report.coach_summary}
-          </p>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+              gap: 12,
+            }}
+          >
+            {(
+              [
+                ['action_nutrition', 'Nutrition'],
+                ['action_training', 'Training Adjustments'],
+                ['action_recovery', 'Recovery & Sleep'],
+                ['action_supplements', 'Supplements'],
+              ] as [keyof DiagnosticReport, string][]
+            ).map(([field, label]) =>
+              report[field] ? (
+                <div
+                  key={field}
+                  style={{
+                    backgroundColor: R,
+                    border: `1px solid ${B}`,
+                    borderRadius: 8,
+                    padding: '12px 14px',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 600,
+                      color: GO,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      marginBottom: 6,
+                    }}
+                  >
+                    {label}
+                  </div>
+                  <p style={{ fontSize: 12, color: TC, lineHeight: 1.6, margin: 0 }}>
+                    {String(report[field])}
+                  </p>
+                </div>
+              ) : null
+            )}
+          </div>
         </div>
       )}
 
@@ -778,79 +851,6 @@ export default async function ClientReportPage({
               ))}
             </div>
           ))}
-        </div>
-      )}
-
-      {/* ── Action plan ───────────────────────────────────────────────────────── */}
-      {(report.action_nutrition ||
-        report.action_training ||
-        report.action_recovery ||
-        report.action_supplements) && (
-        <div
-          style={{
-            backgroundColor: S,
-            border: `1px solid ${B}`,
-            borderRadius: 12,
-            padding: '20px 24px',
-            marginBottom: 24,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 600,
-              color: GO,
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              marginBottom: 16,
-            }}
-          >
-            Your Action Plan
-          </div>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-              gap: 12,
-            }}
-          >
-            {(
-              [
-                ['action_nutrition', 'Nutrition'],
-                ['action_training', 'Training Adjustments'],
-                ['action_recovery', 'Recovery & Sleep'],
-                ['action_supplements', 'Supplements'],
-              ] as [keyof DiagnosticReport, string][]
-            ).map(([field, label]) =>
-              report[field] ? (
-                <div
-                  key={field}
-                  style={{
-                    backgroundColor: R,
-                    border: `1px solid ${B}`,
-                    borderRadius: 8,
-                    padding: '12px 14px',
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 9,
-                      fontWeight: 600,
-                      color: GO,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
-                      marginBottom: 6,
-                    }}
-                  >
-                    {label}
-                  </div>
-                  <p style={{ fontSize: 12, color: TC, lineHeight: 1.6, margin: 0 }}>
-                    {String(report[field])}
-                  </p>
-                </div>
-              ) : null
-            )}
-          </div>
         </div>
       )}
 

@@ -40,13 +40,22 @@ export function CoachSidebar({ mobileOpen = false, onClose }: CoachSidebarProps)
           <div className="text-sm text-white/85">The Legal Edge</div>
           <div className="text-xs text-grey-muted mt-0.5">Coach Portal</div>
         </div>
-        <button
-          className="md:hidden text-grey-muted hover:text-white transition-colors mt-1"
-          onClick={onClose}
-          aria-label="Close navigation"
-        >
-          <X size={18} />
-        </button>
+        <div className="flex items-center gap-2 mt-1">
+          <button
+            onClick={handleSignOut}
+            className="text-grey-muted hover:text-white transition-colors"
+            title="Sign out"
+          >
+            <LogOut size={16} />
+          </button>
+          <button
+            className="md:hidden text-grey-muted hover:text-white transition-colors"
+            onClick={onClose}
+            aria-label="Close navigation"
+          >
+            <X size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Nav */}
@@ -73,7 +82,7 @@ export function CoachSidebar({ mobileOpen = false, onClose }: CoachSidebarProps)
         })}
       </nav>
 
-      {/* Coach profile + sign out */}
+      {/* Coach profile */}
       <div className="px-6 py-5 border-t border-white/8 flex items-center gap-3">
         <div
           className="w-9 h-9 border border-gold flex items-center justify-center text-xs text-gold flex-shrink-0"
@@ -85,13 +94,6 @@ export function CoachSidebar({ mobileOpen = false, onClose }: CoachSidebarProps)
           <div className="text-sm text-white/85">Calum Fraser</div>
           <div className="text-xs text-grey-muted">Coach</div>
         </div>
-        <button
-          onClick={handleSignOut}
-          className="text-grey-muted hover:text-white transition-colors flex-shrink-0"
-          title="Sign out"
-        >
-          <LogOut size={15} />
-        </button>
       </div>
     </aside>
   )
