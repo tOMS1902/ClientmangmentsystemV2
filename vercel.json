@@ -5,6 +5,10 @@
       "schedule": "0 8 * * *"
     },
     {
+      "path": "/api/cron/midweek-reminder",
+      "schedule": "0 8 * * *"
+    },
+    {
       "path": "/api/cron/daily-checkin-report",
       "schedule": "0 20 * * *"
     }

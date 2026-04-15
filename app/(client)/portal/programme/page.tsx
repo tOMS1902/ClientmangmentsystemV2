@@ -217,7 +217,20 @@ export default function ProgrammePage() {
                           <tr key={ex.id} className="border-b border-white/8">
                             <td className="py-2.5">
                               <div>
-                                <p className="text-white">{ex.name}</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-white">{ex.name}</p>
+                                  {ex.video_url && (
+                                    <a
+                                      href={ex.video_url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-gold text-xs underline underline-offset-2 hover:text-gold/80"
+                                      style={{ fontFamily: 'var(--font-label)' }}
+                                    >
+                                      Watch
+                                    </a>
+                                  )}
+                                </div>
                                 {ex.notes && <p className="text-xs text-grey-muted">{ex.notes}</p>}
                               </div>
                             </td>

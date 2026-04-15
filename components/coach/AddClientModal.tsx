@@ -31,6 +31,7 @@ export function AddClientModal() {
       goal_weight: parseFloat(fd.get('goal_weight') as string),
       goal_text: fd.get('goal_text'),
       check_in_day: fd.get('check_in_day'),
+      midweek_check_day: fd.get('midweek_check_day'),
       is_active: true,
       portal_access: false,
       skip_onboarding: skipOnboarding,
@@ -125,15 +126,27 @@ export function AddClientModal() {
                 <Input label="Goal Weight (kg)" name="goal_weight" type="number" step="0.1" required placeholder="72" />
               </div>
 
-              <div className="flex flex-col gap-1">
-                <label className="text-sm text-white/85 font-body">Check-in Day</label>
-                <select
-                  name="check_in_day"
-                  defaultValue="Monday"
-                  className="bg-navy-mid border border-white/20 text-white/85 px-3 py-2.5 text-sm focus:outline-none focus:border-gold transition-colors"
-                >
-                  {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-white/85 font-body">Check-in Day</label>
+                  <select
+                    name="check_in_day"
+                    defaultValue="Monday"
+                    className="bg-navy-mid border border-white/20 text-white/85 px-3 py-2.5 text-sm focus:outline-none focus:border-gold transition-colors"
+                  >
+                    {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-white/85 font-body">Midweek Check-in Day</label>
+                  <select
+                    name="midweek_check_day"
+                    defaultValue="Wednesday"
+                    className="bg-navy-mid border border-white/20 text-white/85 px-3 py-2.5 text-sm focus:outline-none focus:border-gold transition-colors"
+                  >
+                    {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
               </div>
 
               <div className="flex flex-col gap-1">

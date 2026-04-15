@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { getResend } from '@/lib/email/resend'
-import { buildCheckinReminderHtml } from '@/lib/email/templates/checkin-reminder'
+import { buildMidweekReminderHtml } from '@/lib/email/templates/midweek-reminder'
 
-// Vercel Cron sends Authorization: Bearer CRON_SECRET
 function isAuthorized(request: Request): boolean {
   const authHeader = request.headers.get('authorization')
   return authHeader === `Bearer ${process.env.CRON_SECRET}`
@@ -23,52 +22,50 @@ export async function GET(request: Request) {
 
   const today = new Date()
   const todayName = DAYS[today.getDay()]
-  const todayDate = today.toISOString().split('T')[0]
 
-  // Find active clients whose check-in day is today
+  // Find active clients whose midweek_check_day is today and midweek is enabled
   const { data: clients, error } = await supabase
     .from('clients')
-    .select('id, full_name, email, user_id, start_date')
+    .select('id, full_name, email, user_id')
     .eq('is_active', true)
-    .eq('check_in_day', todayName)
+    .eq('midweek_check_day', todayName)
+    .eq('midweek_check_enabled', true)
 
   if (error) {
-    console.error('[checkin-reminder] Failed to fetch clients:', error)
+    console.error('[midweek-reminder] Failed to fetch clients:', error)
     return NextResponse.json({ error: 'DB error' }, { status: 500 })
   }
 
   if (!clients?.length) {
-    console.log(`[checkin-reminder] No clients with check-in day: ${todayName}`)
+    console.log(`[midweek-reminder] No clients with midweek day: ${todayName}`)
     return NextResponse.json({ sent: 0, day: todayName })
   }
 
-  // Filter out clients who have already submitted this week
-  // "This week" = check_in_date >= Monday of current week
+  // Filter out clients who already submitted a midweek check this week
   const monday = new Date(today)
   const dayOfWeek = today.getDay()
   const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
   monday.setDate(today.getDate() + diffToMonday)
   monday.setHours(0, 0, 0, 0)
-  const weekStart = monday.toISOString().split('T')[0]
+  const weekStart = monday.toISOString()
 
   const clientIds = clients.map(c => c.id)
   const { data: alreadySubmitted } = await supabase
-    .from('weekly_checkins')
+    .from('midweek_checks')
     .select('client_id')
     .in('client_id', clientIds)
-    .gte('check_in_date', weekStart)
+    .gte('submitted_at', weekStart)
 
   const submittedSet = new Set((alreadySubmitted ?? []).map(r => r.client_id))
 
-  // Only email clients who haven't submitted yet AND have a portal account
   const toRemind = clients.filter(c => !submittedSet.has(c.id) && c.user_id)
 
   if (!toRemind.length) {
-    console.log('[checkin-reminder] All clients already submitted or have no portal account')
+    console.log('[midweek-reminder] All clients already submitted or have no portal account')
     return NextResponse.json({ sent: 0, skipped: clients.length, day: todayName })
   }
 
-  const checkinUrl = `${process.env.NEXT_PUBLIC_APP_URL}/portal/checkin`
+  const midweekUrl = `${process.env.NEXT_PUBLIC_APP_URL}/portal/checkin/midweek`
   const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'Legal Edge <onboarding@resend.dev>'
   const resend = getResend()
 
@@ -80,17 +77,17 @@ export async function GET(request: Request) {
       await resend.emails.send({
         from: fromEmail,
         to: client.email,
-        subject: `${client.full_name.split(' ')[0]}, your weekly check-in is due today`,
-        html: buildCheckinReminderHtml(client.full_name, checkinUrl),
+        subject: `${client.full_name.split(' ')[0]}, your midweek check-in is due today`,
+        html: buildMidweekReminderHtml(client.full_name, midweekUrl),
       })
       sent++
-      console.log(`[checkin-reminder] Sent to ${client.email}`)
+      console.log(`[midweek-reminder] Sent to ${client.email}`)
     } catch (err) {
       failed++
-      console.error(`[checkin-reminder] Failed for ${client.email}:`, err)
+      console.error(`[midweek-reminder] Failed for ${client.email}:`, err)
     }
   }
 
-  console.log(`[checkin-reminder] Done — sent: ${sent}, failed: ${failed}, day: ${todayName}, date: ${todayDate}`)
-  return NextResponse.json({ sent, failed, day: todayName, date: todayDate })
+  console.log(`[midweek-reminder] Done — sent: ${sent}, failed: ${failed}, day: ${todayName}`)
+  return NextResponse.json({ sent, failed, day: todayName })
 }

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Trash2, ChevronDown, ChevronRight, Plus, Copy, Check } from 'lucide-react'
+import { Trash2, ChevronDown, ChevronRight, Plus, Copy, Check, Video } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import type { Programme, ProgrammeDay, Exercise } from '@/lib/types'
@@ -155,7 +155,7 @@ export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeight
   }
 
   // Client has asked for inline editing of exercise fields (sets, reps, rest, name, notes)
-  function updateExercise(planId: string, dayId: string, exerciseId: string, field: 'name' | 'sets' | 'reps' | 'rest_seconds' | 'notes', value: string) {
+  function updateExercise(planId: string, dayId: string, exerciseId: string, field: 'name' | 'sets' | 'reps' | 'rest_seconds' | 'notes' | 'video_url', value: string) {
     updatePlan(planId, plan => ({
       ...plan,
       days: plan.days.map(d =>
@@ -188,7 +188,7 @@ export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeight
     const dayPayload = plan.days.map(d => ({
       day_label: d.day_label,
       exercises: d.exercises.map(e => ({
-        name: e.name, sets: e.sets, reps: e.reps, rest_seconds: e.rest_seconds, notes: e.notes,
+        name: e.name, sets: e.sets, reps: e.reps, rest_seconds: e.rest_seconds, video_url: e.video_url, notes: e.notes,
       })),
     }))
 
@@ -525,6 +525,7 @@ export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeight
                             <th className="text-left py-2 font-normal w-20">Reps</th>
                             <th className="text-left py-2 font-normal w-20">Rest</th>
                             <th className="text-left py-2 font-normal">Notes</th>
+                            <th className="text-left py-2 font-normal w-32">Video URL</th>
                             <th className="text-left py-2 font-normal w-24">Last Weight</th>
                             <th className="w-8"></th>
                           </tr>
@@ -569,6 +570,17 @@ export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeight
                                   className="bg-transparent text-grey-muted text-xs w-full focus:outline-none focus:border-b focus:border-gold/60 border-b border-transparent placeholder:text-white/20"
                                 />
                               </td>
+                              <td className="py-1.5 w-32">
+                                <div className="flex items-center gap-1">
+                                  <Video size={11} className="text-grey-muted flex-shrink-0" />
+                                  <input
+                                    value={exercise.video_url ?? ''}
+                                    onChange={e => updateExercise(plan.id, day.id, exercise.id, 'video_url', e.target.value)}
+                                    placeholder="https://..."
+                                    className="bg-transparent text-grey-muted text-xs w-full focus:outline-none focus:border-b focus:border-gold/60 border-b border-transparent placeholder:text-white/20"
+                                  />
+                                </div>
+                              </td>
                               <td className="py-1.5 w-24">
                                 {localLastWeights[exercise.id] != null
                                   ? <span className="text-gold text-xs">{localLastWeights[exercise.id]}kg</span>
@@ -602,6 +614,9 @@ export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeight
                           <Input placeholder="Reps" value={exerciseForm.reps} onChange={e => setExerciseForm(f => ({ ...f, reps: e.target.value }))} />
                           <Input placeholder="Rest (s)" value={exerciseForm.rest_seconds} onChange={e => setExerciseForm(f => ({ ...f, rest_seconds: e.target.value }))} />
                           <Input placeholder="Notes" value={exerciseForm.notes} onChange={e => setExerciseForm(f => ({ ...f, notes: e.target.value }))} />
+                          <div className="col-span-2 sm:col-span-6">
+                            <Input placeholder="Video URL (optional)" value={exerciseForm.video_url} onChange={e => setExerciseForm(f => ({ ...f, video_url: e.target.value }))} />
+                          </div>
                           <div className="col-span-2 sm:col-span-6 flex gap-2">
                             <Button size="sm" variant="primary" onClick={() => addExercise(plan.id, day.id)}>Add</Button>
                             <Button size="sm" variant="ghost" onClick={() => setAddingExercise(null)}>Cancel</Button>
