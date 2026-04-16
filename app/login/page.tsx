@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClientSupabaseClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { GoldRule } from '@/components/ui/GoldRule'
@@ -19,30 +18,26 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    const supabase = createClientSupabaseClient()
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
 
-    if (authError) {
-      setError(authError.message)
-      setLoading(false)
-      return
-    }
+      const data = await res.json()
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-      if (profile?.role === 'coach') {
-        router.push('/dashboard')
-      } else {
-        router.push('/portal')
+      if (!res.ok) {
+        setError(data.error ?? 'Sign in failed')
+        setLoading(false)
+        return
       }
+
+      router.push(data.redirect)
+    } catch {
+      setError('Something went wrong. Please try again.')
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
