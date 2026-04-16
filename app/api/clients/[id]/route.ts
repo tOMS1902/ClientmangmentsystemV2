@@ -15,6 +15,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   let query = supabase.from('clients').select('*').eq('id', id)
   if (profile.role === 'client') {
     query = query.eq('user_id', user.id)
+  } else if (profile.role === 'coach') {
+    query = query.eq('coach_id', user.id)
   }
 
   const { data: client, error: fetchError } = await query.single()
