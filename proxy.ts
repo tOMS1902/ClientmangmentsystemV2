@@ -2,9 +2,51 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+// ---------------------------------------------------------------------------
+// In-memory rate limiter — no external deps, works per edge instance
+// ---------------------------------------------------------------------------
+interface RateLimitEntry { count: number; resetAt: number }
+const store = new Map<string, RateLimitEntry>()
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, entry] of store) {
+    if (now > entry.resetAt) store.delete(key)
+  }
+}, 5 * 60 * 1000)
+
+function checkRateLimit(key: string, limit: number, windowMs: number): boolean {
+  const now = Date.now()
+  const entry = store.get(key)
+  if (!entry || now > entry.resetAt) {
+    store.set(key, { count: 1, resetAt: now + windowMs })
+    return false
+  }
+  entry.count++
+  return entry.count > limit
+}
+
+function getIP(req: NextRequest): string {
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+    ?? req.headers.get('x-real-ip')
+    ?? 'unknown'
+}
+// ---------------------------------------------------------------------------
+
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next()
   const { pathname } = request.nextUrl
+  const ip = getIP(request)
+
+  // Rate limit: /api/auth/login — 10 attempts per minute per IP
+  if (pathname === '/api/auth/login') {
+    if (checkRateLimit(`auth:${ip}`, 10, 60_000)) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait before trying again.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      )
+    }
+    return response
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -116,5 +158,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/).*)'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|api/).*)',
+    '/api/auth/login',
+  ],
 }
