@@ -114,13 +114,13 @@ export async function proxy(request: NextRequest) {
 
   // ── Coach routes ──────────────────────────────────────────────────────────
   if (pathname.startsWith('/dashboard') || pathname.startsWith('/clients')) {
-    if (!isCoach) return NextResponse.redirect(new URL('/portal', request.url))
+    if (!isCoach) return NextResponse.redirect(new URL(isClient ? '/portal' : '/login', request.url))
     return response
   }
 
   // ── Client portal routes ──────────────────────────────────────────────────
   if (pathname.startsWith('/portal')) {
-    if (!isClient) return NextResponse.redirect(new URL('/dashboard', request.url))
+    if (!isClient) return NextResponse.redirect(new URL(isCoach ? '/dashboard' : '/login', request.url))
 
     // Gate pages are always accessible
     if (pathname === '/portal/onboarding' || pathname === '/portal/pending') {
