@@ -57,7 +57,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ clie
   }
 
   const { data: messages, error: fetchError } = await query
-  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
+  if (fetchError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
 
   return NextResponse.json({
     messages: (messages || []).reverse(),
@@ -72,20 +72,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ cli
     return NextResponse.json({ error: access.error }, { status: access.status })
   }
 
-  const { body, iv } = await request.json()
-  if (!body || typeof body !== 'string' || body.trim().length === 0) {
+  const { body, iv, voice_url } = await request.json()
+  const isVoice = typeof voice_url === 'string' && voice_url.length > 0
+  if (!isVoice && (!body || typeof body !== 'string' || body.trim().length === 0)) {
     return NextResponse.json({ error: 'Message body is required' }, { status: 400 })
   }
-  if (body.length > 8000) {
+  if (typeof body === 'string' && body.length > 8000) {
     return NextResponse.json({ error: 'Message too long' }, { status: 400 })
   }
 
   const { data: message, error: insertError } = await access.supabase
     .from('messages')
-    .insert({ client_id: clientId, sender_role: access.role, body: body.trim(), iv: iv || null })
+    .insert({
+      client_id: clientId,
+      sender_role: access.role,
+      body: isVoice ? '' : body.trim(),
+      iv: iv || null,
+      voice_url: voice_url || null,
+    })
     .select()
     .single()
 
-  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+  if (insertError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   return NextResponse.json(message, { status: 201 })
 }

@@ -42,6 +42,6 @@ export async function POST(_request: Request, { params }: { params: Promise<{ cl
     .eq('sender_role', inboundRole)
     .eq('is_read', false)
 
-  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+  if (updateError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

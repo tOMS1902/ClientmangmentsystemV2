@@ -8,7 +8,7 @@ const schema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
   email: z.string().email(),
-  dob: z.string().min(1),
+  dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD').refine(val => !isNaN(Date.parse(val)), { message: 'Invalid date' }),
   country: z.string().min(1),
   role: z.string().optional(),
   firm: z.string().optional(),
@@ -84,10 +84,10 @@ export async function POST(request: Request) {
       guarantee_understood: d.guaranteeUnderstood,
       accuracy_confirmed: d.accuracyConfirmed,
       digital_signature: d.digitalSignature,
-      signature_date: d.signatureDate,
+      signature_date: new Date().toISOString().split('T')[0],
     })
 
-  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+  if (insertError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
 
   await supabase.from('profiles').update({ legal_onboarding_complete: true }).eq('id', user.id)
 
@@ -105,22 +105,30 @@ export async function POST(request: Request) {
   }
   const fromEmail = process.env.RESEND_FROM_EMAIL ?? 'The Legal Edge <onboarding@resend.dev>'
 
+  const coachEmail = process.env.COACH_NOTIFICATION_EMAIL ?? ''
+  if (!coachEmail) console.warn('[legal-submit] COACH_NOTIFICATION_EMAIL not set — coach notification skipped')
+
   try {
     const resend = getResend()
-    await Promise.all([
+    const emailTasks: Promise<unknown>[] = [
       resend.emails.send({
         from: fromEmail,
         to: d.email,
         subject: 'Your Legal Edge onboarding is complete',
         html: buildClientConfirmationHtml(clientName, d.email, signedAt, consents),
       }),
-      resend.emails.send({
-        from: fromEmail,
-        to: 'calumfraserfitness@gmail.com',
-        subject: `New client onboarded: ${clientName}`,
-        html: buildCoachNotificationHtml(clientName, d.email, signedAt, d.country, parqYesCount, consents),
-      }),
-    ])
+    ]
+    if (coachEmail) {
+      emailTasks.push(
+        resend.emails.send({
+          from: fromEmail,
+          to: coachEmail,
+          subject: `New client onboarded: ${clientName}`,
+          html: buildCoachNotificationHtml(clientName, d.email, signedAt, d.country, parqYesCount, consents),
+        }),
+      )
+    }
+    await Promise.all(emailTasks)
   } catch (emailErr) {
     console.error('Legal onboarding email failed:', emailErr)
   }

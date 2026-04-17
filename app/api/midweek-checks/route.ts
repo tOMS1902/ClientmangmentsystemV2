@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     if (insertError.code === '23505') {
       return NextResponse.json({ error: 'Already submitted this week' }, { status: 409 })
     }
-    return NextResponse.json({ error: insertError.message }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
   return NextResponse.json(check, { status: 201 })

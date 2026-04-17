@@ -16,6 +16,6 @@ export async function PATCH(request: Request) {
     .update({ public_key: publicKey })
     .eq('id', user.id)
 
-  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+  if (updateError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   return NextResponse.json({ ok: true })
 }

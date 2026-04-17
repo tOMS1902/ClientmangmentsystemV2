@@ -97,6 +97,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ cli
   if (!storage_path || typeof storage_path !== 'string' || storage_path.trim().length === 0) {
     return NextResponse.json({ error: 'storage_path is required' }, { status: 400 })
   }
+  if (!storage_path.startsWith(`${clientId}/`)) {
+    return NextResponse.json({ error: 'Invalid storage path' }, { status: 400 })
+  }
 
   const { data: photo, error: insertError } = await access.supabase
     .from('check_in_photos')

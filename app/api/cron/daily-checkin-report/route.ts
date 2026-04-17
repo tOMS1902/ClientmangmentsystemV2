@@ -130,7 +130,7 @@ Recent weight trend: ${clientRecent.map((r: { weight: number }) => `${r.weight}k
         }
       } catch (err) {
         console.error(`[daily-checkin-report] AI error for ${client.full_name}:`, err)
-        clientSections.push(`<div style="margin-bottom:32px;"><h3 style="color:#fff;">${client.full_name}</h3><p style="color:#9ca3af;">Could not generate AI summary.</p></div>`)
+        clientSections.push(`<div style="margin-bottom:32px;"><h3 style="color:#fff;">${escapeHtml(client.full_name)}</h3><p style="color:#9ca3af;">Could not generate AI summary.</p></div>`)
       }
     }
 
@@ -151,6 +151,15 @@ Recent weight trend: ${clientRecent.map((r: { weight: number }) => `${r.weight}k
   return NextResponse.json({ sent: emailsSent, checkins: checkins.length, date: today })
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 function buildClientSection(report: {
   headline: string
   summary: string
@@ -160,19 +169,19 @@ function buildClientSection(report: {
 }, clientName: string, clientId: string): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
   const flagsHtml = report.flags.length
-    ? report.flags.map(f => `<li style="color:#f87171;margin-bottom:4px;">${f}</li>`).join('')
+    ? report.flags.map(f => `<li style="color:#f87171;margin-bottom:4px;">${escapeHtml(f)}</li>`).join('')
     : '<li style="color:#9ca3af;">No major flags</li>'
 
   const suggestionsHtml = report.suggestions
-    .map(s => `<li style="color:#e5e7eb;margin-bottom:4px;">${s}</li>`)
+    .map(s => `<li style="color:#e5e7eb;margin-bottom:4px;">${escapeHtml(s)}</li>`)
     .join('')
 
   return `
 <div style="margin-bottom:40px;padding-bottom:40px;border-bottom:1px solid #1e2d42;">
-  <h2 style="margin:0 0 4px;font-size:18px;color:#ffffff;font-family:Georgia,serif;">${clientName}</h2>
-  <p style="margin:0 0 16px;font-size:13px;color:#c9a84c;font-family:Arial,sans-serif;">${report.headline}</p>
+  <h2 style="margin:0 0 4px;font-size:18px;color:#ffffff;font-family:Georgia,serif;">${escapeHtml(clientName)}</h2>
+  <p style="margin:0 0 16px;font-size:13px;color:#c9a84c;font-family:Arial,sans-serif;">${escapeHtml(report.headline)}</p>
 
-  <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#d1d5db;">${report.summary}</p>
+  <p style="margin:0 0 16px;font-size:14px;line-height:1.7;color:#d1d5db;">${escapeHtml(report.summary)}</p>
 
   <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
     <tr>
@@ -192,12 +201,12 @@ function buildClientSection(report: {
     <tr>
       <td width="48%" style="background:#1a2332;padding:12px;vertical-align:top;">
         <p style="margin:0 0 4px;font-size:11px;color:#9ca3af;font-family:Arial,sans-serif;">WIN</p>
-        <p style="margin:0;font-size:13px;color:#e5e7eb;font-style:italic;">"${report.clientWords.biggestWin}"</p>
+        <p style="margin:0;font-size:13px;color:#e5e7eb;font-style:italic;">"${escapeHtml(report.clientWords.biggestWin)}"</p>
       </td>
       <td width="4%"></td>
       <td width="48%" style="background:#1a2332;padding:12px;vertical-align:top;">
         <p style="margin:0 0 4px;font-size:11px;color:#9ca3af;font-family:Arial,sans-serif;">CHALLENGE</p>
-        <p style="margin:0;font-size:13px;color:#e5e7eb;font-style:italic;">"${report.clientWords.mainChallenge}"</p>
+        <p style="margin:0;font-size:13px;color:#e5e7eb;font-style:italic;">"${escapeHtml(report.clientWords.mainChallenge)}"</p>
       </td>
     </tr>
   </table>
@@ -225,7 +234,7 @@ function buildDailyReportHtml(coachName: string, date: string, sections: string[
           </tr>
           <tr>
             <td style="padding:24px 0 0;">
-              <p style="margin:0 0 24px;font-size:15px;color:#d1d5db;">Hi ${firstName}, here's a summary of today's check-ins.</p>
+              <p style="margin:0 0 24px;font-size:15px;color:#d1d5db;">Hi ${escapeHtml(firstName)}, here's a summary of today's check-ins.</p>
               ${sections.join('')}
               <a href="${appUrl}/clients" style="display:inline-block;background:#c9a84c;color:#0f1623;padding:12px 24px;font-size:12px;font-family:Arial,sans-serif;font-weight:700;text-decoration:none;letter-spacing:1px;margin-top:8px;">VIEW ALL CLIENTS</a>
             </td>

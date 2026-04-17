@@ -13,6 +13,11 @@ export async function GET(
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'coach') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+  // Verify this client belongs to the requesting coach
+  const { data: clientRecord } = await supabase
+    .from('clients').select('id').eq('id', clientId).eq('coach_id', user.id).single()
+  if (!clientRecord) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
   const { data: checks } = await supabase
     .from('midweek_checks')
     .select('*')

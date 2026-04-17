@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { createClientSupabaseClient } from '@/lib/supabase/client'
+import { VoicePlayer } from '@/components/VoicePlayer'
 import type { Message } from '@/lib/types'
 
 interface MessageBubbleProps {
@@ -60,9 +61,7 @@ function EncryptedImage({
     return () => { if (url) URL.revokeObjectURL(url) }
   }, [payload.path, payload.imageIv, decryptImageBytes])
 
-  if (error) {
-    return <p className="text-xs opacity-60">[Could not load image]</p>
-  }
+  if (error) return <p className="text-xs opacity-60">[Could not load image]</p>
   if (!objectUrl) {
     return (
       <div className={`w-48 h-32 flex items-center justify-center text-xs opacity-60 ${isSelf ? 'bg-gold/20' : 'bg-white/5'}`}>
@@ -72,12 +71,37 @@ function EncryptedImage({
   }
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={objectUrl}
-      alt="Encrypted image"
-      className="max-w-[260px] max-h-[300px] object-contain rounded"
-    />
+    <img src={objectUrl} alt="Encrypted image" className="max-w-[260px] max-h-[300px] object-contain rounded" />
   )
+}
+
+function VoiceNote({ storagePath, isSelf }: { storagePath: string; isSelf: boolean }) {
+  const [signedUrl, setSignedUrl] = useState<string | null>(null)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch(`/api/messages/voice-sign?path=${encodeURIComponent(storagePath)}`)
+        if (!res.ok) { setError(true); return }
+        const { url } = await res.json()
+        setSignedUrl(url)
+      } catch {
+        setError(true)
+      }
+    }
+    load()
+  }, [storagePath])
+
+  if (error) return <p className="text-xs opacity-60">[Could not load voice note]</p>
+  if (!signedUrl) {
+    return (
+      <p className={`text-xs ${isSelf ? 'text-navy-deep/60' : 'text-grey-muted'}`}>
+        Loading…
+      </p>
+    )
+  }
+  return <VoicePlayer url={signedUrl} />
 }
 
 function formatTime(iso: string) {
@@ -92,7 +116,7 @@ function formatTime(iso: string) {
 
 export function MessageBubble({ message, decryptedBody, viewerRole, decryptImageBytes }: MessageBubbleProps) {
   const isSelf = message.sender_role === viewerRole
-  const imagePayload = parseImagePayload(decryptedBody)
+  const imagePayload = !message.voice_url ? parseImagePayload(decryptedBody) : null
 
   return (
     <div className={`flex mb-3 ${isSelf ? 'justify-end' : 'justify-start'}`}>
@@ -103,12 +127,10 @@ export function MessageBubble({ message, decryptedBody, viewerRole, decryptImage
             : 'bg-navy-card border border-white/8 text-white/85'
         }`}
       >
-        {imagePayload && decryptImageBytes ? (
-          <EncryptedImage
-            payload={imagePayload}
-            isSelf={isSelf}
-            decryptImageBytes={decryptImageBytes}
-          />
+        {message.voice_url ? (
+          <VoiceNote storagePath={message.voice_url} isSelf={isSelf} />
+        ) : imagePayload && decryptImageBytes ? (
+          <EncryptedImage payload={imagePayload} isSelf={isSelf} decryptImageBytes={decryptImageBytes} />
         ) : (
           <p className="whitespace-pre-wrap break-words leading-relaxed">{decryptedBody}</p>
         )}

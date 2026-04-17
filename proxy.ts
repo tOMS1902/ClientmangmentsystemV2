@@ -26,6 +26,10 @@ function checkRateLimit(key: string, limit: number, windowMs: number): boolean {
 }
 
 function getIP(req: NextRequest): string {
+  // On Vercel, req.ip is set by platform infrastructure and cannot be spoofed by clients
+  const vercelIp = (req as unknown as { ip?: string }).ip
+  if (vercelIp) return vercelIp
+  // Fallback for local dev / self-hosted
   return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
     ?? req.headers.get('x-real-ip')
     ?? 'unknown'
@@ -40,6 +44,17 @@ export async function proxy(request: NextRequest) {
   // Rate limit: /api/auth/login — 10 attempts per minute per IP
   if (pathname === '/api/auth/login') {
     if (checkRateLimit(`auth:${ip}`, 10, 60_000)) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait before trying again.' },
+        { status: 429, headers: { 'Retry-After': '60' } }
+      )
+    }
+    return response
+  }
+
+  // Rate limit: /api/ai/* — 20 requests per minute per IP (expensive AI operations)
+  if (pathname.startsWith('/api/ai/')) {
+    if (checkRateLimit(`ai:${ip}`, 20, 60_000)) {
       return NextResponse.json(
         { error: 'Too many requests. Please wait before trying again.' },
         { status: 429, headers: { 'Retry-After': '60' } }
@@ -161,5 +176,6 @@ export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|api/).*)',
     '/api/auth/login',
+    '/api/ai/:path*',
   ],
 }

@@ -13,7 +13,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ profile
     .eq('id', profileId)
     .maybeSingle()
 
-  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
-  if (!data) return NextResponse.json({ error: `No profile found for id: ${profileId}` }, { status: 404 })
+  if (fetchError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   return NextResponse.json({ publicKey: data.public_key ?? null })
 }

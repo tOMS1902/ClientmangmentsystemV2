@@ -131,6 +131,19 @@ export function MessagingTab({ clientId, clientName, clientUserId }: MessagingTa
     await handleSend(JSON.stringify({ type: 'image', path: data.path, imageIv }))
   }
 
+  async function handleSendVoice(storagePath: string) {
+    const res = await fetch(`/api/messages/${clientId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ body: '', voice_url: storagePath }),
+    })
+    if (res.ok) {
+      const newMsg: Message = await res.json()
+      setMessages(prev => prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg])
+      setDecryptedBodies(prev => ({ ...prev, [newMsg.id]: '' }))
+    }
+  }
+
   const canMessage = encReady && !encError
 
   return (
@@ -173,7 +186,7 @@ export function MessagingTab({ clientId, clientName, clientUserId }: MessagingTa
       </div>
 
       <div className="mt-4">
-        <MessageComposer onSend={handleSend} onSendImage={canMessage ? handleSendImage : undefined} disabled={!canMessage} />
+        <MessageComposer clientId={clientId} onSend={handleSend} onSendImage={canMessage ? handleSendImage : undefined} onSendVoice={canMessage ? handleSendVoice : undefined} disabled={!canMessage} />
       </div>
     </div>
   )

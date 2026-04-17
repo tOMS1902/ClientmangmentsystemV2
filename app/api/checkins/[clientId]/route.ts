@@ -18,6 +18,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ clie
     if (clientRecord?.id !== clientId) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
+  } else if (profile?.role === 'coach') {
+    const { data: clientRecord } = await supabase
+      .from('clients').select('id').eq('id', clientId).eq('coach_id', user.id).single()
+    if (!clientRecord) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  } else {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   const { data: checkins, error: fetchError } = await supabase
@@ -26,7 +32,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ clie
     .eq('client_id', clientId)
     .order('week_number', { ascending: false })
 
-  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
+  if (fetchError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   return NextResponse.json(checkins)
 }
 
@@ -85,7 +91,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ cl
 
   if (updateError) {
     console.error('[checkins/patch]', updateError)
-    return NextResponse.json({ error: updateError.message }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
   return NextResponse.json(updatedCheckin)

@@ -11,6 +11,15 @@ export async function PATCH(request: Request) {
 
   const { avatar_url } = await request.json()
 
+  if (avatar_url !== null && avatar_url !== undefined) {
+    if (typeof avatar_url !== 'string') {
+      return NextResponse.json({ error: 'Invalid avatar_url' }, { status: 400 })
+    }
+    if (!avatar_url.startsWith('https://')) {
+      return NextResponse.json({ error: 'avatar_url must be an HTTPS URL' }, { status: 400 })
+    }
+  }
+
   const { data, error: updateError } = await supabase
     .from('profiles')
     .update({ avatar_url })

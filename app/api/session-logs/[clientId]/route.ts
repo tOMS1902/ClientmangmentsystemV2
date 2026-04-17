@@ -24,6 +24,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ clie
     .order('log_date', { ascending: false })
     .limit(20)
 
-  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
+  if (fetchError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   return NextResponse.json(logs)
 }

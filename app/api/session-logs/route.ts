@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { SessionLogSchema } from '@/lib/validation'
 
 export async function POST(request: Request) {
   const supabase = await createServerSupabaseClient()
@@ -9,7 +10,12 @@ export async function POST(request: Request) {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'client') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const body = await request.json()
+  const rawBody = await request.json()
+  const parseResult = SessionLogSchema.safeParse(rawBody)
+  if (!parseResult.success) {
+    return NextResponse.json({ error: 'Invalid input', details: parseResult.error.flatten() }, { status: 400 })
+  }
+  const body = parseResult.data
 
   const { data: clientRecord } = await supabase
     .from('clients').select('id').eq('user_id', user.id).single()
@@ -22,7 +28,7 @@ export async function POST(request: Request) {
     .select()
     .single()
 
-  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+  if (insertError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
 
   // Also mark training_done = true in today's daily log
   const today = new Date().toISOString().split('T')[0]

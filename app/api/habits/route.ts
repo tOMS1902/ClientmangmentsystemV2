@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     .select()
     .single()
 
-  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+  if (insertError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   return NextResponse.json(habit, { status: 201 })
 }
 
@@ -45,6 +45,6 @@ export async function DELETE(request: Request) {
     .update({ is_active: false })
     .eq('id', habitId)
 
-  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+  if (updateError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   return NextResponse.json({ success: true })
 }

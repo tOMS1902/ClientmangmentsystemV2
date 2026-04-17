@@ -24,6 +24,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ clie
     .eq('is_active', true)
     .order('created_at')
 
-  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
+  if (fetchError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   return NextResponse.json(habits)
 }

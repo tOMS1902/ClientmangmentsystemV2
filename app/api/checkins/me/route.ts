@@ -20,6 +20,6 @@ export async function GET() {
     .eq('client_id', clientRecord.id)
     .order('week_number', { ascending: false })
 
-  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
+  if (fetchError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   return NextResponse.json(checkins)
 }

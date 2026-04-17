@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     .select()
     .single()
 
-  if (upsertError) return NextResponse.json({ error: upsertError.message }, { status: 500 })
+  if (upsertError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   return NextResponse.json(log)
 }
 
@@ -41,6 +41,18 @@ export async function GET(request: Request) {
 
   if (!clientId) return NextResponse.json({ error: 'clientId required' }, { status: 400 })
 
+  // Verify caller owns or manages this client
+  const { data: callerProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (callerProfile?.role === 'coach') {
+    const { data: owned } = await supabase.from('clients').select('id').eq('id', clientId).eq('coach_id', user.id).single()
+    if (!owned) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  } else if (callerProfile?.role === 'client') {
+    const { data: owned } = await supabase.from('clients').select('id').eq('user_id', user.id).single()
+    if (!owned || owned.id !== clientId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  } else {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
   let query = supabase
     .from('habit_logs')
     .select('*')
@@ -50,6 +62,6 @@ export async function GET(request: Request) {
   if (from) query = query.gte('log_date', from)
 
   const { data: logs, error: fetchError } = await query
-  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
+  if (fetchError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   return NextResponse.json(logs)
 }

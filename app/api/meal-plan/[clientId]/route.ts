@@ -24,7 +24,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ clie
     .eq('is_active', true)
     .order('created_at', { ascending: true })
 
-  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 })
+  if (fetchError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
 
   return NextResponse.json({ plans: plans ?? [] })
 }
@@ -45,7 +45,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ cli
     .select()
     .single()
 
-  if (upsertError) return NextResponse.json({ error: upsertError.message }, { status: 500 })
+  if (upsertError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   return NextResponse.json(plan)
 }
 

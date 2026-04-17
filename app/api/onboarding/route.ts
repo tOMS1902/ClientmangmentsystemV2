@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     .select()
     .single()
 
-  if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+  if (insertError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
 
   // Mark profile onboarding complete
   await supabase.from('profiles').update({ onboarding_complete: true }).eq('id', user.id)

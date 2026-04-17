@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     .upsert(rows, { onConflict: 'client_id,exercise_id,log_date,set_number' })
     .select()
 
-  if (upsertError) return NextResponse.json({ error: upsertError.message }, { status: 500 })
+  if (upsertError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
 
   return NextResponse.json(saved, { status: 200 })
 }

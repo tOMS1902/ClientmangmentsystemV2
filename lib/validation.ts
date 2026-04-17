@@ -26,7 +26,7 @@ export const ClientPatchSchema = z.object({
   track_weight: z.boolean().optional(),
   goal_event_name: z.string().max(200).trim().optional().nullable(),
   goal_event_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
-  welcome_video_url: z.string().max(500).trim().optional().nullable(),
+  welcome_video_url: z.string().url().max(500).trim().optional().nullable(),
   weight_unit: z.enum(['kg', 'lbs']).optional(),
   loom_sent: z.boolean().optional(),
   weekly_checkin_enabled: z.boolean().optional(),

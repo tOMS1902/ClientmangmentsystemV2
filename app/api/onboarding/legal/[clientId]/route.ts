@@ -13,7 +13,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ clientI
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
   if (profile?.role !== 'coach') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { data: client } = await supabase.from('clients').select('user_id').eq('id', clientId).single()
+  const { data: client } = await supabase.from('clients').select('user_id').eq('id', clientId).eq('coach_id', user.id).single()
   if (!client?.user_id) return NextResponse.json(null)
 
   const { data: submission } = await supabase

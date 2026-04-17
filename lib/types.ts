@@ -221,8 +221,9 @@ export interface Message {
   id: string
   client_id: string
   sender_role: 'coach' | 'client'
-  body: string       // base64-encoded AES-GCM ciphertext
+  body: string       // base64-encoded AES-GCM ciphertext (empty string for voice-only messages)
   iv: string | null  // base64-encoded 12-byte AES-GCM IV
+  voice_url: string | null  // private storage path (not a public URL)
   is_read: boolean
   created_at: string
 }

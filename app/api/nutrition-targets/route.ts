@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     .select()
     .single()
 
-  if (upsertError) return NextResponse.json({ error: upsertError.message }, { status: 500 })
+  if (upsertError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   return NextResponse.json(targets)
 }
 
@@ -36,6 +36,18 @@ export async function GET(request: Request) {
   if (!user || error) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   if (!clientId) return NextResponse.json({ error: 'clientId required' }, { status: 400 })
+
+  // Verify caller owns or manages this client
+  const { data: callerProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  if (callerProfile?.role === 'coach') {
+    const { data: owned } = await supabase.from('clients').select('id').eq('id', clientId).eq('coach_id', user.id).single()
+    if (!owned) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  } else if (callerProfile?.role === 'client') {
+    const { data: owned } = await supabase.from('clients').select('id').eq('user_id', user.id).single()
+    if (!owned || owned.id !== clientId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  } else {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
   const { data: targets, error: fetchError } = await supabase
     .from('nutrition_targets')

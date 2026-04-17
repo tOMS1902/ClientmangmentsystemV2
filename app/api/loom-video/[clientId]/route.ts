@@ -44,6 +44,11 @@ export async function POST(
   const { loom_url, week_number } = await req.json()
   if (!loom_url || !week_number) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
 
+  const LOOM_PATTERN = /^https:\/\/(www\.)?loom\.com\/(share|embed)\//
+  if (!LOOM_PATTERN.test(loom_url)) {
+    return NextResponse.json({ error: 'Invalid Loom URL — must be a loom.com share or embed link' }, { status: 400 })
+  }
+
   // Upsert — replace video for same week if already exists
   const { data, error: upsertError } = await supabase
     .from('weekly_loom_videos')
