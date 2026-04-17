@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -26,20 +27,21 @@ export async function POST(request: NextRequest) {
     }
   )
 
-  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  const { data: { user }, error } = await supabase.auth.signInWithPassword({ email, password })
 
-  if (error) {
+  if (error || !user) {
     // Generic message — don't reveal whether email exists
     return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 })
   }
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // Use service role to query profile — avoids session/RLS timing issues
+  // in server-side route handlers where cookies aren't re-readable mid-request.
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
 
-  if (!user) {
-    return NextResponse.json({ error: 'Authentication failed' }, { status: 401 })
-  }
-
-  const { data: profile } = await supabase
+  const { data: profile } = await admin
     .from('profiles')
     .select('role')
     .eq('id', user.id)
