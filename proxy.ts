@@ -1,6 +1,18 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+
+// Service-role profile lookup — bypasses RLS so auth.uid() cookie issues
+// in middleware can never cause a null role / redirect loop.
+async function getRole(userId: string): Promise<string | null> {
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  const { data } = await admin.from('profiles').select('role').eq('id', userId).single()
+  return data?.role ?? null
+}
 
 // ---------------------------------------------------------------------------
 // In-memory rate limiter — no external deps, works per edge instance
@@ -85,10 +97,9 @@ export async function proxy(request: NextRequest) {
   // Redirect logged-in users away from login / root
   if (pathname === '/' || pathname === '/login') {
     if (user) {
-      const { data: profile } = await supabase
-        .from('profiles').select('role').eq('id', user.id).single()
-      if (profile?.role === 'coach') return NextResponse.redirect(new URL('/dashboard', request.url))
-      if (profile?.role === 'client') return NextResponse.redirect(new URL('/portal', request.url))
+      const role = await getRole(user.id)
+      if (role === 'coach') return NextResponse.redirect(new URL('/dashboard', request.url))
+      if (role === 'client') return NextResponse.redirect(new URL('/portal', request.url))
     }
     return response
   }
@@ -103,14 +114,9 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, onboarding_complete')
-    .eq('id', user.id)
-    .single()
-
-  const isCoach = profile?.role === 'coach'
-  const isClient = profile?.role === 'client'
+  const role = await getRole(user.id)
+  const isCoach = role === 'coach'
+  const isClient = role === 'client'
 
   // ── Coach routes ──────────────────────────────────────────────────────────
   if (pathname.startsWith('/dashboard') || pathname.startsWith('/clients')) {
