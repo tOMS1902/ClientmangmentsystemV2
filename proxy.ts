@@ -88,7 +88,7 @@ export async function proxy(request: NextRequest) {
       const { data: profile } = await supabase
         .from('profiles').select('role').eq('id', user.id).single()
       if (profile?.role === 'coach') return NextResponse.redirect(new URL('/dashboard', request.url))
-      return NextResponse.redirect(new URL('/portal', request.url))
+      if (profile?.role === 'client') return NextResponse.redirect(new URL('/portal', request.url))
     }
     return response
   }
