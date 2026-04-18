@@ -1,8 +1,9 @@
 'use client'
 import { useState, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import type { ParsedMarkerInput, DiagnosticReportType } from '@/lib/types'
+import type { ParsedMarkerInput, DiagnosticReportType, GeneticData, GeneticCategory } from '@/lib/types'
 import { parseJSON, parseCSV } from '@/lib/diagnostics/parser'
+import { DiagnosticReportPatchSchema } from '@/lib/validation'
 
 // Inline styles constants
 const SURFACE = '#0F1827'
@@ -48,6 +49,28 @@ interface ManualRow {
 
 function emptyRow(): ManualRow {
   return { marker_name: '', value: '', unit: '', reference_range_low: '', reference_range_high: '' }
+}
+
+const GENETIC_CATEGORIES: GeneticCategory[] = [
+  'Macronutrient Metabolism',
+  'Toxin Sensitivity',
+  'Mental Health & Cognitive Performance',
+  'Immune Support',
+  'DNA Protection & Repair',
+  'Methylation',
+  'Hormone Support',
+  'Cardiovascular Health & Athletic Performance',
+]
+
+function emptyGeneticData(): GeneticData {
+  return {
+    overview: '',
+    top_priorities: [],
+    category_notes: {},
+    recommendations: { nutrition: '', training: '', recovery: '', supplements: '' },
+    grocery_list: [],
+    followup_bloodwork: [],
+  }
 }
 
 export default function NewReportPage() {
@@ -116,6 +139,62 @@ Here is the blood test report:`
     setTimeout(() => setPromptCopied(false), 2500)
   }
 
+  const GENETICS_AI_PROMPT = `You are a genetics coaching assistant. I will give you a Nutrition Genome genetics report.
+
+Convert it into structured coaching insights. Return ONLY a raw JSON object — no explanation, no markdown, no backticks. Start with { and end with }.
+
+Use this exact structure:
+{
+  "overview": "2-3 sentence summary of the most important findings",
+  "top_priorities": ["priority 1", "priority 2", "priority 3"],
+  "category_notes": {
+    "Macronutrient Metabolism": { "summary": "...", "key_findings": "...", "coaching_meaning": "...", "priority": "high|medium|low" },
+    "Toxin Sensitivity": { "summary": "...", "key_findings": "...", "coaching_meaning": "...", "priority": "high|medium|low" },
+    "Mental Health & Cognitive Performance": { "summary": "...", "key_findings": "...", "coaching_meaning": "...", "priority": "high|medium|low" },
+    "Immune Support": { "summary": "...", "key_findings": "...", "coaching_meaning": "...", "priority": "high|medium|low" },
+    "DNA Protection & Repair": { "summary": "...", "key_findings": "...", "coaching_meaning": "...", "priority": "high|medium|low" },
+    "Methylation": { "summary": "...", "key_findings": "...", "coaching_meaning": "...", "priority": "high|medium|low" },
+    "Hormone Support": { "summary": "...", "key_findings": "...", "coaching_meaning": "...", "priority": "high|medium|low" },
+    "Cardiovascular Health & Athletic Performance": { "summary": "...", "key_findings": "...", "coaching_meaning": "...", "priority": "high|medium|low" }
+  },
+  "recommendations": {
+    "nutrition": "...",
+    "training": "...",
+    "recovery": "...",
+    "supplements": "..."
+  },
+  "grocery_list": ["food item 1", "food item 2"],
+  "followup_bloodwork": ["Vitamin D", "ApoB", "LDL", "Glucose", "HbA1c", "Ferritin"]
+}
+
+Here is the Nutrition Genome report:`
+
+  async function handleCopyGeneticsPrompt() {
+    await navigator.clipboard.writeText(GENETICS_AI_PROMPT)
+    setGeneticsPromptCopied(true)
+    setTimeout(() => setGeneticsPromptCopied(false), 2500)
+  }
+
+  function handleParseGeneticsAI() {
+    setGeneticsParseError('')
+    let raw: unknown
+    try {
+      raw = JSON.parse(geneticsAiText)
+    } catch {
+      setGeneticsParseError('Could not parse JSON — check the AI output for formatting errors')
+      return
+    }
+    const schema = DiagnosticReportPatchSchema.shape.genetic_data.unwrap().unwrap()
+    const result = schema.safeParse(raw)
+    if (!result.success) {
+      const msg = result.error.issues.map(e => (e.path.join('.') || 'root') + ': ' + e.message).slice(0, 3).join(' | ')
+      setGeneticsParseError(`Invalid format: ${msg}`)
+      return
+    }
+    setGeneticData(result.data as GeneticData)
+    setGeneticsPromptStep('prompt') // reset for next time
+  }
+
   function handleParseAIPaste() {
     setParseError('')
     setParseWarning('')
@@ -131,18 +210,20 @@ Here is the blood test report:`
   const [preview, setPreview] = useState<ParsedMarkerInput[] | null>(null)
   const [editablePreview, setEditablePreview] = useState<ParsedMarkerInput[]>([])
 
-  // Genetics insights
-  const [insightRows, setInsightRows] = useState<{ title: string; description: string; category: string; priority: string }[]>([
-    { title: '', description: '', category: 'general', priority: 'medium' },
-  ])
-
   // Loading / error
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [parseWarning, setParseWarning] = useState('')
 
+  // Genetics state
+  const [geneticData, setGeneticData] = useState<GeneticData>(emptyGeneticData())
+  const [geneticsAiText, setGeneticsAiText] = useState('')
+  const [geneticsPromptStep, setGeneticsPromptStep] = useState<'prompt' | 'paste'>('prompt')
+  const [geneticsPromptCopied, setGeneticsPromptCopied] = useState(false)
+  const [geneticsParseError, setGeneticsParseError] = useState('')
+
   const bloodworkTabs = ['AI Prompt', 'Paste JSON', 'Paste CSV', 'Manual Entry']
-  const geneticsTabs = ['AI Prompt', 'Manual Insights']
+  const geneticsTabs = ['AI Summary', 'Manual Entry']
 
   const tabs = reportType === 'genetics' ? geneticsTabs : bloodworkTabs
 
@@ -236,6 +317,7 @@ Here is the blood test report:`
     setSaving(true)
     setError('')
     try {
+      // 1. Create report shell
       const reportRes = await fetch('/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -253,12 +335,13 @@ Here is the blood test report:`
       }
       const report = await reportRes.json()
 
-      const validInsights = insightRows.filter(r => r.title.trim() && r.description.trim())
-      if (validInsights.length > 0) {
-        await fetch(`/api/reports/${report.id}/insights`, {
-          method: 'POST',
+      // 2. Save genetic_data
+      const hasData = geneticData.overview || geneticData.top_priorities.length > 0 || Object.keys(geneticData.category_notes).length > 0
+      if (hasData) {
+        await fetch(`/api/reports/${report.id}`, {
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ insights: validInsights }),
+          body: JSON.stringify({ genetic_data: geneticData }),
         })
       }
 
@@ -357,103 +440,225 @@ Here is the blood test report:`
           </div>
 
           <div style={{ padding: 24 }}>
-            {/* AI Prompt tab */}
+            {/* AI Prompt / AI Summary tab */}
             {activeTab === 0 && (
-              <div>
-                {/* Step indicator */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-                  <span
-                    onClick={() => setPromptStep('prompt')}
-                    style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', cursor: 'pointer',
-                      color: promptStep === 'prompt' ? GOLD : TEXT_HINT,
-                      fontFamily: 'var(--font-label)', textTransform: 'uppercase' }}
-                  >
-                    1. COPY PROMPT
-                  </span>
-                  <span style={{ color: TEXT_HINT, fontSize: 11 }}>→</span>
-                  <span
-                    onClick={() => setPromptStep('paste')}
-                    style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', cursor: 'pointer',
-                      color: promptStep === 'paste' ? GOLD : TEXT_HINT,
-                      fontFamily: 'var(--font-label)', textTransform: 'uppercase' }}
-                  >
-                    2. PASTE RESPONSE
-                  </span>
-                </div>
+              reportType === 'genetics' ? (
+                /* Genetics AI Summary flow */
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                    <span
+                      onClick={() => setGeneticsPromptStep('prompt')}
+                      style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', cursor: 'pointer',
+                        color: geneticsPromptStep === 'prompt' ? GOLD : TEXT_HINT,
+                        fontFamily: 'var(--font-label)', textTransform: 'uppercase' }}
+                    >
+                      1. COPY PROMPT
+                    </span>
+                    <span style={{ color: TEXT_HINT, fontSize: 11 }}>→</span>
+                    <span
+                      onClick={() => setGeneticsPromptStep('paste')}
+                      style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', cursor: 'pointer',
+                        color: geneticsPromptStep === 'paste' ? GOLD : TEXT_HINT,
+                        fontFamily: 'var(--font-label)', textTransform: 'uppercase' }}
+                    >
+                      2. PASTE RESPONSE
+                    </span>
+                  </div>
 
-                {promptStep === 'prompt' ? (
-                  <>
-                    <p style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 14, lineHeight: 1.6 }}>
-                      Upload the blood test PDF to <strong style={{ color: TEXT_PRIMARY }}>ChatGPT, Claude.ai, or any AI</strong>, then copy and paste this prompt. The AI will extract all markers into the exact format needed.
-                    </p>
-                    <pre style={{
-                      backgroundColor: RAISED, border: `1px solid ${BORDER}`, borderRadius: 8,
-                      padding: '14px 16px', fontSize: 11, color: TEXT_PRIMARY, fontFamily: 'monospace',
-                      whiteSpace: 'pre-wrap', lineHeight: 1.6, maxHeight: 220, overflowY: 'auto', marginBottom: 14,
-                    }}>
-                      {AI_PROMPT}
-                    </pre>
-                    <div style={{ display: 'flex', gap: 10 }}>
+                  {geneticsPromptStep === 'prompt' ? (
+                    <>
+                      <p style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 14, lineHeight: 1.6 }}>
+                        Upload the Nutrition Genome PDF to <strong style={{ color: TEXT_PRIMARY }}>ChatGPT, Claude.ai, or any AI</strong>, then copy and paste this prompt. The AI will convert the report into structured coaching insights.
+                      </p>
+                      <pre style={{
+                        backgroundColor: RAISED, border: `1px solid ${BORDER}`, borderRadius: 8,
+                        padding: '14px 16px', fontSize: 11, color: TEXT_PRIMARY, fontFamily: 'monospace',
+                        whiteSpace: 'pre-wrap', lineHeight: 1.6, maxHeight: 220, overflowY: 'auto', marginBottom: 14,
+                      }}>
+                        {GENETICS_AI_PROMPT}
+                      </pre>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button
+                          onClick={handleCopyGeneticsPrompt}
+                          style={{
+                            backgroundColor: geneticsPromptCopied ? '#1a1040' : '#a78bfa',
+                            color: geneticsPromptCopied ? '#a78bfa' : '#1a1040',
+                            border: geneticsPromptCopied ? '1px solid #4c2a8a' : 'none',
+                            borderRadius: 6, padding: '10px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                          }}
+                        >
+                          {geneticsPromptCopied ? '✓ Copied!' : '📋 Copy Prompt'}
+                        </button>
+                        <button
+                          onClick={() => setGeneticsPromptStep('paste')}
+                          style={{
+                            backgroundColor: RAISED, border: `1px solid ${BORDER}`,
+                            color: TEXT_MUTED, borderRadius: 6, padding: '10px 18px', fontSize: 12, cursor: 'pointer',
+                          }}
+                        >
+                          Next: Paste Response →
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 14 }}>
+                        Paste the AI&apos;s JSON response below.
+                      </p>
+                      <textarea
+                        value={geneticsAiText}
+                        onChange={e => setGeneticsAiText(e.target.value)}
+                        placeholder={'{\n  "overview": "...",\n  "top_priorities": ["..."],\n  ...\n}'}
+                        rows={12}
+                        style={{ ...inputStyle, resize: 'vertical', fontFamily: 'monospace', fontSize: 12, marginBottom: 10 }}
+                        autoFocus
+                      />
+                      {geneticsParseError && <div style={{ color: RED, fontSize: 12, marginBottom: 10 }}>{geneticsParseError}</div>}
+                      {geneticData.overview && (
+                        <div style={{ backgroundColor: '#1a1040', border: '1px solid #4c2a8a', borderRadius: 8, padding: '10px 14px', marginBottom: 10 }}>
+                          <div style={{ fontSize: 11, color: '#a78bfa', fontWeight: 600, marginBottom: 4 }}>✓ Parsed successfully</div>
+                          <div style={{ fontSize: 12, color: TEXT_MUTED }}>{geneticData.overview.slice(0, 120)}…</div>
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button
+                          onClick={handleParseGeneticsAI}
+                          disabled={!geneticsAiText.trim()}
+                          style={{
+                            backgroundColor: '#a78bfa', color: '#1a1040', fontWeight: 700,
+                            fontSize: 12, padding: '10px 18px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                          }}
+                        >
+                          Parse &amp; Preview →
+                        </button>
+                        <button
+                          onClick={() => setGeneticsPromptStep('prompt')}
+                          style={{
+                            backgroundColor: 'transparent', border: `1px solid ${BORDER}`,
+                            color: TEXT_MUTED, borderRadius: 6, padding: '10px 14px', fontSize: 12, cursor: 'pointer',
+                          }}
+                        >
+                          ← Back
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Save button when data is parsed */}
+                  {geneticData.overview && (
+                    <div style={{ marginTop: 20, borderTop: `1px solid ${BORDER}`, paddingTop: 16 }}>
+                      {error && <div style={{ color: RED, fontSize: 12, marginBottom: 10 }}>{error}</div>}
                       <button
-                        onClick={handleCopyPrompt}
+                        onClick={handleConfirmGenetics}
+                        disabled={saving}
                         style={{
-                          backgroundColor: promptCopied ? '#0A1E10' : GREEN,
-                          color: promptCopied ? GREEN : '#0A1E10',
-                          border: promptCopied ? `1px solid ${GREEN}` : 'none',
-                          borderRadius: 6, padding: '10px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                          backgroundColor: '#1a1040', color: '#a78bfa', border: '1px solid #4c2a8a',
+                          borderRadius: 6, padding: '10px 18px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
                         }}
                       >
-                        {promptCopied ? '✓ Copied!' : '📋 Copy Prompt'}
-                      </button>
-                      <button
-                        onClick={() => setPromptStep('paste')}
-                        style={{
-                          backgroundColor: RAISED, border: `1px solid ${BORDER}`,
-                          color: TEXT_MUTED, borderRadius: 6, padding: '10px 18px', fontSize: 12, cursor: 'pointer',
-                        }}
-                      >
-                        Next: Paste Response →
+                        {saving ? 'Creating…' : 'Create Report →'}
                       </button>
                     </div>
-                  </>
-                ) : (
-                  <>
-                    <p style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 14 }}>
-                      Paste the AI&apos;s JSON response below. It will be parsed into the marker preview.
-                    </p>
-                    <textarea
-                      value={aiPasteText}
-                      onChange={e => setAiPasteText(e.target.value)}
-                      placeholder={'[\n  {"marker_name":"Ferritin","value":42,"unit":"µg/L","reference_range_low":13,"reference_range_high":150,"category":"Iron Status"},\n  ...\n]'}
-                      rows={12}
-                      style={{ ...inputStyle, resize: 'vertical', fontFamily: 'monospace', fontSize: 12, marginBottom: 10 }}
-                      autoFocus
-                    />
-                    {parseError && <div style={{ color: RED, fontSize: 12, marginBottom: 10 }}>{parseError}</div>}
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      <button
-                        onClick={handleParseAIPaste}
-                        disabled={!aiPasteText.trim()}
-                        style={{
-                          backgroundColor: GREEN, color: '#0A1E10', fontWeight: 700,
-                          fontSize: 12, padding: '10px 18px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                        }}
-                      >
-                        Parse & Preview →
-                      </button>
-                      <button
-                        onClick={() => setPromptStep('prompt')}
-                        style={{
-                          backgroundColor: 'transparent', border: `1px solid ${BORDER}`,
-                          color: TEXT_MUTED, borderRadius: 6, padding: '10px 14px', fontSize: 12, cursor: 'pointer',
-                        }}
-                      >
-                        ← Back
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
+                  )}
+                </div>
+              ) : (
+                /* Bloodwork AI Prompt — unchanged */
+                <div>
+                  {/* Step indicator */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                    <span
+                      onClick={() => setPromptStep('prompt')}
+                      style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', cursor: 'pointer',
+                        color: promptStep === 'prompt' ? GOLD : TEXT_HINT,
+                        fontFamily: 'var(--font-label)', textTransform: 'uppercase' }}
+                    >
+                      1. COPY PROMPT
+                    </span>
+                    <span style={{ color: TEXT_HINT, fontSize: 11 }}>→</span>
+                    <span
+                      onClick={() => setPromptStep('paste')}
+                      style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', cursor: 'pointer',
+                        color: promptStep === 'paste' ? GOLD : TEXT_HINT,
+                        fontFamily: 'var(--font-label)', textTransform: 'uppercase' }}
+                    >
+                      2. PASTE RESPONSE
+                    </span>
+                  </div>
+
+                  {promptStep === 'prompt' ? (
+                    <>
+                      <p style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 14, lineHeight: 1.6 }}>
+                        Upload the blood test PDF to <strong style={{ color: TEXT_PRIMARY }}>ChatGPT, Claude.ai, or any AI</strong>, then copy and paste this prompt. The AI will extract all markers into the exact format needed.
+                      </p>
+                      <pre style={{
+                        backgroundColor: RAISED, border: `1px solid ${BORDER}`, borderRadius: 8,
+                        padding: '14px 16px', fontSize: 11, color: TEXT_PRIMARY, fontFamily: 'monospace',
+                        whiteSpace: 'pre-wrap', lineHeight: 1.6, maxHeight: 220, overflowY: 'auto', marginBottom: 14,
+                      }}>
+                        {AI_PROMPT}
+                      </pre>
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button
+                          onClick={handleCopyPrompt}
+                          style={{
+                            backgroundColor: promptCopied ? '#0A1E10' : GREEN,
+                            color: promptCopied ? GREEN : '#0A1E10',
+                            border: promptCopied ? `1px solid ${GREEN}` : 'none',
+                            borderRadius: 6, padding: '10px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                          }}
+                        >
+                          {promptCopied ? '✓ Copied!' : '📋 Copy Prompt'}
+                        </button>
+                        <button
+                          onClick={() => setPromptStep('paste')}
+                          style={{
+                            backgroundColor: RAISED, border: `1px solid ${BORDER}`,
+                            color: TEXT_MUTED, borderRadius: 6, padding: '10px 18px', fontSize: 12, cursor: 'pointer',
+                          }}
+                        >
+                          Next: Paste Response →
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p style={{ fontSize: 13, color: TEXT_MUTED, marginBottom: 14 }}>
+                        Paste the AI&apos;s JSON response below. It will be parsed into the marker preview.
+                      </p>
+                      <textarea
+                        value={aiPasteText}
+                        onChange={e => setAiPasteText(e.target.value)}
+                        placeholder={'[\n  {"marker_name":"Ferritin","value":42,"unit":"µg/L","reference_range_low":13,"reference_range_high":150,"category":"Iron Status"},\n  ...\n]'}
+                        rows={12}
+                        style={{ ...inputStyle, resize: 'vertical', fontFamily: 'monospace', fontSize: 12, marginBottom: 10 }}
+                        autoFocus
+                      />
+                      {parseError && <div style={{ color: RED, fontSize: 12, marginBottom: 10 }}>{parseError}</div>}
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button
+                          onClick={handleParseAIPaste}
+                          disabled={!aiPasteText.trim()}
+                          style={{
+                            backgroundColor: GREEN, color: '#0A1E10', fontWeight: 700,
+                            fontSize: 12, padding: '10px 18px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                          }}
+                        >
+                          Parse &amp; Preview →
+                        </button>
+                        <button
+                          onClick={() => setPromptStep('prompt')}
+                          style={{
+                            backgroundColor: 'transparent', border: `1px solid ${BORDER}`,
+                            color: TEXT_MUTED, borderRadius: 6, padding: '10px 14px', fontSize: 12, cursor: 'pointer',
+                          }}
+                        >
+                          ← Back
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )
             )}
 
             {/* JSON tab (bloodwork only, tab index 1) */}
@@ -528,147 +733,200 @@ Here is the blood test report:`
               </div>
             )}
 
-            {/* Manual entry tab (bloodwork tab 3, genetics tab 1) */}
-            {((reportType === 'bloodwork' && activeTab === 3) || (reportType === 'genetics' && activeTab === 1)) && (
-              reportType === 'bloodwork' ? (
-                <div>
-                  {/* Manual marker rows */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 40px', gap: 8, marginBottom: 8 }}>
-                    {['Marker Name', 'Value', 'Unit', 'Range Low', 'Range High', ''].map(h => (
-                      <div key={h} style={{ fontSize: 10, color: TEXT_HINT, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</div>
-                    ))}
-                  </div>
-                  {manualRows.map((row, i) => (
-                    <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 40px', gap: 8, marginBottom: 6 }}>
-                      <input
-                        value={row.marker_name}
-                        onChange={e => { const r = [...manualRows]; r[i] = { ...r[i], marker_name: e.target.value }; setManualRows(r) }}
-                        placeholder="e.g. Cortisol"
-                        style={{ ...inputStyle, padding: '7px 10px' }}
-                      />
-                      <input
-                        value={row.value}
-                        onChange={e => { const r = [...manualRows]; r[i] = { ...r[i], value: e.target.value }; setManualRows(r) }}
-                        placeholder="28.4"
-                        style={{ ...inputStyle, padding: '7px 10px' }}
-                      />
-                      <input
-                        value={row.unit}
-                        onChange={e => { const r = [...manualRows]; r[i] = { ...r[i], unit: e.target.value }; setManualRows(r) }}
-                        placeholder="nmol/L"
-                        style={{ ...inputStyle, padding: '7px 10px' }}
-                      />
-                      <input
-                        value={row.reference_range_low}
-                        onChange={e => { const r = [...manualRows]; r[i] = { ...r[i], reference_range_low: e.target.value }; setManualRows(r) }}
-                        placeholder="6.2"
-                        style={{ ...inputStyle, padding: '7px 10px' }}
-                      />
-                      <input
-                        value={row.reference_range_high}
-                        onChange={e => { const r = [...manualRows]; r[i] = { ...r[i], reference_range_high: e.target.value }; setManualRows(r) }}
-                        placeholder="19.4"
-                        style={{ ...inputStyle, padding: '7px 10px' }}
-                      />
-                      <button
-                        onClick={() => setManualRows(r => r.filter((_, j) => j !== i))}
-                        style={{ backgroundColor: 'transparent', border: '1px solid #3D1616', color: RED, borderRadius: 4, cursor: 'pointer', fontSize: 14 }}
-                      >
-                        ×
-                      </button>
-                    </div>
+            {/* Manual entry tab (bloodwork tab 3) */}
+            {reportType === 'bloodwork' && activeTab === 3 && (
+              <div>
+                {/* Manual marker rows */}
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 40px', gap: 8, marginBottom: 8 }}>
+                  {['Marker Name', 'Value', 'Unit', 'Range Low', 'Range High', ''].map(h => (
+                    <div key={h} style={{ fontSize: 10, color: TEXT_HINT, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</div>
                   ))}
-                  {parseError && <div style={{ color: RED, fontSize: 12, marginTop: 8 }}>{parseError}</div>}
-                  <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                </div>
+                {manualRows.map((row, i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1fr 40px', gap: 8, marginBottom: 6 }}>
+                    <input
+                      value={row.marker_name}
+                      onChange={e => { const r = [...manualRows]; r[i] = { ...r[i], marker_name: e.target.value }; setManualRows(r) }}
+                      placeholder="e.g. Cortisol"
+                      style={{ ...inputStyle, padding: '7px 10px' }}
+                    />
+                    <input
+                      value={row.value}
+                      onChange={e => { const r = [...manualRows]; r[i] = { ...r[i], value: e.target.value }; setManualRows(r) }}
+                      placeholder="28.4"
+                      style={{ ...inputStyle, padding: '7px 10px' }}
+                    />
+                    <input
+                      value={row.unit}
+                      onChange={e => { const r = [...manualRows]; r[i] = { ...r[i], unit: e.target.value }; setManualRows(r) }}
+                      placeholder="nmol/L"
+                      style={{ ...inputStyle, padding: '7px 10px' }}
+                    />
+                    <input
+                      value={row.reference_range_low}
+                      onChange={e => { const r = [...manualRows]; r[i] = { ...r[i], reference_range_low: e.target.value }; setManualRows(r) }}
+                      placeholder="6.2"
+                      style={{ ...inputStyle, padding: '7px 10px' }}
+                    />
+                    <input
+                      value={row.reference_range_high}
+                      onChange={e => { const r = [...manualRows]; r[i] = { ...r[i], reference_range_high: e.target.value }; setManualRows(r) }}
+                      placeholder="19.4"
+                      style={{ ...inputStyle, padding: '7px 10px' }}
+                    />
                     <button
-                      onClick={() => setManualRows(r => [...r, emptyRow()])}
-                      style={{ backgroundColor: RAISED, border: `1px solid ${BORDER}`, color: TEXT_MUTED, borderRadius: 6, padding: '8px 14px', fontSize: 12, cursor: 'pointer' }}
+                      onClick={() => setManualRows(r => r.filter((_, j) => j !== i))}
+                      style={{ backgroundColor: 'transparent', border: '1px solid #3D1616', color: RED, borderRadius: 4, cursor: 'pointer', fontSize: 14 }}
                     >
-                      + Add Row
-                    </button>
-                    <button
-                      onClick={handleManualSubmit}
-                      style={{ backgroundColor: GREEN, color: '#0A1E10', fontWeight: 600, fontSize: 12, padding: '8px 16px', borderRadius: 6, border: 'none', cursor: 'pointer' }}
-                    >
-                      Preview Markers →
+                      ×
                     </button>
                   </div>
+                ))}
+                {parseError && <div style={{ color: RED, fontSize: 12, marginTop: 8 }}>{parseError}</div>}
+                <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+                  <button
+                    onClick={() => setManualRows(r => [...r, emptyRow()])}
+                    style={{ backgroundColor: RAISED, border: `1px solid ${BORDER}`, color: TEXT_MUTED, borderRadius: 6, padding: '8px 14px', fontSize: 12, cursor: 'pointer' }}
+                  >
+                    + Add Row
+                  </button>
+                  <button
+                    onClick={handleManualSubmit}
+                    style={{ backgroundColor: GREEN, color: '#0A1E10', fontWeight: 600, fontSize: 12, padding: '8px 16px', borderRadius: 6, border: 'none', cursor: 'pointer' }}
+                  >
+                    Preview Markers →
+                  </button>
                 </div>
-              ) : (
-                /* Genetics manual insights */
-                <div>
-                  {insightRows.map((row, i) => (
-                    <div
-                      key={i}
-                      style={{ backgroundColor: RAISED, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '12px 14px', marginBottom: 10 }}
-                    >
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 100px 30px', gap: 10, marginBottom: 8 }}>
-                        <input
-                          value={row.title}
-                          onChange={e => { const r = [...insightRows]; r[i] = { ...r[i], title: e.target.value }; setInsightRows(r) }}
-                          placeholder="Insight title (max 80 chars)"
-                          maxLength={80}
-                          style={{ ...inputStyle, padding: '7px 10px' }}
-                        />
-                        <select
-                          value={row.category}
-                          onChange={e => { const r = [...insightRows]; r[i] = { ...r[i], category: e.target.value }; setInsightRows(r) }}
-                          style={{ ...inputStyle, padding: '7px 10px' }}
-                        >
-                          <option value="priority-focus">Priority Focus</option>
-                          <option value="key-risks">Key Risks</option>
-                          <option value="nutrition">Nutrition</option>
-                          <option value="training">Training</option>
-                          <option value="recovery">Recovery</option>
-                          <option value="general">General</option>
-                        </select>
-                        <select
-                          value={row.priority}
-                          onChange={e => { const r = [...insightRows]; r[i] = { ...r[i], priority: e.target.value }; setInsightRows(r) }}
-                          style={{ ...inputStyle, padding: '7px 10px' }}
-                        >
-                          <option value="high">High</option>
-                          <option value="medium">Medium</option>
-                          <option value="low">Low</option>
-                        </select>
-                        <button
-                          onClick={() => setInsightRows(r => r.filter((_, j) => j !== i))}
-                          style={{ backgroundColor: 'transparent', border: '1px solid #3D1616', color: RED, borderRadius: 4, cursor: 'pointer' }}
-                        >
-                          ×
-                        </button>
-                      </div>
+              </div>
+            )}
+
+            {/* Genetics Manual Entry tab (genetics tab 1) */}
+            {reportType === 'genetics' && activeTab === 1 && (
+              <div>
+                {/* Overview */}
+                <div style={{ marginBottom: 16 }}>
+                  <label style={labelStyle}>Overview</label>
+                  <textarea
+                    value={geneticData.overview}
+                    onChange={e => setGeneticData(prev => ({ ...prev, overview: e.target.value }))}
+                    placeholder="2-3 sentence summary of the most important findings…"
+                    rows={3}
+                    style={{ ...inputStyle, resize: 'vertical' }}
+                  />
+                </div>
+
+                {/* Top priorities */}
+                <div style={{ marginBottom: 16 }}>
+                  <label style={labelStyle}>Top Priorities <span style={{ color: TEXT_HINT, fontWeight: 400 }}>— one per line</span></label>
+                  <textarea
+                    value={geneticData.top_priorities.join('\n')}
+                    onChange={e => setGeneticData(prev => ({ ...prev, top_priorities: e.target.value.split('\n').filter(Boolean) }))}
+                    placeholder={'Methylation support\nReduce toxin exposure\nFocus on omega-3 intake'}
+                    rows={4}
+                    style={{ ...inputStyle, resize: 'vertical' }}
+                  />
+                </div>
+
+                {/* Category notes */}
+                <div style={{ fontSize: 10, fontWeight: 600, color: TEXT_HINT, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+                  Category Notes
+                </div>
+                {GENETIC_CATEGORIES.map(cat => (
+                  <div key={cat} style={{ backgroundColor: RAISED, border: `1px solid ${BORDER}`, borderRadius: 8, padding: '12px 14px', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: TEXT_PRIMARY }}>{cat}</div>
+                      <select
+                        value={geneticData.category_notes[cat]?.priority ?? 'medium'}
+                        onChange={e => setGeneticData(prev => ({
+                          ...prev,
+                          category_notes: {
+                            ...prev.category_notes,
+                            [cat]: { ...(prev.category_notes[cat] ?? { summary: '', key_findings: '', coaching_meaning: '' }), priority: e.target.value as 'high' | 'medium' | 'low' },
+                          },
+                        }))}
+                        style={{ ...inputStyle, width: 'auto', padding: '5px 8px', fontSize: 11 }}
+                      >
+                        <option value="high">High priority</option>
+                        <option value="medium">Medium priority</option>
+                        <option value="low">Low priority</option>
+                      </select>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                      {(['summary', 'key_findings', 'coaching_meaning'] as const).map(field => (
+                        <div key={field}>
+                          <label style={labelStyle}>{field.replace('_', ' ')}</label>
+                          <textarea
+                            value={geneticData.category_notes[cat]?.[field] ?? ''}
+                            onChange={e => setGeneticData(prev => ({
+                              ...prev,
+                              category_notes: {
+                                ...prev.category_notes,
+                                [cat]: { ...(prev.category_notes[cat] ?? { summary: '', key_findings: '', coaching_meaning: '', priority: 'medium' }), [field]: e.target.value },
+                              },
+                            }))}
+                            rows={2}
+                            style={{ ...inputStyle, resize: 'vertical', fontSize: 12 }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Recommendations */}
+                <div style={{ fontSize: 10, fontWeight: 600, color: TEXT_HINT, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12, marginTop: 20 }}>
+                  Recommendations
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                  {(['nutrition', 'training', 'recovery', 'supplements'] as const).map(field => (
+                    <div key={field}>
+                      <label style={labelStyle}>{field === 'recovery' ? 'Recovery & Sleep' : field.charAt(0).toUpperCase() + field.slice(1)}</label>
                       <textarea
-                        value={row.description}
-                        onChange={e => { const r = [...insightRows]; r[i] = { ...r[i], description: e.target.value }; setInsightRows(r) }}
-                        placeholder="2–4 sentence plain-English description…"
+                        value={geneticData.recommendations[field]}
+                        onChange={e => setGeneticData(prev => ({ ...prev, recommendations: { ...prev.recommendations, [field]: e.target.value } }))}
                         rows={3}
                         style={{ ...inputStyle, resize: 'vertical' }}
                       />
                     </div>
                   ))}
-                  <button
-                    onClick={() => setInsightRows(r => [...r, { title: '', description: '', category: 'general', priority: 'medium' }])}
-                    style={{
-                      backgroundColor: RAISED, border: `1px solid ${BORDER}`, color: TEXT_MUTED,
-                      borderRadius: 6, padding: '8px 14px', fontSize: 12, cursor: 'pointer', marginRight: 10,
-                    }}
-                  >
-                    + Add Insight
-                  </button>
-                  {error && <div style={{ color: RED, fontSize: 12, marginTop: 8 }}>{error}</div>}
-                  <button
-                    onClick={handleConfirmGenetics}
-                    disabled={saving}
-                    style={{
-                      backgroundColor: '#1a1040', color: '#a78bfa', border: '1px solid #4c2a8a',
-                      borderRadius: 6, padding: '10px 18px', fontSize: 12, fontWeight: 600, cursor: 'pointer', marginTop: 12,
-                    }}
-                  >
-                    {saving ? 'Creating…' : 'Create Report →'}
-                  </button>
                 </div>
-              )
+
+                {/* Grocery list */}
+                <div style={{ marginBottom: 16 }}>
+                  <label style={labelStyle}>Grocery List <span style={{ color: TEXT_HINT, fontWeight: 400 }}>— one item per line</span></label>
+                  <textarea
+                    value={geneticData.grocery_list.join('\n')}
+                    onChange={e => setGeneticData(prev => ({ ...prev, grocery_list: e.target.value.split('\n').filter(Boolean) }))}
+                    placeholder={'Broccoli\nSalmon\nWalnuts'}
+                    rows={4}
+                    style={{ ...inputStyle, resize: 'vertical' }}
+                  />
+                </div>
+
+                {/* Followup bloodwork */}
+                <div style={{ marginBottom: 20 }}>
+                  <label style={labelStyle}>Bloodwork to Monitor <span style={{ color: TEXT_HINT, fontWeight: 400 }}>— one per line</span></label>
+                  <textarea
+                    value={geneticData.followup_bloodwork.join('\n')}
+                    onChange={e => setGeneticData(prev => ({ ...prev, followup_bloodwork: e.target.value.split('\n').filter(Boolean) }))}
+                    placeholder={'Vitamin D\nApoB\nLDL\nGlucose\nHbA1c\nFerritin'}
+                    rows={4}
+                    style={{ ...inputStyle, resize: 'vertical' }}
+                  />
+                </div>
+
+                {error && <div style={{ color: RED, fontSize: 12, marginBottom: 10 }}>{error}</div>}
+                <button
+                  onClick={handleConfirmGenetics}
+                  disabled={saving}
+                  style={{
+                    backgroundColor: '#1a1040', color: '#a78bfa', border: '1px solid #4c2a8a',
+                    borderRadius: 6, padding: '10px 18px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  }}
+                >
+                  {saving ? 'Creating…' : 'Create Genetics Report →'}
+                </button>
+              </div>
             )}
           </div>
         </div>

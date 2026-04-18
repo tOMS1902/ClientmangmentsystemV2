@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import type { DiagnosticReport, DiagnosticMarker, DiagnosticInsight, InsightCategory } from '@/lib/types'
+import { GeneticsClientView } from '@/components/genetics'
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const S = '#0F1827'   // surface
@@ -768,90 +769,9 @@ export default async function ClientReportPage({
         </div>
       )}
 
-      {/* ── Insight sections (genetics only) ─────────────────────────────────── */}
-      {!isBloodwork && insights.length > 0 && (
-        <div style={{ marginBottom: 28 }}>
-          {CATEGORY_ORDER.filter(cat => byInsightCat[cat]?.length).map(cat => (
-            <div key={cat} style={{ marginBottom: 24 }}>
-              <div
-                style={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  color: TH,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                  marginBottom: 10,
-                }}
-              >
-                {CATEGORY_LABELS[cat]}
-              </div>
-              {byInsightCat[cat].map(ins => (
-                <div
-                  key={ins.id}
-                  style={{
-                    backgroundColor: PRIORITY_BG[ins.priority],
-                    border: `1px solid ${PRIORITY_BORDER[ins.priority]}`,
-                    borderLeft: `3px solid ${PRIORITY_COLORS[ins.priority]}`,
-                    borderRadius: 10,
-                    padding: '14px 16px',
-                    marginBottom: 10,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 600,
-                      letterSpacing: '0.06em',
-                      textTransform: 'uppercase',
-                      color: PRIORITY_COLORS[ins.priority],
-                      backgroundColor: PRIORITY_BG[ins.priority],
-                      border: `1px solid ${PRIORITY_COLORS[ins.priority]}33`,
-                      borderRadius: 4,
-                      padding: '2px 7px',
-                    }}
-                  >
-                    {ins.priority.toUpperCase()}
-                  </span>
-                  <div style={{ marginTop: 8, fontSize: 14, fontWeight: 600, color: TP }}>
-                    {ins.title}
-                  </div>
-                  <p style={{ fontSize: 12, color: TC, lineHeight: 1.7, marginTop: 6 }}>
-                    {ins.description}
-                  </p>
-                  {ins.coach_note && (
-                    <div
-                      style={{
-                        borderLeft: `2px solid ${GO}`,
-                        paddingLeft: 10,
-                        fontSize: 11,
-                        color: TC,
-                        marginTop: 10,
-                        fontStyle: 'italic',
-                      }}
-                    >
-                      {ins.coach_note}
-                    </div>
-                  )}
-                  {ins.recommendation && (
-                    <div
-                      style={{
-                        marginTop: 10,
-                        padding: '8px 12px',
-                        backgroundColor: R,
-                        borderRadius: 6,
-                        fontSize: 12,
-                        color: TC,
-                      }}
-                    >
-                      <strong style={{ color: GO }}>Action: </strong>
-                      {ins.recommendation}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
+      {/* ── Genetics view (genetics reports only) ────────────────────────────── */}
+      {report.report_type === 'genetics' && (
+        <GeneticsClientView geneticData={report.genetic_data ?? null} report={report} />
       )}
 
       {/* ── Disclaimer ────────────────────────────────────────────────────────── */}

@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import type { DiagnosticReport, DiagnosticMarker, DiagnosticInsight, InsightCategory, InsightPriority } from '@/lib/types'
+import type { DiagnosticReport, DiagnosticMarker, GeneticData, GeneticCategory } from '@/lib/types'
+import { GeneticOverview, GeneticCategoryGrid, GeneticRecommendations, GeneticGroceryList, GeneticFollowupBloodwork } from '@/components/genetics'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const S = '#0F1827'
@@ -28,12 +29,6 @@ const labelStyle = {
   letterSpacing: '0.06em', marginBottom: 4, display: 'block',
 }
 
-const CATEGORY_ORDER: InsightCategory[] = ['priority-focus', 'key-risks', 'nutrition', 'training', 'recovery', 'general']
-const CATEGORY_LABELS: Record<InsightCategory, string> = {
-  'priority-focus': 'Priority Focus', 'key-risks': 'Key Risks', 'nutrition': 'Nutrition',
-  'training': 'Training', 'recovery': 'Recovery', 'general': 'General Insights',
-}
-
 const STATUS_COLORS: Record<string, string> = {
   optimal: GR, 'borderline-low': AM, 'borderline-high': AM, low: RD, high: RD,
 }
@@ -43,10 +38,6 @@ const STATUS_BG: Record<string, string> = {
 const STATUS_BORDER: Record<string, string> = {
   optimal: '#1A4A2E', 'borderline-low': '#3D2E06', 'borderline-high': '#3D2E06', low: '#3D1616', high: '#3D1616',
 }
-const PRIORITY_COLORS: Record<string, string> = { high: RD, medium: AM, low: GR }
-const PRIORITY_BG: Record<string, string> = { high: '#1E0C0C', medium: '#1E1808', low: '#0A1E10' }
-const PRIORITY_BORDER: Record<string, string> = { high: '#3D1616', medium: '#3D2E06', low: '#1A4A2E' }
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function StatusBadge({ s }: { s: string }) {
   const labels: Record<string, string> = {
@@ -56,15 +47,6 @@ function StatusBadge({ s }: { s: string }) {
   return (
     <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: c, backgroundColor: STATUS_BG[s] || R, border: `1px solid ${c}33`, borderRadius: 4, padding: '2px 7px' }}>
       {labels[s] || s}
-    </span>
-  )
-}
-
-function PriorityBadge({ p }: { p: string }) {
-  const c = PRIORITY_COLORS[p] || TM
-  return (
-    <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: c, backgroundColor: PRIORITY_BG[p] || R, border: `1px solid ${c}33`, borderRadius: 4, padding: '2px 7px' }}>
-      {p.toUpperCase()}
     </span>
   )
 }
@@ -126,7 +108,6 @@ export default function EditReportPage() {
 
   const [report, setReport] = useState<DiagnosticReport | null>(null)
   const [markers, setMarkers] = useState<DiagnosticMarker[]>([])
-  const [insights, setInsights] = useState<DiagnosticInsight[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
@@ -134,6 +115,9 @@ export default function EditReportPage() {
   const [editingTitle, setEditingTitle] = useState(false)
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [confirmPublish, setConfirmPublish] = useState(false)
+  const [geneticData, setGeneticData] = useState<GeneticData | null>(null)
+  const [editingGenetics, setEditingGenetics] = useState(false)
+  const [geneticDraft, setGeneticDraft] = useState<GeneticData | null>(null)
 
   // Suppress unused router warning — kept for potential programmatic navigation
   void router
@@ -142,11 +126,11 @@ export default function EditReportPage() {
   useEffect(() => {
     fetch(`/api/reports/${reportId}`)
       .then(r => r.json())
-      .then((data: DiagnosticReport & { markers?: DiagnosticMarker[]; insights?: DiagnosticInsight[] }) => {
+      .then((data: DiagnosticReport & { markers?: DiagnosticMarker[] }) => {
         setReport(data)
         setMarkers(data.markers || [])
-        setInsights(data.insights || [])
         setLoading(false)
+        setGeneticData(data.genetic_data ?? null)
         // Default: expand all categories
         const cats = new Set((data.markers || []).map((m: DiagnosticMarker) => m.category as string))
         setExpandedCategories(cats)
@@ -209,7 +193,7 @@ export default function EditReportPage() {
   const exportJSON = () => {
     if (!report) return
     const blob = new Blob(
-      [JSON.stringify({ ...report, markers, insights }, null, 2)],
+      [JSON.stringify({ ...report, markers }, null, 2)],
       { type: 'application/json' },
     )
     const url = URL.createObjectURL(blob)
@@ -237,18 +221,30 @@ export default function EditReportPage() {
     })
   }
 
-  const updateInsight = async (insightId: string, updates: Partial<DiagnosticInsight>) => {
-    setInsights(prev => prev.map(ins => ins.id === insightId ? { ...ins, ...updates } : ins))
-    await fetch(`/api/insights/${insightId}`, {
+  const GENETIC_CATEGORIES: GeneticCategory[] = [
+    'Macronutrient Metabolism',
+    'Toxin Sensitivity',
+    'Mental Health & Cognitive Performance',
+    'Immune Support',
+    'DNA Protection & Repair',
+    'Methylation',
+    'Hormone Support',
+    'Cardiovascular Health & Athletic Performance',
+  ]
+
+  const saveGeneticData = async () => {
+    if (!geneticDraft) return
+    setSaving(true)
+    await fetch(`/api/reports/${reportId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
+      body: JSON.stringify({ genetic_data: geneticDraft }),
     })
-  }
-
-  const deleteInsight = async (insightId: string) => {
-    setInsights(prev => prev.filter(ins => ins.id !== insightId))
-    await fetch(`/api/insights/${insightId}`, { method: 'DELETE' })
+    setGeneticData(geneticDraft)
+    setEditingGenetics(false)
+    setSaving(false)
+    setSaveMsg('Saved')
+    setTimeout(() => setSaveMsg(''), 2000)
   }
 
   if (loading) return <div style={{ color: TM, padding: 40 }}>Loading report&hellip;</div>
@@ -264,13 +260,6 @@ export default function EditReportPage() {
     acc[key].push(m)
     return acc
   }, {} as Record<string, DiagnosticMarker[]>)
-
-  // Group insights by category
-  const byInsightCat = insights.reduce((acc, ins) => {
-    if (!acc[ins.category]) acc[ins.category] = []
-    acc[ins.category].push(ins)
-    return acc
-  }, {} as Record<string, DiagnosticInsight[]>)
 
   const isBloodwork = report.report_type === 'bloodwork'
 
@@ -407,12 +396,12 @@ export default function EditReportPage() {
           {isBloodwork ? (
             <HealthScoreRing score={report.health_score} />
           ) : (
-            /* 3-metric summary block for genetics */
+            /* Genetics summary block */
             <div style={{ display: 'flex', gap: 16 }}>
               {[
-                { label: 'Total Insights', value: insights.length, color: GO },
-                { label: 'High Priority', value: insights.filter(i => i.priority === 'high').length, color: RD },
-                { label: 'Categories', value: new Set(insights.map(i => i.category)).size, color: AM },
+                { label: 'Categories', value: Object.keys(geneticData?.category_notes ?? {}).length, color: AM },
+                { label: 'High Priority', value: Object.values(geneticData?.category_notes ?? {}).filter(n => n?.priority === 'high').length, color: RD },
+                { label: 'Priorities', value: geneticData?.top_priorities.length ?? 0, color: GO },
               ].map(m => (
                 <div key={m.label} style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: 24, fontWeight: 700, color: m.color }}>{m.value}</div>
@@ -560,77 +549,166 @@ export default function EditReportPage() {
         </div>
       )}
 
-      {/* ── Insight sections (genetics) ────────────────────── */}
+      {/* ── Genetics sections ──────────────────────────────── */}
       {!isBloodwork && (
         <div style={{ marginBottom: 24 }}>
-          {insights.length === 0 ? (
-            <div style={{ backgroundColor: S, border: `1px solid ${B}`, borderRadius: 12, padding: '32px 24px', textAlign: 'center' }}>
-              <div style={{ fontSize: 13, color: TM, marginBottom: 16 }}>No insights yet.</div>
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-                <Link
-                  href={`/clients/${clientId}/reports/new`}
-                  style={{ fontSize: 12, color: '#a78bfa', textDecoration: 'none', border: '1px solid #4c2a8a', padding: '8px 16px', borderRadius: 6 }}
+          {/* Coach controls */}
+          {viewMode === 'coach' && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
+              {editingGenetics ? (
+                <>
+                  <button
+                    onClick={() => setEditingGenetics(false)}
+                    style={{ fontSize: 11, padding: '7px 14px', borderRadius: 6, cursor: 'pointer', backgroundColor: R, color: TM, border: `1px solid ${B}` }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveGeneticData}
+                    disabled={saving}
+                    style={{ fontSize: 11, fontWeight: 600, padding: '7px 14px', borderRadius: 6, cursor: 'pointer', backgroundColor: '#0A1E10', color: GR, border: '1px solid #1A4A2E' }}
+                  >
+                    {saving ? '...' : 'Save genetics data'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => { setEditingGenetics(true); setGeneticDraft(geneticData ?? {
+                    overview: '',
+                    top_priorities: [],
+                    category_notes: {},
+                    recommendations: { nutrition: '', training: '', recovery: '', supplements: '' },
+                    grocery_list: [],
+                    followup_bloodwork: [],
+                  }) }}
+                  style={{ fontSize: 11, padding: '7px 14px', borderRadius: 6, cursor: 'pointer', backgroundColor: R, color: TM, border: `1px solid ${B}` }}
                 >
-                  Add insights manually
-                </Link>
-              </div>
+                  Edit genetics data
+                </button>
+              )}
             </div>
-          ) : (
-            CATEGORY_ORDER.filter(cat => byInsightCat[cat]?.length).map(cat => (
-              <div key={cat} style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 10, fontWeight: 600, color: TH, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>{CATEGORY_LABELS[cat]}</div>
-                {byInsightCat[cat].map(ins => (
-                  <div key={ins.id} style={{ backgroundColor: PRIORITY_BG[ins.priority], border: `1px solid ${PRIORITY_BORDER[ins.priority]}`, borderLeft: `3px solid ${PRIORITY_COLORS[ins.priority]}`, borderRadius: 10, padding: '14px 16px', marginBottom: 10 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                      <PriorityBadge p={ins.priority} />
-                      {viewMode === 'coach' && (
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                          <select
-                            value={ins.category}
-                            onChange={e => updateInsight(ins.id, { category: e.target.value as InsightCategory })}
-                            style={{ fontSize: 11, backgroundColor: R, border: `1px solid ${B}`, color: TM, borderRadius: 4, padding: '2px 6px' }}
-                          >
-                            {CATEGORY_ORDER.map(c => (
-                              <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
-                            ))}
-                          </select>
-                          <select
-                            value={ins.priority}
-                            onChange={e => updateInsight(ins.id, { priority: e.target.value as InsightPriority })}
-                            style={{ fontSize: 11, backgroundColor: R, border: `1px solid ${B}`, color: TM, borderRadius: 4, padding: '2px 6px' }}
-                          >
-                            <option value="high">High</option>
-                            <option value="medium">Medium</option>
-                            <option value="low">Low</option>
-                          </select>
-                          <button
-                            onClick={() => deleteInsight(ins.id)}
-                            style={{ fontSize: 11, color: TH, background: 'none', border: 'none', cursor: 'pointer' }}
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ fontSize: 14, fontWeight: 600, color: TP, marginBottom: 6 }}>{ins.title}</div>
-                    <p style={{ fontSize: 12, color: TC, lineHeight: 1.6 }}>{ins.description}</p>
-                    {viewMode === 'coach' && (
-                      <textarea
-                        defaultValue={ins.coach_note}
-                        onBlur={e => { if (e.target.value !== ins.coach_note) updateInsight(ins.id, { coach_note: e.target.value }) }}
-                        placeholder="Add your note on this insight..."
-                        rows={2}
-                        style={{ ...taStyle, marginTop: 10, minHeight: 48, fontSize: 11 }}
-                      />
-                    )}
-                    {viewMode === 'client' && ins.coach_note && (
-                      <div style={{ borderLeft: `2px solid ${GO}`, paddingLeft: 8, fontSize: 11, color: TC, marginTop: 10, fontStyle: 'italic' }}>{ins.coach_note}</div>
-                    )}
+          )}
+
+          {!geneticData && !editingGenetics ? (
+            /* Empty state */
+            <div style={{ backgroundColor: S, border: `1px solid ${B}`, borderRadius: 12, padding: '32px 24px', textAlign: 'center' }}>
+              <div style={{ fontSize: 13, color: TM, marginBottom: 16 }}>No genetics data yet.</div>
+              {viewMode === 'coach' && (
+                <button
+                  onClick={() => { setEditingGenetics(true); setGeneticDraft({ overview: '', top_priorities: [], category_notes: {}, recommendations: { nutrition: '', training: '', recovery: '', supplements: '' }, grocery_list: [], followup_bloodwork: [] }) }}
+                  style={{ fontSize: 12, color: '#a78bfa', border: '1px solid #4c2a8a', backgroundColor: '#1a1040', padding: '8px 16px', borderRadius: 6, cursor: 'pointer' }}
+                >
+                  Add genetics data
+                </button>
+              )}
+            </div>
+          ) : editingGenetics && geneticDraft ? (
+            /* Edit form */
+            <div style={{ backgroundColor: S, border: `1px solid ${B}`, borderRadius: 12, padding: '20px 24px' }}>
+              <div style={{ fontSize: 10, fontWeight: 600, color: TH, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16 }}>Edit Genetics Data</div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Overview</label>
+                <textarea
+                  value={geneticDraft.overview}
+                  onChange={e => setGeneticDraft(prev => prev ? { ...prev, overview: e.target.value } : prev)}
+                  rows={3}
+                  style={taStyle}
+                />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Top Priorities <span style={{ color: TH, fontWeight: 400 }}>— one per line</span></label>
+                <textarea
+                  value={geneticDraft.top_priorities.join('\n')}
+                  onChange={e => setGeneticDraft(prev => prev ? { ...prev, top_priorities: e.target.value.split('\n').filter(Boolean) } : prev)}
+                  rows={4}
+                  style={taStyle}
+                />
+              </div>
+
+              <div style={{ fontSize: 10, fontWeight: 600, color: TH, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Category Notes</div>
+              {GENETIC_CATEGORIES.map(cat => (
+                <div key={cat} style={{ backgroundColor: R, border: `1px solid ${B}`, borderRadius: 8, padding: '12px 14px', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: TP }}>{cat}</div>
+                    <select
+                      value={geneticDraft.category_notes[cat]?.priority ?? 'medium'}
+                      onChange={e => setGeneticDraft(prev => {
+                        if (!prev) return prev
+                        return { ...prev, category_notes: { ...prev.category_notes, [cat]: { ...(prev.category_notes[cat] ?? { summary: '', key_findings: '', coaching_meaning: '' }), priority: e.target.value as 'high' | 'medium' | 'low' } } }
+                      })}
+                      style={{ fontSize: 11, backgroundColor: S, border: `1px solid ${B}`, color: TM, borderRadius: 4, padding: '3px 6px' }}
+                    >
+                      <option value="high">High</option>
+                      <option value="medium">Medium</option>
+                      <option value="low">Low</option>
+                    </select>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                    {(['summary', 'key_findings', 'coaching_meaning'] as const).map(field => (
+                      <div key={field}>
+                        <label style={labelStyle}>{field.replace('_', ' ')}</label>
+                        <textarea
+                          value={geneticDraft.category_notes[cat]?.[field] ?? ''}
+                          onChange={e => setGeneticDraft(prev => {
+                            if (!prev) return prev
+                            return { ...prev, category_notes: { ...prev.category_notes, [cat]: { ...(prev.category_notes[cat] ?? { summary: '', key_findings: '', coaching_meaning: '', priority: 'medium' as const }), [field]: e.target.value } } }
+                          })}
+                          rows={2}
+                          style={{ ...taStyle, fontSize: 11, minHeight: 50 }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <div style={{ fontSize: 10, fontWeight: 600, color: TH, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10, marginTop: 16 }}>Recommendations</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                {(['nutrition', 'training', 'recovery', 'supplements'] as const).map(field => (
+                  <div key={field}>
+                    <label style={labelStyle}>{field === 'recovery' ? 'Recovery & Sleep' : field.charAt(0).toUpperCase() + field.slice(1)}</label>
+                    <textarea
+                      value={geneticDraft.recommendations[field]}
+                      onChange={e => setGeneticDraft(prev => prev ? { ...prev, recommendations: { ...prev.recommendations, [field]: e.target.value } } : prev)}
+                      rows={3}
+                      style={taStyle}
+                    />
                   </div>
                 ))}
               </div>
-            ))
-          )}
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Grocery List <span style={{ color: TH, fontWeight: 400 }}>— one per line</span></label>
+                <textarea
+                  value={geneticDraft.grocery_list.join('\n')}
+                  onChange={e => setGeneticDraft(prev => prev ? { ...prev, grocery_list: e.target.value.split('\n').filter(Boolean) } : prev)}
+                  rows={3}
+                  style={taStyle}
+                />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Bloodwork to Monitor <span style={{ color: TH, fontWeight: 400 }}>— one per line</span></label>
+                <textarea
+                  value={geneticDraft.followup_bloodwork.join('\n')}
+                  onChange={e => setGeneticDraft(prev => prev ? { ...prev, followup_bloodwork: e.target.value.split('\n').filter(Boolean) } : prev)}
+                  rows={3}
+                  style={taStyle}
+                />
+              </div>
+            </div>
+          ) : geneticData ? (
+            /* Visual display */
+            <>
+              <GeneticOverview overview={geneticData.overview} topPriorities={geneticData.top_priorities} />
+              <GeneticCategoryGrid categoryNotes={geneticData.category_notes} />
+              <GeneticRecommendations recommendations={geneticData.recommendations} />
+              <GeneticGroceryList items={geneticData.grocery_list} />
+              <GeneticFollowupBloodwork markers={geneticData.followup_bloodwork} />
+            </>
+          ) : null}
         </div>
       )}
 

@@ -281,8 +281,41 @@ export type MarkerCategory =
   | 'Stress Health'
   | 'Hormonal Health'
 
+// Legacy — genetics reports now use GeneticData.category_notes instead.
+// Kept for schema compatibility with diagnostic_insights table.
 export type InsightCategory = 'priority-focus' | 'key-risks' | 'nutrition' | 'training' | 'recovery' | 'general'
 export type InsightPriority = 'high' | 'medium' | 'low'
+
+export type GeneticCategory =
+  | 'Macronutrient Metabolism'
+  | 'Toxin Sensitivity'
+  | 'Mental Health & Cognitive Performance'
+  | 'Immune Support'
+  | 'DNA Protection & Repair'
+  | 'Methylation'
+  | 'Hormone Support'
+  | 'Cardiovascular Health & Athletic Performance'
+
+export interface GeneticCategoryNote {
+  summary: string
+  key_findings: string
+  coaching_meaning: string
+  priority: 'high' | 'medium' | 'low'
+}
+
+export interface GeneticData {
+  overview: string
+  top_priorities: string[]
+  category_notes: Partial<Record<GeneticCategory, GeneticCategoryNote>>
+  recommendations: {
+    nutrition: string
+    training: string
+    recovery: string
+    supplements: string
+  }
+  grocery_list: string[]
+  followup_bloodwork: string[]
+}
 
 export interface DiagnosticReport {
   id: string
@@ -302,6 +335,7 @@ export interface DiagnosticReport {
   action_supplements: string
   action_followup: string
   pdf_file_url: string
+  genetic_data?: GeneticData | null
   status: DiagnosticReportStatus
   created_at: string
   updated_at: string

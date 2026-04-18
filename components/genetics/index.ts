@@ -1,0 +1,6 @@
+export { GeneticOverview } from './GeneticOverview'
+export { GeneticCategoryGrid } from './GeneticCategoryGrid'
+export { GeneticRecommendations } from './GeneticRecommendations'
+export { GeneticGroceryList } from './GeneticGroceryList'
+export { GeneticFollowupBloodwork } from './GeneticFollowupBloodwork'
+export { GeneticsClientView } from './GeneticsClientView'

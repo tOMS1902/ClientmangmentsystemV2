@@ -223,6 +223,36 @@ export const DiagnosticReportPatchSchema = z.object({
   action_followup: z.string().max(2000).trim().optional(),
   pdf_file_url: z.string().max(500).trim().optional(),
   status: z.enum(['draft', 'published']).optional(),
+  genetic_data: z.object({
+    overview: z.string().max(5000).trim(),
+    top_priorities: z.array(z.string().max(500).trim()).max(10),
+    category_notes: z.record(
+      z.enum([
+        'Macronutrient Metabolism',
+        'Toxin Sensitivity',
+        'Mental Health & Cognitive Performance',
+        'Immune Support',
+        'DNA Protection & Repair',
+        'Methylation',
+        'Hormone Support',
+        'Cardiovascular Health & Athletic Performance',
+      ]),
+      z.object({
+        summary: z.string().max(2000).trim(),
+        key_findings: z.string().max(2000).trim(),
+        coaching_meaning: z.string().max(2000).trim(),
+        priority: z.enum(['high', 'medium', 'low']),
+      }),
+    ),
+    recommendations: z.object({
+      nutrition: z.string().max(3000).trim(),
+      training: z.string().max(3000).trim(),
+      recovery: z.string().max(3000).trim(),
+      supplements: z.string().max(3000).trim(),
+    }),
+    grocery_list: z.array(z.string().max(200).trim()).max(100),
+    followup_bloodwork: z.array(z.string().max(200).trim()).max(50),
+  }).nullable().optional(),
 })
 
 export const MarkerInputSchema = z.object({
