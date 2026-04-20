@@ -213,6 +213,9 @@ export default function CheckInPage() {
   const [voiceOpen, setVoiceOpen] = useState(false)
   const [showFormFields, setShowFormFields] = useState(true)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [clientStartDate, setClientStartDate] = useState<string | null>(null)
+  const [isLateSubmission, setIsLateSubmission] = useState(false)
+  const [lateBannerDismissed, setLateBannerDismissed] = useState(false)
 
   // Form state
   const [weekScore, setWeekScore] = useState(5)
@@ -245,6 +248,7 @@ export default function CheckInPage() {
           setClientId(me.id || null)
           setUnit(me.weight_unit === 'lbs' ? 'lbs' : 'kg')
           setClientName(me.full_name || null)
+          setClientStartDate(me.start_date || null)
         }
       } catch { /* ignore */ }
       setLoading(false)
@@ -252,10 +256,19 @@ export default function CheckInPage() {
     load()
   }, [])
 
-  const thisWeekCheckin = checkins.find(c => {
-    const diff = (Date.now() - new Date(c.check_in_date).getTime()) / (1000 * 60 * 60 * 24)
-    return diff <= 7
-  })
+  const currentWeek = clientStartDate
+    ? Math.max(1, Math.ceil((Date.now() - new Date(clientStartDate).getTime()) / (7 * 24 * 60 * 60 * 1000)))
+    : null
+
+  const hasCurrentWeek = currentWeek != null
+    ? checkins.some(c => c.week_number === currentWeek)
+    : !!checkins.find(c => {
+        const diff = (Date.now() - new Date(c.check_in_date).getTime()) / (1000 * 60 * 60 * 24)
+        return diff <= 7
+      })
+
+  const hasLastWeek = currentWeek != null && checkins.some(c => c.week_number === currentWeek - 1)
+  const showLateOption = currentWeek != null && currentWeek > 1 && !hasLastWeek
 
   function handleFormSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -299,6 +312,7 @@ export default function CheckInPage() {
         coach_support: coachSupport || null,
         anything_else: anythingElse || null,
         voice_note_url: voiceNoteUrl || null,
+        ...(isLateSubmission ? { is_late: true } : {}),
       }),
     })
     if (res.ok) {
@@ -306,10 +320,15 @@ export default function CheckInPage() {
       setCheckins([newCheckin, ...checkins])
       setSubmittedCheckinId(newCheckin.id)
       setClientId(newCheckin.client_id)
+      setIsLateSubmission(false)
       setSubmitted(true)
     } else {
       const err = await res.json().catch(() => ({}))
-      setSubmitError(err.error || 'Something went wrong. Please try again.')
+      if (res.status === 409) {
+        setSubmitError('A check-in for that week has already been submitted.')
+      } else {
+        setSubmitError(err.error || 'Something went wrong. Please try again.')
+      }
     }
     setSubmitting(false)
     setConfirmOpen(false)
@@ -317,21 +336,7 @@ export default function CheckInPage() {
 
   if (loading) return <div className="text-grey-muted">Loading...</div>
 
-  const todayName = new Date().toLocaleDateString('en-IE', { weekday: 'long' })
-  if (checkInDay && todayName !== checkInDay) {
-    return (
-      <div className="max-w-xl">
-        <Eyebrow>Weekly Check-In</Eyebrow>
-        <GoldRule />
-        <div className="mt-6 bg-navy-card border border-white/10 p-6 text-center">
-          <p className="text-white/85 text-sm mb-1">Check-in day is <span className="text-gold">{checkInDay}</span>.</p>
-          <p className="text-grey-muted text-sm">Come back on {checkInDay} to submit your weekly check-in.</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (thisWeekCheckin || submitted) {
+  if ((hasCurrentWeek || submitted) && !isLateSubmission) {
     const sorted = [...checkins].reverse() // oldest → newest for charts
     const weightData = sorted.map(c => c.weight)
     const weekScoreData = sorted.map(c => c.week_score)
@@ -341,6 +346,30 @@ export default function CheckInPage() {
 
     return (
       <div>
+        {showLateOption && !lateBannerDismissed && (
+          <div className="mb-6 border border-gold/30 bg-gold/5 p-4">
+            <p className="text-white/85 text-sm font-medium mb-1">Missed last week's check-in?</p>
+            <p className="text-grey-muted text-sm mb-3">You can still fill it in — it helps your coach track your progress accurately.</p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setIsLateSubmission(true)}
+                className="px-4 py-2 text-sm border border-gold text-gold hover:bg-gold/10 transition-colors"
+                style={{ fontFamily: 'var(--font-label)' }}
+              >
+                Submit last week's check-in
+              </button>
+              <button
+                type="button"
+                onClick={() => setLateBannerDismissed(true)}
+                className="px-4 py-2 text-sm border border-white/20 text-white/50 hover:text-white/85 hover:border-white/50 transition-colors"
+                style={{ fontFamily: 'var(--font-label)' }}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
         <div className="mb-8">
           <Eyebrow>Check-In</Eyebrow>
           <GoldRule />
@@ -433,6 +462,51 @@ export default function CheckInPage() {
         </h1>
         <GoldRule className="mt-3" />
       </div>
+
+      {checkInDay && (
+        <p className="text-grey-muted text-sm mb-4">
+          Your scheduled check-in day is <span className="text-white/70">{checkInDay}</span>. You can also submit any time.
+        </p>
+      )}
+
+      {showLateOption && !lateBannerDismissed && !isLateSubmission && (
+        <div className="mb-6 border border-gold/30 bg-gold/5 p-4">
+          <p className="text-white/85 text-sm font-medium mb-1">Missed last week's check-in?</p>
+          <p className="text-grey-muted text-sm mb-3">You can still fill it in — it helps your coach track your progress accurately.</p>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setIsLateSubmission(true)}
+              className="px-4 py-2 text-sm border border-gold text-gold hover:bg-gold/10 transition-colors"
+              style={{ fontFamily: 'var(--font-label)' }}
+            >
+              Submit last week's check-in
+            </button>
+            <button
+              type="button"
+              onClick={() => setLateBannerDismissed(true)}
+              className="px-4 py-2 text-sm border border-white/20 text-white/50 hover:text-white/85 hover:border-white/50 transition-colors"
+              style={{ fontFamily: 'var(--font-label)' }}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isLateSubmission && currentWeek != null && (
+        <div className="mb-4 bg-gold/5 border border-gold/20 px-4 py-3">
+          <p className="text-gold text-sm">Submitting for: Week {currentWeek - 1} (missed check-in)</p>
+          <button
+            type="button"
+            onClick={() => setIsLateSubmission(false)}
+            className="text-xs text-white/40 hover:text-white/70 transition-colors mt-1"
+            style={{ fontFamily: 'var(--font-label)' }}
+          >
+            Cancel — submit for this week instead
+          </button>
+        </div>
+      )}
 
       <form onSubmit={handleFormSubmit} className="flex flex-col gap-6">
 

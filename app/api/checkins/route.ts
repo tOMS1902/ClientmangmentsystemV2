@@ -12,7 +12,7 @@ export async function POST(request: Request) {
 
   const parsed = parseBody(CheckInSchema, await request.json())
   if (!parsed.success) return NextResponse.json({ error: parsed.error }, { status: 400 })
-  const body = parsed.data
+  const { is_late, ...body } = parsed.data
 
   const { data: clientRecord } = await supabase
     .from('clients')
@@ -26,7 +26,8 @@ export async function POST(request: Request) {
   // Calculate week number from start_date
   const startDate = new Date(clientRecord.start_date)
   const today = new Date()
-  const weekNumber = Math.max(1, Math.ceil((today.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)))
+  let weekNumber = Math.max(1, Math.ceil((today.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)))
+  if (is_late && weekNumber > 1) weekNumber = weekNumber - 1
 
   // Check for duplicate
   const { data: existing } = await supabase

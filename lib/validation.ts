@@ -75,6 +75,7 @@ export const CheckInSchema = z.object({
   sleep_summary: optionalStr(500),
   focus_next_week: optionalStr(500),
   voice_note_url: z.string().url().optional().nullable(),
+  is_late: z.boolean().optional(),
 })
 
 // ─── Programmes ───────────────────────────────────────────────────────────────
