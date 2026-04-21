@@ -5,7 +5,7 @@ import { z } from 'zod'
 const uuid = z.string().uuid()
 const score = z.number().int().min(1).max(5)
 const nonEmptyStr = (max: number) => z.string().min(1).max(max).trim()
-const optionalStr = (max: number) => z.string().max(max).trim().optional()
+const optionalStr = (max: number) => z.string().max(max).trim().nullish()
 const positiveInt = z.number().int().min(0)
 const positiveNum = z.number().min(0)
 
