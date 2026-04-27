@@ -36,6 +36,7 @@ export interface Client {
   loom_sent?: boolean
   weekly_checkin_enabled?: boolean
   midweek_check_enabled?: boolean
+  checkin_photos_enabled?: boolean
 }
 
 export interface NutritionTargets {

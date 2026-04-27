@@ -602,6 +602,51 @@ function MidweekChecksTab({ client, midweekChecks }: { client: Client; midweekCh
   )
 }
 
+function PhotosTabSection({ client, weekNumber, checkins }: { client: Client; weekNumber: number; checkins: WeeklyCheckin[] }) {
+  const router = useRouter()
+  const [photosEnabled, setPhotosEnabled] = useState(client.checkin_photos_enabled ?? true)
+  const [saving, setSaving] = useState(false)
+
+  async function togglePhotosEnabled() {
+    setSaving(true)
+    const newVal = !photosEnabled
+    const res = await fetch(`/api/clients/${client.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ checkin_photos_enabled: newVal }),
+    })
+    if (res.ok) {
+      setPhotosEnabled(newVal)
+      router.refresh()
+    }
+    setSaving(false)
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="bg-navy-card border border-white/8 p-5">
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-grey-muted" style={{ fontFamily: 'var(--font-label)' }}>CHECK-IN PHOTOS</p>
+          <button
+            onClick={togglePhotosEnabled}
+            disabled={saving}
+            className={`text-xs px-3 py-1.5 border transition-colors disabled:opacity-50 ${photosEnabled ? 'border-green-500/60 text-green-400 bg-green-500/10 hover:bg-green-500/20' : 'border-white/20 text-white/50 hover:border-white/50'}`}
+            style={{ fontFamily: 'var(--font-label)' }}
+          >
+            {saving ? '...' : photosEnabled ? '✓ Enabled' : 'Disabled'}
+          </button>
+        </div>
+        {!photosEnabled && (
+          <p className="text-xs text-grey-muted mt-2">Check-in photos are off — the Photos tab will not appear for this client.</p>
+        )}
+      </div>
+      {photosEnabled && (
+        <PhotosTab clientId={client.id} weekNumber={weekNumber} checkins={checkins} />
+      )}
+    </div>
+  )
+}
+
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 const DIET_LABELS: Record<string, string> = {
@@ -1279,7 +1324,7 @@ export function ClientDetailTabs({
         <MessagingTab clientId={client.id} clientName={client.full_name} clientUserId={client.user_id} />
       )}
       {activeTab === 'photos' && (
-        <PhotosTab clientId={client.id} weekNumber={weekNumber} checkins={checkins} />
+        <PhotosTabSection client={client} weekNumber={weekNumber} checkins={checkins} />
       )}
       {activeTab === 'portal' && (
         <div className="bg-navy-card border border-white/8 p-6">

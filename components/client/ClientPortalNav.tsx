@@ -17,14 +17,15 @@ const BASE_LINKS = [
   { href: '/portal/settings', label: 'Settings' },
 ]
 
-export function ClientPortalNav({ showReports }: { showReports: boolean }) {
+export function ClientPortalNav({ showReports, showMidweek, showPhotos }: { showReports: boolean; showMidweek: boolean; showPhotos: boolean }) {
   const pathname = usePathname()
   const router = useRouter()
   useKeyInit()
 
-  const navLinks = showReports
-    ? [...BASE_LINKS, { href: '/portal/reports', label: 'Reports' }]
-    : BASE_LINKS
+  const navLinks = BASE_LINKS
+    .filter(l => l.href !== '/portal/checkin/midweek' || showMidweek)
+    .filter(l => l.href !== '/portal/photos' || showPhotos)
+    .concat(showReports ? [{ href: '/portal/reports', label: 'Reports' }] : [])
 
   const activeHref =
     navLinks.find(l => l.href === pathname)?.href ||

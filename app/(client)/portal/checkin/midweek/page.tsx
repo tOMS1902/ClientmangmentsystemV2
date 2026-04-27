@@ -88,6 +88,7 @@ export default function MidweekCheckPage() {
   const [submitError, setSubmitError] = useState('')
   const [midweekDay, setMidweekDay] = useState<string | null>(null)
 
+  const [midweekEnabled, setMidweekEnabled] = useState(true)
   const [unit, setUnit] = useState<WeightUnit>('kg')
   const [clientId, setClientId] = useState<string | null>(null)
   const [voiceNoteUrl, setVoiceNoteUrl] = useState<string | null>(null)
@@ -113,6 +114,7 @@ export default function MidweekCheckPage() {
         }
         if (meRes.ok) {
           const me = await meRes.json()
+          setMidweekEnabled(me.midweek_check_enabled !== false)
           setMidweekDay(me.midweek_check_day || 'Wednesday')
           setUnit(me.weight_unit === 'lbs' ? 'lbs' : 'kg')
           setClientId(me.id || null)
@@ -175,6 +177,7 @@ export default function MidweekCheckPage() {
   }
 
   if (loading) return <div className="text-grey-muted">Loading...</div>
+  if (!midweekEnabled) return null
 
   const todayName = new Date().toLocaleDateString('en-IE', { weekday: 'long' })
   if (midweekDay && todayName !== midweekDay) {

@@ -16,11 +16,12 @@ export default async function ClientPhotosPage() {
 
   const { data: clientRecord } = await supabase
     .from('clients')
-    .select('id, start_date')
+    .select('id, start_date, checkin_photos_enabled')
     .eq('user_id', user.id)
     .single()
 
   if (!clientRecord) return <p className="text-grey-muted p-4">Client record not found.</p>
+  if (clientRecord.checkin_photos_enabled === false) redirect('/portal')
 
   const { data: checkins } = await supabase
     .from('weekly_checkins')

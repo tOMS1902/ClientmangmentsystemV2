@@ -31,6 +31,7 @@ export const ClientPatchSchema = z.object({
   loom_sent: z.boolean().optional(),
   weekly_checkin_enabled: z.boolean().optional(),
   midweek_check_enabled: z.boolean().optional(),
+  checkin_photos_enabled: z.boolean().optional(),
 })
 
 // ─── Midweek Checks ───────────────────────────────────────────────────────────

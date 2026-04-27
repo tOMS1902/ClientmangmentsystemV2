@@ -17,10 +17,12 @@ export default async function ClientLayout({ children }: { children: React.React
   if (!legalProfile?.legal_onboarding_complete) redirect('/onboarding')
 
   let showReports = false
+  let showMidweek = true
+  let showPhotos = true
   if (user) {
     const { data: clientRecord } = await supabase
       .from('clients')
-      .select('id')
+      .select('id, midweek_check_enabled, checkin_photos_enabled')
       .eq('user_id', user.id)
       .single()
 
@@ -32,12 +34,14 @@ export default async function ClientLayout({ children }: { children: React.React
         .eq('status', 'published')
 
       showReports = (count ?? 0) > 0
+      showMidweek = clientRecord.midweek_check_enabled ?? true
+      showPhotos = clientRecord.checkin_photos_enabled ?? true
     }
   }
 
   return (
     <div className="min-h-screen bg-navy-deep">
-      <ClientPortalNav showReports={showReports} />
+      <ClientPortalNav showReports={showReports} showMidweek={showMidweek} showPhotos={showPhotos} />
 
       {/* Main content */}
       <main className="max-w-[860px] mx-auto px-4 py-6 sm:py-8">
