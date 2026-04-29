@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
@@ -43,8 +44,9 @@ export async function POST(request: Request) {
     return NextResponse.json(client, { status: 201 })
   }
 
-  // Create the auth user — the DB trigger auto-creates their profile
-  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+  // Create the auth user — requires service role key
+  const adminSupabase = createAdminSupabaseClient()
+  const { data: authData, error: authError } = await adminSupabase.auth.admin.createUser({
     email: clientFields.email,
     password,
     user_metadata: { full_name: clientFields.full_name, role: 'client' },
@@ -62,7 +64,7 @@ export async function POST(request: Request) {
 
   if (insertError) {
     // Roll back the auth user if client insert fails
-    await supabase.auth.admin.deleteUser(authData.user.id)
+    await adminSupabase.auth.admin.deleteUser(authData.user.id)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
