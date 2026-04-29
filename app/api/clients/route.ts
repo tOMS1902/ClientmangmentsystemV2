@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       .select()
       .single()
 
-    if (insertError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
     return NextResponse.json(client, { status: 201 })
   }
 
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
   if (insertError) {
     // Roll back the auth user if client insert fails
     await adminSupabase.auth.admin.deleteUser(authData.user.id)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return NextResponse.json({ error: insertError.message }, { status: 500 })
   }
 
   // Insert placeholder onboarding_responses so the client skips the intake form
