@@ -33,7 +33,7 @@ export function VoiceRecorder({ clientId, weekNumber, type, onComplete, onDiscar
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
+      if (previewUrl?.startsWith('blob:')) URL.revokeObjectURL(previewUrl)
     }
   }, [previewUrl])
 
@@ -74,9 +74,13 @@ export function VoiceRecorder({ clientId, weekNumber, type, onComplete, onDiscar
           return
         }
         setBlob(recorded)
-        const url = URL.createObjectURL(recorded)
-        setPreviewUrl(url)
-        setState('recorded')
+        // Use FileReader data URL instead of blob URL — iOS Safari cannot play blob URLs
+        const reader = new FileReader()
+        reader.onload = () => {
+          setPreviewUrl(reader.result as string)
+          setState('recorded')
+        }
+        reader.readAsDataURL(recorded)
       }
 
       recorder.start(250)
@@ -106,10 +110,8 @@ export function VoiceRecorder({ clientId, weekNumber, type, onComplete, onDiscar
 
   function discard() {
     setBlob(null)
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl)
-      setPreviewUrl(null)
-    }
+    if (previewUrl?.startsWith('blob:')) URL.revokeObjectURL(previewUrl)
+    setPreviewUrl(null)
     setState('idle')
     setElapsed(0)
     onDiscard()
@@ -202,7 +204,7 @@ export function VoiceRecorder({ clientId, weekNumber, type, onComplete, onDiscar
             </button>
             <button
               type="button"
-              onClick={() => { setState('idle'); setBlob(null); if (previewUrl) { URL.revokeObjectURL(previewUrl); setPreviewUrl(null) } }}
+              onClick={() => { setState('idle'); setBlob(null); if (previewUrl?.startsWith('blob:')) URL.revokeObjectURL(previewUrl); setPreviewUrl(null) }}
               className="text-xs text-grey-muted hover:text-white transition-colors"
               style={{ fontFamily: 'var(--font-label)' }}
             >
