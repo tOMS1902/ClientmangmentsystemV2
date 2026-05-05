@@ -102,7 +102,7 @@ export default async function PortalHomePage() {
     supabase.from('midweek_checks').select('*').eq('client_id', clientId).order('submitted_at', { ascending: false }).limit(10),
     supabase.from('habits').select('*').eq('client_id', clientId).eq('is_active', true),
     supabase.from('habit_logs').select('*').eq('client_id', clientId).gte('log_date', from14Days),
-    supabase.from('weekly_loom_videos').select('*').eq('client_id', clientId).order('week_number', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('weekly_loom_videos').select('*').eq('client_id', clientId).order('week_number', { ascending: false }).limit(20),
     supabase.from('client_milestones').select('id, label, is_unlocked').eq('client_id', clientId).order('display_order', { ascending: true }),
     supabase.from('profiles').select('full_name, avatar_url').eq('id', clientRecord.coach_id).single(),
     supabase.from('client_goals').select('*').eq('client_id', clientId).order('event_date', { ascending: true }),

@@ -63,8 +63,23 @@ export async function POST(
       .insert({ client_id: clientId, coach_id: user.id, loom_url, week_number })
       .select()
       .single()
+    await supabase.from('client_notifications').insert({
+      client_id: clientId,
+      type: 'loom_feedback',
+      title: 'Your weekly feedback is ready',
+      body: `Week ${week_number} review from your coach`,
+      link: '/portal#feedback',
+    })
     return NextResponse.json({ video: inserted })
   }
+
+  await supabase.from('client_notifications').insert({
+    client_id: clientId,
+    type: 'loom_feedback',
+    title: 'Your weekly feedback is ready',
+    body: `Week ${week_number} review from your coach`,
+    link: '/portal#feedback',
+  })
 
   return NextResponse.json({ video: data })
 }

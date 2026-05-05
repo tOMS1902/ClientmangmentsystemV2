@@ -10,7 +10,7 @@ export type ActivityItem = {
   created_at: string
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const supabase = await createServerSupabaseClient()
   const { data: { user }, error } = await supabase.auth.getUser()
   if (!user || error) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -22,6 +22,10 @@ export async function GET() {
     .single()
 
   if (profile?.role !== 'coach') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const url = new URL(req.url)
+  const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '30'), 100)
+  const offset = parseInt(url.searchParams.get('offset') ?? '0')
 
   const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()
 
@@ -93,9 +97,10 @@ export async function GET() {
     })
   }
 
-  // Sort by created_at descending, take top 30
+  // Sort by created_at descending, apply limit/offset
   items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-  const result = items.slice(0, 30)
+  const total = items.length
+  const result = items.slice(offset, offset + limit)
 
-  return NextResponse.json(result)
+  return NextResponse.json({ items: result, total, limit, offset })
 }

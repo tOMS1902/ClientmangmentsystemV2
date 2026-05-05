@@ -15,6 +15,7 @@ interface ClientsListClientProps {
 
 export function ClientsListClient({ active, inactive, weekNumbers, midweekSubmitted, weeklySubmitted }: ClientsListClientProps) {
   const [filterLoomUnsent, setFilterLoomUnsent] = useState(false)
+  const [regionFilter, setRegionFilter] = useState<'all' | 'EU' | 'US'>('all')
   const [loomState, setLoomState] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {}
     ;[...active, ...inactive].forEach(c => { initial[c.id] = c.loom_sent ?? false })
@@ -33,13 +34,16 @@ export function ClientsListClient({ active, inactive, weekNumbers, midweekSubmit
     })
   }
 
-  const filteredActive = filterLoomUnsent ? active.filter(c => !loomState[c.id]) : active
-  const filteredInactive = filterLoomUnsent ? inactive.filter(c => !loomState[c.id]) : inactive
+  const byRegion = (clients: typeof active) =>
+    regionFilter === 'all' ? clients : clients.filter(c => (c.region ?? 'EU') === regionFilter)
+
+  const filteredActive = byRegion(filterLoomUnsent ? active.filter(c => !loomState[c.id]) : active)
+  const filteredInactive = byRegion(filterLoomUnsent ? inactive.filter(c => !loomState[c.id]) : inactive)
 
   return (
     <div>
       {/* Filter bar */}
-      <div className="mb-6">
+      <div className="mb-6 flex flex-wrap gap-2">
         <button
           onClick={() => setFilterLoomUnsent(v => !v)}
           className={`text-xs px-3 py-1.5 border transition-colors ${filterLoomUnsent ? 'border-blue-400 text-blue-400 bg-blue-400/10' : 'border-white/20 text-white/50 hover:border-white/50'}`}
@@ -47,6 +51,16 @@ export function ClientsListClient({ active, inactive, weekNumbers, midweekSubmit
         >
           {filterLoomUnsent ? '✓ Showing: Loom not sent' : 'Filter: Loom not sent'}
         </button>
+        {(['all', 'EU', 'US'] as const).map(r => (
+          <button
+            key={r}
+            onClick={() => setRegionFilter(r)}
+            className={`text-xs px-3 py-1.5 border transition-colors ${regionFilter === r ? 'border-gold text-gold bg-gold/10' : 'border-white/20 text-white/50 hover:border-white/50'}`}
+            style={{ fontFamily: 'var(--font-label)' }}
+          >
+            {r === 'all' ? 'All regions' : r === 'EU' ? '🇪🇺 EU' : '🇺🇸 US'}
+          </button>
+        ))}
       </div>
 
       {/* Active clients */}

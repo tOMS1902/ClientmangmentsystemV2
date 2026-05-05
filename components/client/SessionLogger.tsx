@@ -6,14 +6,18 @@ import { Button } from '@/components/ui/Button'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import type { ProgrammeDay, ExerciseLogEntry, SessionLog } from '@/lib/types'
+import { displayWeight, toKg, unitLabel, type WeightUnit } from '@/lib/units'
 
 interface SessionLoggerProps {
   day: ProgrammeDay
   lastSession?: SessionLog | null
+  weightUnit?: WeightUnit
   onComplete: () => void
 }
 
-export function SessionLogger({ day, lastSession, onComplete }: SessionLoggerProps) {
+const BAND_COLOURS = ['Yellow', 'Red', 'Green', 'Blue', 'Black', 'Purple', 'Orange']
+
+export function SessionLogger({ day, lastSession, weightUnit = 'kg', onComplete }: SessionLoggerProps) {
   const [entries, setEntries] = useState<ExerciseLogEntry[]>(
     day.exercises.map(ex => {
       const lastEntry = lastSession?.exercises_logged.find(e => e.exercise_id === ex.id)
@@ -26,6 +30,9 @@ export function SessionLogger({ day, lastSession, onComplete }: SessionLoggerPro
             set_number: i + 1,
             weight_kg: lastSet?.weight_kg ?? null,
             reps_completed: lastSet?.reps_completed ?? null,
+            band_colour: lastSet?.band_colour ?? null,
+            duration_seconds: lastSet?.duration_seconds ?? null,
+            distance_meters: lastSet?.distance_meters ?? null,
           }
         }),
       }
@@ -34,13 +41,19 @@ export function SessionLogger({ day, lastSession, onComplete }: SessionLoggerPro
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
 
-  function updateSet(exerciseIdx: number, setIdx: number, field: 'weight_kg' | 'reps_completed', value: string) {
+  function updateSet(exerciseIdx: number, setIdx: number, field: string, value: string) {
     setEntries(prev => prev.map((entry, ei) =>
       ei !== exerciseIdx ? entry : {
         ...entry,
-        sets: entry.sets.map((s, si) =>
-          si !== setIdx ? s : { ...s, [field]: value ? parseFloat(value) : null }
-        ),
+        sets: entry.sets.map((s, si) => {
+          if (si !== setIdx) return s
+          if (field === 'weight_kg') return { ...s, weight_kg: value ? toKg(parseFloat(value), weightUnit) : null }
+          if (field === 'reps_completed') return { ...s, reps_completed: value ? parseInt(value) : null }
+          if (field === 'band_colour') return { ...s, band_colour: value || null }
+          if (field === 'duration_seconds') return { ...s, duration_seconds: value ? parseFloat(value) : null }
+          if (field === 'distance_meters') return { ...s, distance_meters: value ? parseFloat(value) : null }
+          return s
+        }),
       }
     ))
   }
@@ -53,6 +66,9 @@ export function SessionLogger({ day, lastSession, onComplete }: SessionLoggerPro
           set_number: entry.sets.length + 1,
           weight_kg: null,
           reps_completed: null,
+          band_colour: null,
+          duration_seconds: null,
+          distance_meters: null,
         }],
       }
     ))
@@ -91,84 +107,181 @@ export function SessionLogger({ day, lastSession, onComplete }: SessionLoggerPro
       <GoldRule />
       <div className="flex flex-col gap-6 mt-4">
         {day.exercises.map((exercise, exerciseIdx) => {
+          const trackingType = exercise.tracking_type ?? 'weight'
           const lastEntry = lastSession?.exercises_logged.find(e => e.exercise_id === exercise.id)
+          const hasLast = !!lastEntry
+
           return (
-          <div key={exercise.id} className="bg-navy-card border border-white/8 p-5">
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <h3 className="text-white font-semibold">{exercise.name}</h3>
-                <p className="text-grey-muted text-xs mt-0.5">
-                  Target: {exercise.sets} sets × {exercise.reps}
-                  {exercise.rest_seconds ? ` · ${exercise.rest_seconds}s rest` : ''}
-                </p>
-              </div>
-              {exercise.video_url && (
-                <a
-                  href={exercise.video_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gold text-xs"
-                  style={{ fontFamily: 'var(--font-label)' }}
-                >
-                  ▶ Watch
-                </a>
-              )}
-            </div>
-
-            {exercise.notes && (
-              <p className="text-xs text-grey-muted mb-3 italic">{exercise.notes}</p>
-            )}
-
-            <div className="flex flex-col gap-2">
-              <div className={`grid gap-2 text-xs text-grey-muted mb-1 ${lastEntry ? 'grid-cols-4' : 'grid-cols-3'}`}>
-                <span>Set</span>
-                <span>Weight (kg)</span>
-                <span>Reps</span>
-                {lastEntry && <span>Last</span>}
-              </div>
-              {entries[exerciseIdx]?.sets.map((set, setIdx) => {
-                const lastSet = lastEntry?.sets.find(s => s.set_number === set.set_number)
-                return (
-                <div key={setIdx} className={`grid gap-2 items-center ${lastEntry ? 'grid-cols-4' : 'grid-cols-3'}`}>
-                  <span className="text-sm text-grey-muted">{set.set_number}</span>
-                  <input
-                    type="number"
-                    step="0.5"
-                    placeholder="0"
-                    value={set.weight_kg ?? ''}
-                    onChange={e => updateSet(exerciseIdx, setIdx, 'weight_kg', e.target.value)}
-                    className="bg-navy-deep border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold w-full"
-                  />
-                  <input
-                    type="number"
-                    placeholder="0"
-                    value={set.reps_completed ?? ''}
-                    onChange={e => updateSet(exerciseIdx, setIdx, 'reps_completed', e.target.value)}
-                    className="bg-navy-deep border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold w-full"
-                  />
-                  {lastEntry && (
-                    <span className="text-xs text-gold/70">
-                      {lastSet?.weight_kg != null && lastSet?.reps_completed != null
-                        ? `${lastSet.weight_kg}kg × ${lastSet.reps_completed}`
-                        : lastSet?.weight_kg != null
-                        ? `${lastSet.weight_kg}kg`
-                        : '—'}
-                    </span>
-                  )}
+            <div key={exercise.id} className="bg-navy-card border border-white/8 p-5">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <h3 className="text-white font-semibold">{exercise.name}</h3>
+                  <p className="text-grey-muted text-xs mt-0.5">
+                    Target: {exercise.sets} sets × {exercise.reps}
+                    {exercise.rest_seconds ? ` · ${exercise.rest_seconds}s rest` : ''}
+                  </p>
                 </div>
-                )
-              })}
-            </div>
+                {exercise.video_url && (
+                  <a
+                    href={exercise.video_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-gold text-xs"
+                    style={{ fontFamily: 'var(--font-label)' }}
+                  >
+                    ▶ Watch
+                  </a>
+                )}
+              </div>
 
-            <button
-              onClick={() => addSet(exerciseIdx)}
-              className="flex items-center gap-1.5 text-gold text-xs mt-3"
-              style={{ fontFamily: 'var(--font-label)' }}
-            >
-              <Plus size={12} /> Add Set
-            </button>
-          </div>
-        )
+              {exercise.notes && (
+                <p className="text-xs text-grey-muted mb-3 italic">{exercise.notes}</p>
+              )}
+
+              <div className="flex flex-col gap-2">
+                {trackingType === 'weight' && (
+                  <div className={`grid gap-2 text-xs text-grey-muted mb-1 ${hasLast ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                    <span>Set</span><span>Weight ({unitLabel(weightUnit)})</span><span>Reps</span>
+                    {hasLast && <span>Last</span>}
+                  </div>
+                )}
+                {trackingType === 'bodyweight' && (
+                  <div className={`grid gap-2 text-xs text-grey-muted mb-1 ${hasLast ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                    <span>Set</span><span>Reps</span>
+                    {hasLast && <span>Last</span>}
+                  </div>
+                )}
+                {trackingType === 'band' && (
+                  <div className={`grid gap-2 text-xs text-grey-muted mb-1 ${hasLast ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                    <span>Set</span><span>Band</span><span>Reps</span>
+                    {hasLast && <span>Last</span>}
+                  </div>
+                )}
+                {trackingType === 'time' && (
+                  <div className={`grid gap-2 text-xs text-grey-muted mb-1 ${hasLast ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                    <span>Set</span><span>Duration (s)</span>
+                    {hasLast && <span>Last</span>}
+                  </div>
+                )}
+                {trackingType === 'distance' && (
+                  <div className={`grid gap-2 text-xs text-grey-muted mb-1 ${hasLast ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                    <span>Set</span><span>Distance (m)</span>
+                    {hasLast && <span>Last</span>}
+                  </div>
+                )}
+
+                {entries[exerciseIdx]?.sets.map((set, setIdx) => {
+                  const lastSet = lastEntry?.sets.find(s => s.set_number === set.set_number)
+
+                  if (trackingType === 'bodyweight') {
+                    return (
+                      <div key={setIdx} className={`grid gap-2 items-center ${hasLast ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                        <span className="text-sm text-grey-muted">{set.set_number}</span>
+                        <input
+                          type="number" placeholder="0"
+                          value={set.reps_completed ?? ''}
+                          onChange={e => updateSet(exerciseIdx, setIdx, 'reps_completed', e.target.value)}
+                          className="bg-navy-deep border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold w-full"
+                        />
+                        {hasLast && <span className="text-xs text-gold/70">{lastSet?.reps_completed != null ? `${lastSet.reps_completed} reps` : '—'}</span>}
+                      </div>
+                    )
+                  }
+
+                  if (trackingType === 'band') {
+                    return (
+                      <div key={setIdx} className={`grid gap-2 items-center ${hasLast ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                        <span className="text-sm text-grey-muted">{set.set_number}</span>
+                        <select
+                          value={set.band_colour ?? ''}
+                          onChange={e => updateSet(exerciseIdx, setIdx, 'band_colour', e.target.value)}
+                          className="bg-navy-deep border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold w-full"
+                        >
+                          <option value="">Band</option>
+                          {BAND_COLOURS.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <input
+                          type="number" placeholder="0"
+                          value={set.reps_completed ?? ''}
+                          onChange={e => updateSet(exerciseIdx, setIdx, 'reps_completed', e.target.value)}
+                          className="bg-navy-deep border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold w-full"
+                        />
+                        {hasLast && (
+                          <span className="text-xs text-gold/70">
+                            {lastSet?.band_colour ? `${lastSet.band_colour}${lastSet.reps_completed != null ? ` × ${lastSet.reps_completed}` : ''}` : '—'}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  }
+
+                  if (trackingType === 'time') {
+                    return (
+                      <div key={setIdx} className={`grid gap-2 items-center ${hasLast ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                        <span className="text-sm text-grey-muted">{set.set_number}</span>
+                        <input
+                          type="number" placeholder="0"
+                          value={set.duration_seconds ?? ''}
+                          onChange={e => updateSet(exerciseIdx, setIdx, 'duration_seconds', e.target.value)}
+                          className="bg-navy-deep border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold w-full"
+                        />
+                        {hasLast && <span className="text-xs text-gold/70">{lastSet?.duration_seconds != null ? `${lastSet.duration_seconds}s` : '—'}</span>}
+                      </div>
+                    )
+                  }
+
+                  if (trackingType === 'distance') {
+                    return (
+                      <div key={setIdx} className={`grid gap-2 items-center ${hasLast ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                        <span className="text-sm text-grey-muted">{set.set_number}</span>
+                        <input
+                          type="number" placeholder="0"
+                          value={set.distance_meters ?? ''}
+                          onChange={e => updateSet(exerciseIdx, setIdx, 'distance_meters', e.target.value)}
+                          className="bg-navy-deep border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold w-full"
+                        />
+                        {hasLast && <span className="text-xs text-gold/70">{lastSet?.distance_meters != null ? `${lastSet.distance_meters}m` : '—'}</span>}
+                      </div>
+                    )
+                  }
+
+                  // Default: weight tracking
+                  return (
+                    <div key={setIdx} className={`grid gap-2 items-center ${hasLast ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                      <span className="text-sm text-grey-muted">{set.set_number}</span>
+                      <input
+                        type="number" step="0.5" placeholder="0"
+                        value={set.weight_kg != null ? displayWeight(set.weight_kg, weightUnit) : ''}
+                        onChange={e => updateSet(exerciseIdx, setIdx, 'weight_kg', e.target.value)}
+                        className="bg-navy-deep border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold w-full"
+                      />
+                      <input
+                        type="number" placeholder="0"
+                        value={set.reps_completed ?? ''}
+                        onChange={e => updateSet(exerciseIdx, setIdx, 'reps_completed', e.target.value)}
+                        className="bg-navy-deep border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold w-full"
+                      />
+                      {hasLast && (
+                        <span className="text-xs text-gold/70">
+                          {lastSet?.weight_kg != null
+                            ? `${displayWeight(lastSet.weight_kg, weightUnit)}${unitLabel(weightUnit)}${lastSet.reps_completed != null ? ` × ${lastSet.reps_completed}` : ''}`
+                            : '—'}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+
+              <button
+                onClick={() => addSet(exerciseIdx)}
+                className="flex items-center gap-1.5 text-gold text-xs mt-3"
+                style={{ fontFamily: 'var(--font-label)' }}
+              >
+                <Plus size={12} /> Add Set
+              </button>
+            </div>
+          )
         })}
       </div>
 

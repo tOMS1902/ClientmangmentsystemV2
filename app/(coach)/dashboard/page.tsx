@@ -95,7 +95,12 @@ export default async function DashboardPage() {
 
       {/* Activity Feed */}
       <div className="mb-10">
-        <Eyebrow>Recent Activity</Eyebrow>
+        <div className="flex items-center justify-between">
+          <Eyebrow>Recent Activity</Eyebrow>
+          <Link href="/notifications" className="text-xs text-grey-muted hover:text-gold transition-colors" style={{ fontFamily: 'var(--font-label)' }}>
+            View All →
+          </Link>
+        </div>
         <GoldRule className="mb-0" />
         <div className="bg-navy-card border border-white/8">
           <ActivityFeed />

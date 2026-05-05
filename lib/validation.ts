@@ -32,6 +32,7 @@ export const ClientPatchSchema = z.object({
   weekly_checkin_enabled: z.boolean().optional(),
   midweek_check_enabled: z.boolean().optional(),
   checkin_photos_enabled: z.boolean().optional(),
+  region: z.enum(['EU', 'US']).optional(),
 })
 
 // ─── Midweek Checks ───────────────────────────────────────────────────────────
@@ -58,8 +59,8 @@ export const CheckInSchema = z.object({
   sleep_score: score10.optional(),
   hunger_score: score10.optional(),
   cravings_score: score10.optional(),
-  diet_rating: z.enum(['on_track', 'mostly_on_track', 'mixed', 'off_track']).optional(),
-  training_completed: z.enum(['all', 'missed_1', 'missed_2plus', 'none']).optional(),
+  diet_rating: z.enum(['on_track', 'mostly_on_track', 'mixed', 'off_track']).optional().nullable(),
+  training_completed: z.enum(['all', 'missed_1', 'missed_2plus', 'none']).optional().nullable(),
   focus_areas: optionalStr(100),
   // Text fields (required for new form, optional for legacy)
   biggest_win: optionalStr(500),
@@ -88,6 +89,7 @@ const ExerciseSchema = z.object({
   rest_seconds: z.number().int().min(0).max(600).nullable().optional(),
   video_url: z.string().url().max(500).nullable().optional(),
   notes: z.string().max(500).trim().nullable().optional(),
+  tracking_type: z.enum(['weight', 'bodyweight', 'band', 'time', 'distance']).default('weight'),
 })
 
 const ProgrammeDaySchema = z.object({
@@ -171,6 +173,10 @@ const SetEntrySchema = z.object({
   set_number: z.number().int().min(1).max(20),
   weight_kg: z.number().min(0).max(1000).nullable(),
   reps_completed: z.number().int().min(0).max(200).nullable(),
+  band_colour: z.string().max(50).nullable().optional(),
+  duration_seconds: z.number().min(0).nullable().optional(),
+  distance_meters: z.number().min(0).nullable().optional(),
+  notes: z.string().max(200).nullable().optional(),
 })
 
 const ExerciseLogEntrySchema = z.object({

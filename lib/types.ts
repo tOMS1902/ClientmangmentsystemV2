@@ -37,6 +37,7 @@ export interface Client {
   weekly_checkin_enabled?: boolean
   midweek_check_enabled?: boolean
   checkin_photos_enabled?: boolean
+  region?: 'EU' | 'US'
 }
 
 export interface NutritionTargets {
@@ -133,6 +134,7 @@ export interface Exercise {
   video_url: string | null
   notes: string | null
   sort_order: number
+  tracking_type?: 'weight' | 'bodyweight' | 'band' | 'time' | 'distance'
 }
 
 export interface SessionLog {
@@ -156,6 +158,10 @@ export interface SetEntry {
   set_number: number
   weight_kg: number | null
   reps_completed: number | null
+  band_colour?: string | null
+  duration_seconds?: number | null
+  distance_meters?: number | null
+  notes?: string | null
 }
 
 export interface Habit {
@@ -240,6 +246,17 @@ export interface CheckInPhoto {
   uploaded_by: 'client' | 'coach'
   created_at: string
   signed_url?: string  // generated on-demand, not stored in DB
+}
+
+export interface ClientNotification {
+  id: string
+  client_id: string
+  type: 'loom_feedback' | 'badge_awarded' | 'general'
+  title: string
+  body: string | null
+  link: string | null
+  is_read: boolean
+  created_at: string
 }
 
 export interface WeeklyLoomVideo {

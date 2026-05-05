@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { toKg, type WeightUnit } from '@/lib/units'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
@@ -14,6 +15,8 @@ export function AddClientModal() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [skipOnboarding, setSkipOnboarding] = useState(false)
+  const [region, setRegion] = useState<'EU' | 'US'>('EU')
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg')
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -22,19 +25,23 @@ export function AddClientModal() {
     setLoading(true)
     setError(null)
     const fd = new FormData(e.currentTarget)
+    const rawStart = parseFloat(fd.get('start_weight') as string)
+    const rawGoal = parseFloat(fd.get('goal_weight') as string)
     const body: Record<string, unknown> = {
       full_name: fd.get('full_name'),
       phone: fd.get('phone'),
       start_date: fd.get('start_date'),
-      start_weight: parseFloat(fd.get('start_weight') as string),
-      current_weight: parseFloat(fd.get('start_weight') as string),
-      goal_weight: parseFloat(fd.get('goal_weight') as string),
+      start_weight: toKg(rawStart, weightUnit),
+      current_weight: toKg(rawStart, weightUnit),
+      goal_weight: toKg(rawGoal, weightUnit),
       goal_text: fd.get('goal_text'),
       check_in_day: fd.get('check_in_day'),
       midweek_check_day: fd.get('midweek_check_day'),
       is_active: true,
       portal_access: false,
       skip_onboarding: skipOnboarding,
+      region,
+      weight_unit: weightUnit,
     }
     if (!skipOnboarding) {
       body.email = fd.get('email')
@@ -117,13 +124,48 @@ export function AddClientModal() {
                 <Input label="Start Date" name="start_date" type="date" required defaultValue={today} />
               </div>
 
+              {/* Region + Weight Unit */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-white/85 font-body">Region</label>
+                  <select
+                    value={region}
+                    onChange={e => {
+                      const r = e.target.value as 'EU' | 'US'
+                      setRegion(r)
+                      setWeightUnit(r === 'US' ? 'lbs' : 'kg')
+                    }}
+                    className="bg-navy-mid border border-white/20 text-white/85 px-3 py-2.5 text-sm focus:outline-none focus:border-gold transition-colors"
+                  >
+                    <option value="EU">🇪🇺 EU</option>
+                    <option value="US">🇺🇸 US</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm text-white/85 font-body">Weight Unit</label>
+                  <div className="flex">
+                    {(['kg', 'lbs'] as WeightUnit[]).map(u => (
+                      <button
+                        key={u}
+                        type="button"
+                        onClick={() => setWeightUnit(u)}
+                        className={`flex-1 py-2.5 text-sm border transition-colors ${weightUnit === u ? 'border-gold text-gold bg-gold/10' : 'border-white/20 text-white/50 hover:border-white/50'}`}
+                        style={{ fontFamily: 'var(--font-label)' }}
+                      >
+                        {u.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
               {!skipOnboarding && (
                 <Input label="Password" name="password" type="password" required placeholder="Set a login password" />
               )}
 
               <div className="grid grid-cols-2 gap-4">
-                <Input label="Start Weight (kg)" name="start_weight" type="number" step="0.1" required placeholder="80" />
-                <Input label="Goal Weight (kg)" name="goal_weight" type="number" step="0.1" required placeholder="72" />
+                <Input label={`Start Weight (${weightUnit})`} name="start_weight" type="number" step="0.1" required placeholder={weightUnit === 'lbs' ? '176' : '80'} />
+                <Input label={`Goal Weight (${weightUnit})`} name="goal_weight" type="number" step="0.1" required placeholder={weightUnit === 'lbs' ? '158' : '72'} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">

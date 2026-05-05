@@ -7,6 +7,7 @@ import { GoldRule } from '@/components/ui/GoldRule'
 import { Button } from '@/components/ui/Button'
 import { SessionLogger } from '@/components/client/SessionLogger'
 import type { Programme, ProgrammeDay, SessionLog } from '@/lib/types'
+import type { WeightUnit } from '@/lib/units'
 
 export default function ProgrammePage() {
   const [programmes, setProgrammes] = useState<Programme[]>([])
@@ -17,6 +18,7 @@ export default function ProgrammePage() {
   const [activeSessionLastLog, setActiveSessionLastLog] = useState<SessionLog | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   const [expandedLog, setExpandedLog] = useState<string | null>(null)
+  const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg')
 
   useEffect(() => {
     async function load() {
@@ -24,6 +26,7 @@ export default function ProgrammePage() {
         const clientRes = await fetch('/api/clients/me')
         if (!clientRes.ok) return
         const client = await clientRes.json()
+        if (client.weight_unit === 'lbs') setWeightUnit('lbs')
 
         const [progRes, logsRes] = await Promise.all([
           fetch(`/api/programme/${client.id}`),
@@ -58,7 +61,7 @@ export default function ProgrammePage() {
         >
           ← Back to programme
         </button>
-        <SessionLogger day={activeSession} lastSession={activeSessionLastLog} onComplete={() => { setActiveSession(null); setActiveSessionLastLog(null) }} />
+        <SessionLogger day={activeSession} lastSession={activeSessionLastLog} weightUnit={weightUnit} onComplete={() => { setActiveSession(null); setActiveSessionLastLog(null) }} />
       </div>
     )
   }

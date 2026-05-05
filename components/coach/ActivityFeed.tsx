@@ -66,7 +66,10 @@ export function ActivityFeed() {
   const fetchActivity = useCallback(async () => {
     try {
       const res = await fetch('/api/coach/activity')
-      if (res.ok) setItems(await res.json())
+      if (res.ok) {
+        const data = await res.json()
+        setItems(Array.isArray(data) ? data : (data.items ?? []))
+      }
     } catch { /* ignore */ }
     setLoading(false)
   }, [])

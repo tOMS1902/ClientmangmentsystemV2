@@ -13,6 +13,7 @@ import { MealPlanBuilder } from '@/components/coach/MealPlanBuilder'
 import { HabitManager } from '@/components/coach/HabitManager'
 import { SupplementsEditor } from '@/components/coach/SupplementsEditor'
 import { MessagingTab } from '@/components/coach/MessagingTab'
+import { EditClientModal } from '@/components/coach/EditClientModal'
 import { PhotosTab } from '@/components/client/tabs/PhotosTab'
 import { AITab } from '@/components/coach/AITab'
 import { ClientPortalManager } from '@/components/coach/ClientPortalManager'
@@ -252,8 +253,9 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
 
   return (
     <div>
-      {/* Loom Sent toggle */}
+      {/* Client header actions */}
       <div className="flex items-center gap-3 mb-6">
+        <EditClientModal client={client} />
         <span className="text-xs text-grey-muted" style={{ fontFamily: 'var(--font-label)' }}>LOOM</span>
         <button
           type="button"

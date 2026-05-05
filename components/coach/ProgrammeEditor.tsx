@@ -25,11 +25,20 @@ interface ExerciseFormData {
   rest_seconds: string
   video_url: string
   notes: string
+  tracking_type: 'weight' | 'bodyweight' | 'band' | 'time' | 'distance'
 }
 
 const emptyExerciseForm: ExerciseFormData = {
-  name: '', sets: '', reps: '', rest_seconds: '', video_url: '', notes: '',
+  name: '', sets: '', reps: '', rest_seconds: '', video_url: '', notes: '', tracking_type: 'weight',
 }
+
+const TRACKING_OPTIONS: { value: ExerciseFormData['tracking_type']; label: string }[] = [
+  { value: 'weight', label: 'Weight + Reps' },
+  { value: 'bodyweight', label: 'Bodyweight (Reps)' },
+  { value: 'band', label: 'Band + Reps' },
+  { value: 'time', label: 'Time / Duration' },
+  { value: 'distance', label: 'Distance' },
+]
 
 function makeTempId() {
   return `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
@@ -134,6 +143,7 @@ export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeight
         rest_seconds: exerciseForm.rest_seconds ? parseInt(exerciseForm.rest_seconds) : null,
         video_url: exerciseForm.video_url || null,
         notes: exerciseForm.notes || null,
+        tracking_type: exerciseForm.tracking_type,
         sort_order: (plan.days.find(d => d.id === dayId)?.exercises.length || 0) + 1,
       }
       return {
@@ -155,7 +165,7 @@ export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeight
   }
 
   // Client has asked for inline editing of exercise fields (sets, reps, rest, name, notes)
-  function updateExercise(planId: string, dayId: string, exerciseId: string, field: 'name' | 'sets' | 'reps' | 'rest_seconds' | 'notes' | 'video_url', value: string) {
+  function updateExercise(planId: string, dayId: string, exerciseId: string, field: 'name' | 'sets' | 'reps' | 'rest_seconds' | 'notes' | 'video_url' | 'tracking_type', value: string) {
     updatePlan(planId, plan => ({
       ...plan,
       days: plan.days.map(d =>
@@ -188,7 +198,7 @@ export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeight
     const dayPayload = plan.days.map(d => ({
       day_label: d.day_label,
       exercises: d.exercises.map(e => ({
-        name: e.name, sets: e.sets, reps: e.reps, rest_seconds: e.rest_seconds, video_url: e.video_url, notes: e.notes,
+        name: e.name, sets: e.sets, reps: e.reps, rest_seconds: e.rest_seconds, video_url: e.video_url, notes: e.notes, tracking_type: e.tracking_type ?? 'weight',
       })),
     }))
 
@@ -524,6 +534,7 @@ export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeight
                             <th className="text-left py-2 font-normal w-16">Sets</th>
                             <th className="text-left py-2 font-normal w-20">Reps</th>
                             <th className="text-left py-2 font-normal w-20">Rest</th>
+                            <th className="text-left py-2 font-normal w-28">Tracking</th>
                             <th className="text-left py-2 font-normal">Notes</th>
                             <th className="text-left py-2 font-normal w-32">Video URL</th>
                             <th className="text-left py-2 font-normal w-24">Last Weight</th>
@@ -561,6 +572,15 @@ export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeight
                                   placeholder="—"
                                   className="bg-transparent text-white/85 text-sm w-16 focus:outline-none focus:border-b focus:border-gold/60 border-b border-transparent placeholder:text-white/30"
                                 />
+                              </td>
+                              <td className="py-1.5 w-28">
+                                <select
+                                  value={exercise.tracking_type ?? 'weight'}
+                                  onChange={e => updateExercise(plan.id, day.id, exercise.id, 'tracking_type', e.target.value)}
+                                  className="bg-transparent text-white/70 text-xs focus:outline-none border-b border-transparent focus:border-gold/60 w-full"
+                                >
+                                  {TRACKING_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                                </select>
                               </td>
                               <td className="py-1.5">
                                 <input
@@ -614,7 +634,16 @@ export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeight
                           <Input placeholder="Reps" value={exerciseForm.reps} onChange={e => setExerciseForm(f => ({ ...f, reps: e.target.value }))} />
                           <Input placeholder="Rest (s)" value={exerciseForm.rest_seconds} onChange={e => setExerciseForm(f => ({ ...f, rest_seconds: e.target.value }))} />
                           <Input placeholder="Notes" value={exerciseForm.notes} onChange={e => setExerciseForm(f => ({ ...f, notes: e.target.value }))} />
-                          <div className="col-span-2 sm:col-span-6">
+                          <div className="col-span-2 sm:col-span-3">
+                            <select
+                              value={exerciseForm.tracking_type}
+                              onChange={e => setExerciseForm(f => ({ ...f, tracking_type: e.target.value as ExerciseFormData['tracking_type'] }))}
+                              className="w-full bg-navy-mid border border-white/20 text-white/85 px-3 py-2.5 text-sm focus:outline-none focus:border-gold transition-colors"
+                            >
+                              {TRACKING_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
+                          </div>
+                          <div className="col-span-2 sm:col-span-3">
                             <Input placeholder="Video URL (optional)" value={exerciseForm.video_url} onChange={e => setExerciseForm(f => ({ ...f, video_url: e.target.value }))} />
                           </div>
                           <div className="col-span-2 sm:col-span-6 flex gap-2">

@@ -25,6 +25,7 @@ export function ClientCard({ client, weekNumber, midweekSubmitted, weeklySubmitt
           style={{ fontFamily: 'var(--font-display)' }}
         >
           {client.full_name}
+          <span className="text-xs text-grey-muted ml-2">{client.region === 'US' ? '🇺🇸' : '🇪🇺'}</span>
         </h3>
         <div className="flex gap-3 text-xs flex-wrap">
           {client.user_id !== null && (
@@ -32,9 +33,6 @@ export function ClientCard({ client, weekNumber, midweekSubmitted, weeklySubmitt
               {legalOnboardingComplete ? '✓ Legal' : '✗ Legal'}
             </span>
           )}
-          <span className={midweekSubmitted ? 'text-green-400' : 'text-amber-400'}>
-            {midweekSubmitted ? '✓ Midweek' : '— Midweek'}
-          </span>
           <span className={weeklySubmitted ? 'text-green-400' : 'text-grey-muted'}>
             {weeklySubmitted ? '✓ Weekly' : '— Weekly'}
           </span>
