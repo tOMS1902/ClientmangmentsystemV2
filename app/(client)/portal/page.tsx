@@ -200,9 +200,9 @@ export default async function PortalHomePage() {
       )}
 
       {/* Latest weekly Loom video from coach */}
-      {loomVideo && (
+      {Array.isArray(loomVideo) && loomVideo[0] && (
         <div className="mb-6">
-          <LoomVideoCard loomUrl={loomVideo.loom_url} weekNumber={loomVideo.week_number} />
+          <LoomVideoCard loomUrl={loomVideo[0].loom_url} weekNumber={loomVideo[0].week_number} />
         </div>
       )}
 
