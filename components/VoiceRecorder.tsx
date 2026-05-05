@@ -41,11 +41,19 @@ export function VoiceRecorder({ clientId, weekNumber, type, onComplete, onDiscar
     setError('')
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm')
-        ? 'audio/webm'
-        : 'audio/mp4'
 
-      const recorder = new MediaRecorder(stream, { mimeType })
+      // Pick the best supported mime type; fall back to letting the browser decide
+      const candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4;codecs=mp4a.40.2', 'audio/mp4']
+      const mimeType = candidates.find(t => MediaRecorder.isTypeSupported(t)) ?? ''
+
+      let recorder: MediaRecorder
+      try {
+        recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
+      } catch {
+        // Construction with explicit mimeType failed — let browser pick
+        recorder = new MediaRecorder(stream)
+      }
+
       mediaRecorderRef.current = recorder
       chunksRef.current = []
 
@@ -55,7 +63,9 @@ export function VoiceRecorder({ clientId, weekNumber, type, onComplete, onDiscar
 
       recorder.onstop = () => {
         stream.getTracks().forEach(t => t.stop())
-        const recorded = new Blob(chunksRef.current, { type: mimeType })
+        // Use the recorder's actual mimeType in case it differs from what we requested
+        const actualType = recorder.mimeType || mimeType || 'audio/webm'
+        const recorded = new Blob(chunksRef.current, { type: actualType })
         setBlob(recorded)
         const url = URL.createObjectURL(recorded)
         setPreviewUrl(url)
@@ -66,8 +76,14 @@ export function VoiceRecorder({ clientId, weekNumber, type, onComplete, onDiscar
       setState('recording')
       setElapsed(0)
       timerRef.current = setInterval(() => setElapsed(s => s + 1), 1000)
-    } catch {
-      setError('Microphone access denied. Please allow microphone access and try again.')
+    } catch (err) {
+      const isPermissionDenied = err instanceof DOMException &&
+        (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')
+      setError(
+        isPermissionDenied
+          ? 'Microphone access denied. Please allow microphone access and try again.'
+          : 'Could not start recording. Please try a different browser or device.'
+      )
     }
   }
 
@@ -97,13 +113,14 @@ export function VoiceRecorder({ clientId, weekNumber, type, onComplete, onDiscar
 
     try {
       const ext = blob.type.includes('mp4') ? 'mp4' : 'webm'
+      const contentType = blob.type || (ext === 'mp4' ? 'audio/mp4' : 'audio/webm')
       const path = `${clientId}/${type}/${weekNumber}.${ext}`
 
       const supabase = createClientSupabaseClient()
 
       const { error: uploadError } = await supabase.storage
         .from('voice-notes')
-        .upload(path, blob, { upsert: true, contentType: blob.type })
+        .upload(path, blob, { upsert: true, contentType })
 
       if (uploadError) throw uploadError
 
