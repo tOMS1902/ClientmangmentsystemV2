@@ -63,9 +63,16 @@ export function VoiceRecorder({ clientId, weekNumber, type, onComplete, onDiscar
 
       recorder.onstop = () => {
         stream.getTracks().forEach(t => t.stop())
-        // Use the recorder's actual mimeType in case it differs from what we requested
-        const actualType = recorder.mimeType || mimeType || 'audio/webm'
+        // Strip codec qualifiers (e.g. audio/mp4;codecs=mp4a.40.2 → audio/mp4)
+        // so the <audio> element can load the blob on iOS Safari
+        const rawType = recorder.mimeType || mimeType || 'audio/webm'
+        const actualType = rawType.split(';')[0]
         const recorded = new Blob(chunksRef.current, { type: actualType })
+        if (recorded.size === 0) {
+          setError('Recording was empty. Please try again.')
+          setState('idle')
+          return
+        }
         setBlob(recorded)
         const url = URL.createObjectURL(recorded)
         setPreviewUrl(url)
@@ -92,6 +99,8 @@ export function VoiceRecorder({ clientId, weekNumber, type, onComplete, onDiscar
       clearInterval(timerRef.current)
       timerRef.current = null
     }
+    // requestData flushes any buffered audio before stop — needed on some iOS versions
+    mediaRecorderRef.current?.requestData()
     mediaRecorderRef.current?.stop()
   }
 
@@ -113,7 +122,7 @@ export function VoiceRecorder({ clientId, weekNumber, type, onComplete, onDiscar
 
     try {
       const ext = blob.type.includes('mp4') ? 'mp4' : 'webm'
-      const contentType = blob.type || (ext === 'mp4' ? 'audio/mp4' : 'audio/webm')
+      const contentType = (blob.type || (ext === 'mp4' ? 'audio/mp4' : 'audio/webm')).split(';')[0]
       const path = `${clientId}/${type}/${weekNumber}.${ext}`
 
       const supabase = createClientSupabaseClient()
