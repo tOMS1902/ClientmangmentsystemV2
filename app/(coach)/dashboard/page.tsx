@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { ClientCard } from '@/components/coach/ClientCard'
 import { GlobalAIChat } from '@/components/coach/GlobalAIChat'
 import { ActivityFeed } from '@/components/coach/ActivityFeed'
