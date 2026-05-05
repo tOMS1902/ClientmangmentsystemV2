@@ -128,7 +128,8 @@ export function VoiceRecorder({ clientId, weekNumber, type, onComplete, onDiscar
       setState('done')
       onComplete(data.publicUrl)
     } catch (err) {
-      setError('Upload failed. Please try again.')
+      const detail = err instanceof Error ? err.message : JSON.stringify(err)
+      setError(`Upload failed: ${detail}`)
       setState('recorded')
       console.error('[VoiceRecorder] upload error:', err)
     }
