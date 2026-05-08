@@ -383,19 +383,14 @@ export default async function ClientReportPage({
         ) : (
           /* Genetics 3-metric block */
           <>
-            {[
-              { label: 'Total Insights', value: insights.length, color: GO },
-              {
-                label: 'High Priority',
-                value: insights.filter(i => i.priority === 'high').length,
-                color: RD,
-              },
-              {
-                label: 'Categories',
-                value: new Set(insights.map(i => i.category)).size,
-                color: AM,
-              },
-            ].map(card => (
+            {(() => {
+              const catNotes = Object.values(report.genetic_data?.category_notes ?? {}).filter(Boolean)
+              return [
+                { label: 'Top Priorities', value: report.genetic_data?.top_priorities?.length ?? 0, color: GO },
+                { label: 'High Priority Areas', value: catNotes.filter(n => n!.priority === 'high').length, color: RD },
+                { label: 'Categories Covered', value: catNotes.length, color: AM },
+              ]
+            })().map(card => (
               <div
                 key={card.label}
                 style={{

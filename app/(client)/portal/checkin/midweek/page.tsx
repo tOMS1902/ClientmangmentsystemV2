@@ -86,7 +86,6 @@ export default function MidweekCheckPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [submitError, setSubmitError] = useState('')
-  const [midweekDay, setMidweekDay] = useState<string | null>(null)
 
   const [midweekEnabled, setMidweekEnabled] = useState(true)
   const [unit, setUnit] = useState<WeightUnit>('kg')
@@ -115,7 +114,6 @@ export default function MidweekCheckPage() {
         if (meRes.ok) {
           const me = await meRes.json()
           setMidweekEnabled(me.midweek_check_enabled !== false)
-          setMidweekDay(me.midweek_check_day || 'Wednesday')
           setUnit(me.weight_unit === 'lbs' ? 'lbs' : 'kg')
           setClientId(me.id || null)
         }
@@ -178,20 +176,6 @@ export default function MidweekCheckPage() {
 
   if (loading) return <div className="text-grey-muted">Loading...</div>
   if (!midweekEnabled) return null
-
-  const todayName = new Date().toLocaleDateString('en-IE', { weekday: 'long' })
-  if (midweekDay && todayName !== midweekDay) {
-    return (
-      <div className="max-w-xl">
-        <Eyebrow>Midweek Check</Eyebrow>
-        <GoldRule />
-        <div className="mt-6 bg-navy-card border border-white/10 p-6 text-center">
-          <p className="text-white/85 text-sm mb-1">Midweek check day is <span className="text-gold">{midweekDay}</span>.</p>
-          <p className="text-grey-muted text-sm">Come back on {midweekDay} to submit your midweek check.</p>
-        </div>
-      </div>
-    )
-  }
 
   if (thisWeekCheck || submitted) {
     const check = thisWeekCheck || checks[0]
