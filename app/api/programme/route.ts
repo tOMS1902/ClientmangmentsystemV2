@@ -46,13 +46,15 @@ export async function POST(request: Request) {
 
     if (day.exercises?.length) {
       const { error: exerciseError } = await supabase.from('exercises').insert(
-        day.exercises.map((ex: { name: string; sets: number; reps: string; rest_seconds?: number | null; video_url?: string | null; notes?: string | null }, j: number) => ({
+        day.exercises.map((ex: { name: string; sets: number; reps: string; rest_seconds?: number | null; video_url?: string | null; notes?: string | null; tracking_type?: string }, j: number) => ({
           day_id: progDay.id,
           name: ex.name,
           sets: ex.sets,
           reps: ex.reps,
           rest_seconds: ex.rest_seconds,
+          video_url: ex.video_url ?? null,
           notes: ex.notes,
+          tracking_type: ex.tracking_type ?? 'weight',
           sort_order: j + 1,
         }))
       )

@@ -30,14 +30,5 @@ export async function POST(request: Request) {
 
   if (insertError) return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
 
-  // Also mark training_done = true in today's daily log
-  const today = new Date().toISOString().split('T')[0]
-  await supabase
-    .from('daily_logs')
-    .upsert(
-      { client_id: clientRecord.id, log_date: today, training_done: true },
-      { onConflict: 'client_id,log_date' }
-    )
-
   return NextResponse.json(sessionLog, { status: 201 })
 }
