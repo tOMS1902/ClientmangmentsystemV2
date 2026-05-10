@@ -62,5 +62,11 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json(programme, { status: 201 })
+  const { data: full } = await supabase
+    .from('programmes')
+    .select('*, days:programme_days(*, exercises(*))')
+    .eq('id', programme.id)
+    .single()
+
+  return NextResponse.json(full ?? programme, { status: 201 })
 }

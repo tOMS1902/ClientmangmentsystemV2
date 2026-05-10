@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Trash2, ChevronDown, ChevronRight, Plus, Copy, Check, Video } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -45,7 +44,6 @@ function makeTempId() {
 }
 
 export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeights = {} }: ProgrammeEditorProps) {
-  const router = useRouter()
   const [plans, setPlans] = useState<Programme[]>(initialProgrammes)
   const [saving, setSaving] = useState<Record<string, boolean>>({})
   const [messages, setMessages] = useState<Record<string, string>>({})
@@ -215,7 +213,7 @@ export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeight
       const data = await res.json()
       if (res.ok) {
         if (isNew) {
-          setPlans(prev => prev.map(p => p.id === planId ? { ...p, id: data.id } : p))
+          setPlans(prev => prev.map(p => p.id === planId ? data : p))
           setSaving(prev => { const n = { ...prev }; delete n[planId]; return n })
           setMessages(prev => { const n = { ...prev }; delete n[planId]; n[data.id] = 'Saved.'; return n })
           setTimeout(() => setMessages(prev => { const n = { ...prev }; delete n[data.id]; return n }), 3000)
@@ -224,7 +222,6 @@ export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeight
           setMessages(prev => ({ ...prev, [planId]: 'Saved.' }))
           setTimeout(() => setMessages(prev => ({ ...prev, [planId]: '' })), 3000)
         }
-        router.refresh()
       } else {
         setSaving(prev => ({ ...prev, [planId]: false }))
         setMessages(prev => ({ ...prev, [planId]: `Error: ${data.error || 'Failed to save.'}` }))
