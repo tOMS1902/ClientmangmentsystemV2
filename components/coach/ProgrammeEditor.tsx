@@ -218,6 +218,7 @@ export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeight
           setMessages(prev => { const n = { ...prev }; delete n[planId]; n[data.id] = 'Saved.'; return n })
           setTimeout(() => setMessages(prev => { const n = { ...prev }; delete n[data.id]; return n }), 3000)
         } else {
+          if (data) setPlans(prev => prev.map(p => p.id === planId ? data : p))
           setSaving(prev => ({ ...prev, [planId]: false }))
           setMessages(prev => ({ ...prev, [planId]: 'Saved.' }))
           setTimeout(() => setMessages(prev => ({ ...prev, [planId]: '' })), 3000)

@@ -49,7 +49,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ cl
 
     for (let i = 0; i < days.length; i++) {
       const day = days[i]
-      const { data: progDay } = await supabase
+      const { data: progDay, error: dayError } = await supabase
         .from('programme_days')
         .insert({
           programme_id: programmeId,
@@ -60,8 +60,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ cl
         .select()
         .single()
 
-      if (progDay && day.exercises?.length) {
-        await supabase.from('exercises').insert(
+      if (dayError || !progDay) {
+        return NextResponse.json({ error: dayError?.message || 'Failed to create day' }, { status: 500 })
+      }
+
+      if (day.exercises?.length) {
+        const { error: exError } = await supabase.from('exercises').insert(
           day.exercises.map((ex: { name: string; sets: number; reps: string; rest_seconds: number | null; video_url?: string | null; notes: string | null; tracking_type?: string }, j: number) => ({
             day_id: progDay.id,
             name: ex.name,
@@ -74,6 +78,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ cl
             sort_order: j + 1,
           }))
         )
+        if (exError) {
+          return NextResponse.json({ error: exError.message }, { status: 500 })
+        }
       }
     }
   }
