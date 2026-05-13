@@ -18,6 +18,24 @@ interface SessionLoggerProps {
 const BAND_COLOURS = ['Yellow', 'Red', 'Green', 'Blue', 'Black', 'Purple', 'Orange']
 
 export function SessionLogger({ day, lastSession, weightUnit = 'kg', onComplete }: SessionLoggerProps) {
+  // Display values stored as strings to avoid round-trip kg↔lbs conversion artifacts
+  // Key format: "exerciseIdx-setIdx-field"
+  const [displayValues, setDisplayValues] = useState<Record<string, string>>(() => {
+    const vals: Record<string, string> = {}
+    day.exercises.forEach((ex, ei) => {
+      const lastEntry = lastSession?.exercises_logged.find(e => e.exercise_id === ex.id)
+      Array.from({ length: ex.sets }, (_, i) => {
+        const lastSet = lastEntry?.sets.find(s => s.set_number === i + 1)
+        if (lastSet?.weight_kg != null) vals[`${ei}-${i}-weight`] = String(displayWeight(lastSet.weight_kg, weightUnit))
+        if (lastSet?.reps_completed != null) vals[`${ei}-${i}-reps`] = String(lastSet.reps_completed)
+        if (lastSet?.band_colour) vals[`${ei}-${i}-band`] = lastSet.band_colour
+        if (lastSet?.duration_seconds != null) vals[`${ei}-${i}-duration`] = String(lastSet.duration_seconds)
+        if (lastSet?.distance_meters != null) vals[`${ei}-${i}-distance`] = String(lastSet.distance_meters)
+      })
+    })
+    return vals
+  })
+
   const [entries, setEntries] = useState<ExerciseLogEntry[]>(
     day.exercises.map(ex => {
       const lastEntry = lastSession?.exercises_logged.find(e => e.exercise_id === ex.id)
@@ -41,7 +59,20 @@ export function SessionLogger({ day, lastSession, weightUnit = 'kg', onComplete 
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
 
+  function dKey(exerciseIdx: number, setIdx: number, field: string) {
+    return `${exerciseIdx}-${setIdx}-${field}`
+  }
+
+  function handleFocus(e: React.FocusEvent<HTMLInputElement>) {
+    e.target.select()
+  }
+
   function updateSet(exerciseIdx: number, setIdx: number, field: string, value: string) {
+    // Update display string directly — no round-trip conversion
+    const df = field === 'weight_kg' ? 'weight' : field === 'reps_completed' ? 'reps' : field === 'duration_seconds' ? 'duration' : field === 'distance_meters' ? 'distance' : field === 'band_colour' ? 'band' : field
+    setDisplayValues(prev => ({ ...prev, [dKey(exerciseIdx, setIdx, df)]: value }))
+
+    // Update stored numeric value for save
     setEntries(prev => prev.map((entry, ei) =>
       ei !== exerciseIdx ? entry : {
         ...entry,
@@ -59,19 +90,24 @@ export function SessionLogger({ day, lastSession, weightUnit = 'kg', onComplete 
   }
 
   function addSet(exerciseIdx: number) {
-    setEntries(prev => prev.map((entry, ei) =>
-      ei !== exerciseIdx ? entry : {
-        ...entry,
-        sets: [...entry.sets, {
-          set_number: entry.sets.length + 1,
-          weight_kg: null,
-          reps_completed: null,
-          band_colour: null,
-          duration_seconds: null,
-          distance_meters: null,
-        }],
-      }
-    ))
+    setEntries(prev => {
+      const entry = prev[exerciseIdx]
+      const newSetIdx = entry ? entry.sets.length : 0
+      // No display values to init — new set starts empty
+      return prev.map((e, ei) =>
+        ei !== exerciseIdx ? e : {
+          ...e,
+          sets: [...e.sets, {
+            set_number: newSetIdx + 1,
+            weight_kg: null,
+            reps_completed: null,
+            band_colour: null,
+            duration_seconds: null,
+            distance_meters: null,
+          }],
+        }
+      )
+    })
   }
 
   async function handleComplete() {
@@ -179,8 +215,9 @@ export function SessionLogger({ day, lastSession, weightUnit = 'kg', onComplete 
                         <span className="text-sm text-grey-muted">{set.set_number}</span>
                         <input
                           type="number" placeholder="0"
-                          value={set.reps_completed ?? ''}
+                          value={displayValues[dKey(exerciseIdx, setIdx, 'reps')] ?? ''}
                           onChange={e => updateSet(exerciseIdx, setIdx, 'reps_completed', e.target.value)}
+                          onFocus={handleFocus}
                           className="bg-navy-deep border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold w-full"
                         />
                         {hasLast && <span className="text-xs text-gold/70">{lastSet?.reps_completed != null ? `${lastSet.reps_completed} reps` : '—'}</span>}
@@ -193,7 +230,7 @@ export function SessionLogger({ day, lastSession, weightUnit = 'kg', onComplete 
                       <div key={setIdx} className={`grid gap-2 items-center ${hasLast ? 'grid-cols-4' : 'grid-cols-3'}`}>
                         <span className="text-sm text-grey-muted">{set.set_number}</span>
                         <select
-                          value={set.band_colour ?? ''}
+                          value={displayValues[dKey(exerciseIdx, setIdx, 'band')] ?? ''}
                           onChange={e => updateSet(exerciseIdx, setIdx, 'band_colour', e.target.value)}
                           className="bg-navy-deep border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold w-full"
                         >
@@ -202,8 +239,9 @@ export function SessionLogger({ day, lastSession, weightUnit = 'kg', onComplete 
                         </select>
                         <input
                           type="number" placeholder="0"
-                          value={set.reps_completed ?? ''}
+                          value={displayValues[dKey(exerciseIdx, setIdx, 'reps')] ?? ''}
                           onChange={e => updateSet(exerciseIdx, setIdx, 'reps_completed', e.target.value)}
+                          onFocus={handleFocus}
                           className="bg-navy-deep border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold w-full"
                         />
                         {hasLast && (
@@ -221,8 +259,9 @@ export function SessionLogger({ day, lastSession, weightUnit = 'kg', onComplete 
                         <span className="text-sm text-grey-muted">{set.set_number}</span>
                         <input
                           type="number" placeholder="0"
-                          value={set.duration_seconds ?? ''}
+                          value={displayValues[dKey(exerciseIdx, setIdx, 'duration')] ?? ''}
                           onChange={e => updateSet(exerciseIdx, setIdx, 'duration_seconds', e.target.value)}
+                          onFocus={handleFocus}
                           className="bg-navy-deep border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold w-full"
                         />
                         {hasLast && <span className="text-xs text-gold/70">{lastSet?.duration_seconds != null ? `${lastSet.duration_seconds}s` : '—'}</span>}
@@ -236,8 +275,9 @@ export function SessionLogger({ day, lastSession, weightUnit = 'kg', onComplete 
                         <span className="text-sm text-grey-muted">{set.set_number}</span>
                         <input
                           type="number" placeholder="0"
-                          value={set.distance_meters ?? ''}
+                          value={displayValues[dKey(exerciseIdx, setIdx, 'distance')] ?? ''}
                           onChange={e => updateSet(exerciseIdx, setIdx, 'distance_meters', e.target.value)}
+                          onFocus={handleFocus}
                           className="bg-navy-deep border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold w-full"
                         />
                         {hasLast && <span className="text-xs text-gold/70">{lastSet?.distance_meters != null ? `${lastSet.distance_meters}m` : '—'}</span>}
@@ -251,14 +291,16 @@ export function SessionLogger({ day, lastSession, weightUnit = 'kg', onComplete 
                       <span className="text-sm text-grey-muted">{set.set_number}</span>
                       <input
                         type="number" step="0.5" placeholder="0"
-                        value={set.weight_kg != null ? displayWeight(set.weight_kg, weightUnit) : ''}
+                        value={displayValues[dKey(exerciseIdx, setIdx, 'weight')] ?? ''}
                         onChange={e => updateSet(exerciseIdx, setIdx, 'weight_kg', e.target.value)}
+                        onFocus={handleFocus}
                         className="bg-navy-deep border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold w-full"
                       />
                       <input
                         type="number" placeholder="0"
-                        value={set.reps_completed ?? ''}
+                        value={displayValues[dKey(exerciseIdx, setIdx, 'reps')] ?? ''}
                         onChange={e => updateSet(exerciseIdx, setIdx, 'reps_completed', e.target.value)}
+                        onFocus={handleFocus}
                         className="bg-navy-deep border border-white/20 text-white/85 px-2 py-1.5 text-sm focus:outline-none focus:border-gold w-full"
                       />
                       {hasLast && (
