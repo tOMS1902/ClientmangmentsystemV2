@@ -5,7 +5,7 @@ export function kgToLbs(kg: number): number {
 }
 
 export function lbsToKg(lbs: number): number {
-  return Math.round((lbs / 2.20462) * 10) / 10
+  return lbs / 2.20462
 }
 
 /** Convert a stored kg value for display */

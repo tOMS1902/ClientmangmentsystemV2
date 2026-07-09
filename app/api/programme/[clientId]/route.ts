@@ -72,7 +72,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ cl
             sets: ex.sets,
             reps: ex.reps,
             rest_seconds: ex.rest_seconds,
-            video_url: ex.video_url ?? null,
+            video_url: ex.video_url || null,
             notes: ex.notes,
             tracking_type: ex.tracking_type ?? 'weight',
             sort_order: j + 1,

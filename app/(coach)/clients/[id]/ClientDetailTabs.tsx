@@ -175,6 +175,15 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
   const [savingWeights, setSavingWeights] = useState(false)
   const [weightMsg, setWeightMsg] = useState('')
 
+  // Next Call state
+  const [nextCallAt, setNextCallAt] = useState(
+    client.next_call_at ? new Date(client.next_call_at).toISOString().slice(0, 16) : ''
+  )
+  const [nextCallLink, setNextCallLink] = useState(client.next_call_link ?? '')
+  const [nextCallNotes, setNextCallNotes] = useState(client.next_call_notes ?? '')
+  const [savingNextCall, setSavingNextCall] = useState(false)
+  const [nextCallMsg, setNextCallMsg] = useState('')
+
   // Profile edit state
   const [editingProfile, setEditingProfile] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
@@ -234,6 +243,28 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
     setSavingWeights(false)
   }
 
+  async function saveNextCall() {
+    setSavingNextCall(true)
+    setNextCallMsg('')
+    const res = await fetch(`/api/clients/${client.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        next_call_at: nextCallAt ? new Date(nextCallAt).toISOString() : null,
+        next_call_link: nextCallLink || null,
+        next_call_notes: nextCallNotes || null,
+      }),
+    })
+    if (res.ok) {
+      setNextCallMsg('Saved')
+      setTimeout(() => setNextCallMsg(''), 2000)
+    } else {
+      const err = await res.json().catch(() => ({}))
+      setNextCallMsg(err.error || 'Failed to save')
+    }
+    setSavingNextCall(false)
+  }
+
   // Progress uses raw kg from DB for consistency
   const startKg = client.start_weight || 0
   const goalKg = client.goal_weight || 0
@@ -254,8 +285,15 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
   return (
     <div>
       {/* Client header actions */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
         <EditClientModal client={client} />
+        <Link
+          href={`/clients/${client.id}/preview`}
+          className="text-xs text-grey-muted border border-white/20 px-3 py-1.5 hover:border-white/50 hover:text-white transition-colors"
+          style={{ fontFamily: 'var(--font-label)' }}
+        >
+          View as Client
+        </Link>
         <span className="text-xs text-grey-muted" style={{ fontFamily: 'var(--font-label)' }}>LOOM</span>
         <button
           type="button"
@@ -425,6 +463,51 @@ function OverviewTab({ client, checkins, weekNumber }: Pick<ClientDetailTabsProp
             {profileMsg && <p className="text-xs text-grey-muted">{profileMsg}</p>}
           </div>
         )}
+      </div>
+
+      {/* Next Call */}
+      <div className="bg-navy-card border border-white/8 p-6 mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <Eyebrow>Next Call</Eyebrow>
+        </div>
+        <GoldRule />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 text-sm">
+          <div>
+            <p className="text-grey-muted mb-1">Date &amp; Time</p>
+            <input
+              type="datetime-local"
+              value={nextCallAt}
+              onChange={e => setNextCallAt(e.target.value)}
+              className="w-full bg-navy-deep border border-white/20 text-white p-2 text-sm focus:outline-none focus:border-gold"
+            />
+          </div>
+          <div>
+            <p className="text-grey-muted mb-1">Meeting Link</p>
+            <input
+              type="text"
+              value={nextCallLink}
+              onChange={e => setNextCallLink(e.target.value)}
+              placeholder="https://zoom.us/j/..."
+              className="w-full bg-navy-deep border border-white/20 text-white p-2 text-sm focus:outline-none focus:border-gold"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <p className="text-grey-muted mb-1">Notes</p>
+            <textarea
+              value={nextCallNotes}
+              onChange={e => setNextCallNotes(e.target.value)}
+              rows={2}
+              placeholder="e.g. Discuss nutrition plan adjustment"
+              className="w-full bg-navy-deep border border-white/20 text-white p-2 text-sm focus:outline-none focus:border-gold resize-none"
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-3 mt-3">
+          <Button size="sm" variant="primary" onClick={saveNextCall} disabled={savingNextCall}>
+            {savingNextCall ? 'Saving...' : 'Save'}
+          </Button>
+          {nextCallMsg && <span className={`text-xs ${nextCallMsg === 'Saved' ? 'text-grey-muted' : 'text-red-400'}`}>{nextCallMsg}</span>}
+        </div>
       </div>
 
       {latestCheckin && (

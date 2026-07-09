@@ -13,6 +13,7 @@ import { BadgeWall } from '@/components/client/portal/BadgeWall'
 import { GoalCountdown } from '@/components/client/portal/GoalCountdown'
 import { FloatingMessageButton } from '@/components/client/portal/FloatingMessageButton'
 import { WelcomeVideo } from '@/components/client/portal/WelcomeVideo'
+import { NextCallWidget } from '@/components/client/portal/NextCallWidget'
 
 
 function getGreeting(name: string): string {
@@ -204,6 +205,15 @@ export default async function PortalHomePage() {
         <div className="mb-6">
           <LoomVideoCard loomUrl={loomVideo[0].loom_url} weekNumber={loomVideo[0].week_number} />
         </div>
+      )}
+
+      {/* Next Call widget */}
+      {clientRecord.next_call_at && (
+        <NextCallWidget
+          nextCallAt={clientRecord.next_call_at}
+          nextCallLink={clientRecord.next_call_link}
+          nextCallNotes={clientRecord.next_call_notes}
+        />
       )}
 
       {/* Midweek check widget — submitted summary */}

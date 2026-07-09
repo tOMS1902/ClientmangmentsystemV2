@@ -38,6 +38,17 @@ export interface Client {
   midweek_check_enabled?: boolean
   checkin_photos_enabled?: boolean
   region?: 'EU' | 'US'
+  next_call_at?: string | null
+  next_call_link?: string | null
+  next_call_notes?: string | null
+}
+
+export interface ExerciseVideo {
+  id: string
+  coach_id: string
+  title: string
+  url: string
+  created_at: string
 }
 
 export interface NutritionTargets {

@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import { Trash2, ChevronDown, ChevronRight, Plus, Copy, Check, Video } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { Trash2, ChevronDown, ChevronRight, Plus, Copy, Check, Video, BookOpen, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import type { Programme, ProgrammeDay, Exercise } from '@/lib/types'
+import type { Programme, ProgrammeDay, Exercise, ExerciseVideo } from '@/lib/types'
 
 interface ProgrammeEditorProps {
   clientId: string
@@ -57,6 +57,51 @@ export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeight
   const [sessionInputs, setSessionInputs] = useState<Record<string, SessionInput>>({})
   const [savingSession, setSavingSession] = useState(false)
   const [sessionMsg, setSessionMsg] = useState('')
+
+  // Video library
+  const [videoLibrary, setVideoLibrary] = useState<ExerciseVideo[]>([])
+  const [libraryLoaded, setLibraryLoaded] = useState(false)
+  const [libraryOpen, setLibraryOpen] = useState<string | null>(null) // exercise id
+  const [savingToLibrary, setSavingToLibrary] = useState(false)
+  const libraryRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (libraryRef.current && !libraryRef.current.contains(e.target as Node)) {
+        setLibraryOpen(null)
+      }
+    }
+    if (libraryOpen) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [libraryOpen])
+
+  async function loadLibrary() {
+    if (libraryLoaded) return
+    const res = await fetch('/api/exercise-videos')
+    if (res.ok) {
+      const data = await res.json()
+      setVideoLibrary(data)
+    }
+    setLibraryLoaded(true)
+  }
+
+  async function saveToLibrary(url: string) {
+    if (!url) return
+    setSavingToLibrary(true)
+    const title = url.includes('youtube') || url.includes('youtu.be')
+      ? `YouTube – ${new Date().toLocaleDateString('en-IE')}`
+      : url.split('/').pop()?.slice(0, 60) || 'Video'
+    const res = await fetch('/api/exercise-videos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, url }),
+    })
+    if (res.ok) {
+      const saved = await res.json()
+      setVideoLibrary(prev => [saved, ...prev])
+    }
+    setSavingToLibrary(false)
+  }
 
   // Import modal
   const [importModalOpen, setImportModalOpen] = useState(false)
@@ -589,7 +634,7 @@ export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeight
                                 />
                               </td>
                               <td className="py-1.5 w-32">
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-1 relative">
                                   <Video size={11} className="text-grey-muted flex-shrink-0" />
                                   <input
                                     value={exercise.video_url ?? ''}
@@ -597,6 +642,54 @@ export function ProgrammeEditor({ clientId, initialProgrammes, initialLastWeight
                                     placeholder="https://..."
                                     className="bg-transparent text-grey-muted text-xs w-full focus:outline-none focus:border-b focus:border-gold/60 border-b border-transparent placeholder:text-white/20"
                                   />
+                                  <button
+                                    type="button"
+                                    title="Video library"
+                                    onClick={async () => {
+                                      await loadLibrary()
+                                      setLibraryOpen(libraryOpen === exercise.id ? null : exercise.id)
+                                    }}
+                                    className="text-grey-muted hover:text-gold flex-shrink-0"
+                                  >
+                                    <BookOpen size={11} />
+                                  </button>
+                                  {libraryOpen === exercise.id && (
+                                    <div
+                                      ref={libraryRef}
+                                      className="absolute right-0 top-6 z-30 bg-navy-card border border-white/12 shadow-lg w-64 max-h-60 overflow-y-auto"
+                                    >
+                                      {exercise.video_url && (
+                                        <button
+                                          type="button"
+                                          onClick={() => saveToLibrary(exercise.video_url!)}
+                                          disabled={savingToLibrary}
+                                          className="w-full text-left px-3 py-2 text-xs text-gold hover:bg-white/5 border-b border-white/8 disabled:opacity-50"
+                                        >
+                                          {savingToLibrary ? 'Saving...' : '+ Save current URL to library'}
+                                        </button>
+                                      )}
+                                      {!libraryLoaded && (
+                                        <p className="px-3 py-2 text-xs text-grey-muted">Loading...</p>
+                                      )}
+                                      {libraryLoaded && videoLibrary.length === 0 && !exercise.video_url && (
+                                        <p className="px-3 py-2 text-xs text-grey-muted">No saved videos yet.</p>
+                                      )}
+                                      {videoLibrary.map(v => (
+                                        <button
+                                          key={v.id}
+                                          type="button"
+                                          onClick={() => {
+                                            updateExercise(plan.id, day.id, exercise.id, 'video_url', v.url)
+                                            setLibraryOpen(null)
+                                          }}
+                                          className="w-full text-left px-3 py-2 text-xs hover:bg-white/5 group"
+                                        >
+                                          <p className="text-white/85 truncate group-hover:text-gold">{v.title}</p>
+                                          <p className="text-grey-muted truncate">{v.url}</p>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               </td>
                               <td className="py-1.5 w-24">

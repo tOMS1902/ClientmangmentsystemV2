@@ -33,6 +33,9 @@ export const ClientPatchSchema = z.object({
   midweek_check_enabled: z.boolean().optional(),
   checkin_photos_enabled: z.boolean().optional(),
   region: z.enum(['EU', 'US']).optional(),
+  next_call_at: z.string().datetime({ offset: true }).nullable().optional(),
+  next_call_link: z.string().max(500).nullable().optional(),
+  next_call_notes: z.string().max(500).nullable().optional(),
 })
 
 // ─── Midweek Checks ───────────────────────────────────────────────────────────
@@ -87,7 +90,7 @@ const ExerciseSchema = z.object({
   sets: z.number().int().min(1).max(20),
   reps: nonEmptyStr(20),
   rest_seconds: z.number().int().min(0).max(600).nullable().optional(),
-  video_url: z.string().url().max(500).nullable().optional(),
+  video_url: z.string().max(500).nullable().optional(),
   notes: z.string().max(500).trim().nullable().optional(),
   tracking_type: z.enum(['weight', 'bodyweight', 'band', 'time', 'distance']).default('weight'),
 })
