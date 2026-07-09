@@ -191,9 +191,9 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
             <SparkLine data={weightHistory} width={200} height={50} />
             <div className="text-sm">
               <p className="text-3xl text-white mb-1" style={{ fontFamily: 'var(--font-display)' }}>
-                {latestCheckin ? displayWeight(latestCheckin.weight, unit) : '—'}{ul}
+                {latestCheckin?.weight != null ? displayWeight(latestCheckin.weight, unit) : '—'}{ul}
               </p>
-              <p className="text-grey-muted text-xs">Goal: {displayWeight(client.goal_weight, unit)}{ul}</p>
+              <p className="text-grey-muted text-xs">Goal: {client.goal_weight != null ? displayWeight(client.goal_weight, unit) : '—'}{ul}</p>
             </div>
           </div>
         </div>
