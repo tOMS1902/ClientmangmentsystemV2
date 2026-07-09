@@ -117,7 +117,7 @@ export default async function PreviewPage({ params }: { params: Promise<{ id: st
             goalEventName={client.goal_event_name}
             goalEventDate={client.goal_event_date}
             goalWeight={client.goal_weight}
-            currentWeight={latestCheckin?.weight ?? client.current_weight}
+            currentWeight={latestCheckin?.weight != null ? latestCheckin.weight : (client.current_weight ?? undefined)}
           />
         </div>
       )}
