@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   if (profile?.role !== 'coach') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await request.json()
-  const { password, skip_onboarding, ...clientFields } = body
+  const { password, skip_onboarding, region, ...clientFields } = body
 
   if (skip_onboarding) {
     // No auth user — insert client record with user_id = null
