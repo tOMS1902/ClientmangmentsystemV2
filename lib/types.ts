@@ -410,3 +410,94 @@ export interface ParsedMarkerInput {
   short_explanation?: string
   category?: MarkerCategory
 }
+
+// ─── Weekly Planner ──────────────────────────────────────────────────────────
+
+export type PlanStatus = 'draft' | 'published' | 'completed'
+export type PlanDayType = 'training' | 'rest' | 'off'
+export type PlanNutritionType = 'training' | 'rest'
+export type PlanItemType = 'training' | 'cardio' | 'steps' | 'nutrition' | 'habit' | 'custom'
+export type PlanCompletedBy = 'client' | 'coach' | 'auto'
+export type PlanChangedBy = 'client' | 'coach'
+export type PlanChangeType = 'move' | 'complete' | 'skip' | 'add' | 'delete' | 'edit' | 'status'
+
+export interface WeeklyPlan {
+  id: string
+  client_id: string
+  coach_id: string
+  week_start_date: string
+  week_number: number
+  coach_message: string | null
+  status: PlanStatus
+  created_at: string
+  updated_at: string
+  days?: WeeklyPlanDay[]
+}
+
+export interface WeeklyPlanDay {
+  id: string
+  plan_id: string
+  day_of_week: number
+  programme_day_id: string | null
+  day_type: PlanDayType
+  nutrition_type: PlanNutritionType
+  step_target: number | null
+  notes: string | null
+  created_at: string
+  items?: WeeklyPlanItem[]
+}
+
+export interface WeeklyPlanItem {
+  id: string
+  plan_day_id: string
+  item_type: PlanItemType
+  title: string
+  description: string | null
+  target: string | null
+  session_log_id: string | null
+  programme_day_id: string | null
+  completed: boolean
+  completed_by: PlanCompletedBy | null
+  completed_at: string | null
+  moved_from_day: number | null
+  moved_by: PlanChangedBy | null
+  sort_order: number
+  created_at: string
+}
+
+export interface WeeklyPlanTemplate {
+  id: string
+  coach_id: string
+  name: string
+  description: string | null
+  template_data: WeeklyPlanTemplateData
+  created_at: string
+  updated_at: string
+}
+
+export interface WeeklyPlanTemplateData {
+  days: Array<{
+    day_of_week: number
+    day_type: PlanDayType
+    nutrition_type: PlanNutritionType
+    step_target: number | null
+    notes: string | null
+    items: Array<{
+      item_type: PlanItemType
+      title: string
+      description: string | null
+      target: string | null
+      sort_order: number
+    }>
+  }>
+}
+
+export interface WeeklyPlanChange {
+  id: string
+  plan_id: string
+  changed_by: string
+  change_type: PlanChangeType
+  description: string
+  metadata: Record<string, unknown> | null
+  created_at: string
+}

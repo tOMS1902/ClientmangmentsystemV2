@@ -19,6 +19,7 @@ import { AITab } from '@/components/coach/AITab'
 import { ClientPortalManager } from '@/components/coach/ClientPortalManager'
 import { VoicePlayer } from '@/components/VoicePlayer'
 import { ShoppingListAI } from '@/components/coach/ShoppingListAI'
+import { CoachPlannerTab } from '@/components/coach/planner/CoachPlannerTab'
 import type { Client, WeeklyCheckin, MidweekCheck, Programme, NutritionTargets, Habit, MealPlan, Supplement, TrackingStatus } from '@/lib/types'
 import { displayWeight, toKg, unitLabel, kgToLbs, type WeightUnit } from '@/lib/units'
 
@@ -37,7 +38,7 @@ interface ClientDetailTabsProps {
   badges: string[]
 }
 
-type Tab = 'overview' | 'midweek' | 'checkins' | 'training' | 'nutrition' | 'onboarding' | 'legal' | 'messages' | 'photos' | 'portal' | 'ai' | 'diagnostics'
+type Tab = 'overview' | 'planner' | 'midweek' | 'checkins' | 'training' | 'nutrition' | 'onboarding' | 'legal' | 'messages' | 'photos' | 'portal' | 'ai' | 'diagnostics'
 
 const ONBOARDING_SECTIONS = [
   {
@@ -1316,6 +1317,7 @@ export function ClientDetailTabs({
 
   const tabs: { id: Tab; label: string; badge?: boolean }[] = [
     { id: 'overview', label: 'Overview' },
+    { id: 'planner', label: 'Planner' },
     { id: 'midweek', label: 'Midweek' },
     { id: 'checkins', label: 'Check-Ins' },
     { id: 'training', label: 'Training' },
@@ -1370,6 +1372,9 @@ export function ClientDetailTabs({
 
       {activeTab === 'overview' && (
         <OverviewTab client={client} checkins={checkins} weekNumber={weekNumber} />
+      )}
+      {activeTab === 'planner' && (
+        <CoachPlannerTab clientId={client.id} />
       )}
       {activeTab === 'midweek' && <MidweekChecksTab client={client} midweekChecks={midweekChecks} />}
       {activeTab === 'checkins' && <CheckInsTab clientId={client.id} checkins={checkins} checkInDay={client.check_in_day} weightUnit={client.weight_unit ?? 'kg'} />}

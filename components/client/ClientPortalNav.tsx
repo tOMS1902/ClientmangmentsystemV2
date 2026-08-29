@@ -28,6 +28,7 @@ function relativeTime(dateStr: string): string {
 
 const BASE_LINKS = [
   { href: '/portal', label: 'Home' },
+  { href: '/portal/planner', label: 'Planner' },
   { href: '/portal/checkin', label: 'Check-In' },
   { href: '/portal/checkin/midweek', label: 'Midweek' },
   { href: '/portal/meals', label: 'Meals' },

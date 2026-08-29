@@ -386,7 +386,7 @@ Create both a training day meal plan and a rest day meal plan that hit these mac
   async function handleSave() {
     setSaving(true)
     try {
-      await Promise.all(plans.map(plan =>
+      const responses = await Promise.all(plans.map(plan =>
         fetch(`/api/meal-plan/${clientId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -399,8 +399,14 @@ Create both a training day meal plan and a rest day meal plan that hit these mac
           }),
         })
       ))
-      setMessage('Meal plan saved.')
-      setTimeout(() => setMessage(''), 3000)
+      const failed = responses.find(r => !r.ok)
+      if (failed) {
+        const data = await failed.json().catch(() => ({}))
+        setMessage(data.error || 'Error saving meal plan.')
+      } else {
+        setMessage('Meal plan saved.')
+        setTimeout(() => setMessage(''), 3000)
+      }
     } catch {
       setMessage('Error saving meal plan.')
     }

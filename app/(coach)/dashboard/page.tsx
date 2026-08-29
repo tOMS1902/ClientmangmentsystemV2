@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ClientCard } from '@/components/coach/ClientCard'
 import { GlobalAIChat } from '@/components/coach/GlobalAIChat'
 import { ActivityFeed } from '@/components/coach/ActivityFeed'
+import { WeeklyOverviewTable } from '@/components/coach/WeeklyOverviewTable'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
@@ -106,6 +107,11 @@ export default async function DashboardPage() {
         <div className="bg-navy-card border border-white/8">
           <ActivityFeed />
         </div>
+      </div>
+
+      {/* Weekly Planner Overview */}
+      <div className="mb-10">
+        <WeeklyOverviewTable />
       </div>
 
       {/* Global AI Chat */}

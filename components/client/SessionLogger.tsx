@@ -112,7 +112,7 @@ export function SessionLogger({ day, lastSession, weightUnit = 'kg', onComplete 
 
   async function handleComplete() {
     setSaving(true)
-    await fetch('/api/session-logs', {
+    const logRes = await fetch('/api/session-logs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -123,6 +123,16 @@ export function SessionLogger({ day, lastSession, weightUnit = 'kg', onComplete 
         completed: true,
       }),
     })
+    // Fire-and-forget: auto-complete matching planner item
+    const logData = logRes.ok ? await logRes.json().catch(() => null) : null
+    fetch('/api/weekly-plans/auto-complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        programme_day_id: day.id,
+        session_log_id: logData?.id ?? null,
+      }),
+    }).catch(() => {})
     setSaving(false)
     setDone(true)
     onComplete()

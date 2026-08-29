@@ -313,3 +313,98 @@ export const InsightManualSchema = z.object({
     priority: z.enum(['high', 'medium', 'low']),
   })).min(1).max(100),
 })
+
+// ─── Weekly Planner ──────────────────────────────────────────────────────────
+
+const planDayType = z.enum(['training', 'rest', 'off'])
+const planNutritionType = z.enum(['training', 'rest'])
+const planItemType = z.enum(['training', 'cardio', 'steps', 'nutrition', 'habit', 'custom'])
+const planStatus = z.enum(['draft', 'published', 'completed'])
+
+export const WeeklyPlanCreateSchema = z.object({
+  client_id: uuid,
+  week_start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  week_number: z.number().int().min(1).optional(),
+  coach_message: optionalStr(2000),
+  status: planStatus.default('draft'),
+})
+
+export const WeeklyPlanPatchSchema = z.object({
+  coach_message: z.string().max(2000).trim().nullable().optional(),
+  status: planStatus.optional(),
+  week_number: z.number().int().min(1).optional(),
+})
+
+export const PlanDayPatchSchema = z.object({
+  programme_day_id: z.string().uuid().nullable().optional(),
+  day_type: planDayType.optional(),
+  nutrition_type: planNutritionType.optional(),
+  step_target: z.number().int().min(0).nullable().optional(),
+  notes: z.string().max(500).trim().nullable().optional(),
+})
+
+export const PlanItemCreateSchema = z.object({
+  plan_day_id: uuid,
+  item_type: planItemType,
+  title: nonEmptyStr(200),
+  description: optionalStr(500),
+  target: optionalStr(100),
+  programme_day_id: z.string().uuid().nullable().optional(),
+  sort_order: z.number().int().min(0).default(0),
+})
+
+export const PlanItemPatchSchema = z.object({
+  title: nonEmptyStr(200).optional(),
+  description: z.string().max(500).trim().nullable().optional(),
+  target: z.string().max(100).trim().nullable().optional(),
+  completed: z.boolean().optional(),
+  completed_by: z.enum(['client', 'coach', 'auto']).optional(),
+  sort_order: z.number().int().min(0).optional(),
+})
+
+export const PlanItemMoveSchema = z.object({
+  target_day_id: uuid,
+  moved_by: z.enum(['client', 'coach']),
+})
+
+export const PlanTemplateCreateSchema = z.object({
+  name: nonEmptyStr(100),
+  description: optionalStr(300),
+  template_data: z.object({
+    days: z.array(z.object({
+      day_of_week: z.number().int().min(0).max(6),
+      day_type: planDayType,
+      nutrition_type: planNutritionType,
+      step_target: z.number().int().min(0).nullable(),
+      notes: z.string().max(500).nullable(),
+      items: z.array(z.object({
+        item_type: planItemType,
+        title: nonEmptyStr(200),
+        description: z.string().max(500).nullable(),
+        target: z.string().max(100).nullable(),
+        sort_order: z.number().int().min(0),
+      })).max(20),
+    })).min(1).max(7),
+  }),
+})
+
+export const PlanTemplatePatchSchema = z.object({
+  name: nonEmptyStr(100).optional(),
+  description: z.string().max(300).trim().nullable().optional(),
+  template_data: z.object({
+    days: z.array(z.object({
+      day_of_week: z.number().int().min(0).max(6),
+      day_type: planDayType,
+      nutrition_type: planNutritionType,
+      step_target: z.number().int().min(0).nullable(),
+      notes: z.string().max(500).nullable(),
+      items: z.array(z.object({
+        item_type: planItemType,
+        title: nonEmptyStr(200),
+        description: z.string().max(500).nullable(),
+        target: z.string().max(100).nullable(),
+        sort_order: z.number().int().min(0),
+      })).max(20),
+    })).min(1).max(7),
+  }).optional(),
+})
