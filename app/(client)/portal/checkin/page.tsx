@@ -9,6 +9,16 @@ import { ProgressPhotoUpload } from '@/components/photos/ProgressPhotoUpload'
 import { VoiceRecorder } from '@/components/VoiceRecorder'
 import type { WeeklyCheckin } from '@/lib/types'
 import { displayWeight, toKg, unitLabel, type WeightUnit } from '@/lib/units'
+import { getWeekMonday, shiftWeek } from '@/lib/planner'
+
+interface AdherenceData {
+  training_done: number
+  training_total: number
+  nutrition_done: number
+  nutrition_total: number
+  steps_done: number
+  steps_total: number
+}
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
@@ -216,6 +226,7 @@ export default function CheckInPage() {
   const [clientStartDate, setClientStartDate] = useState<string | null>(null)
   const [isLateSubmission, setIsLateSubmission] = useState(false)
   const [lateBannerDismissed, setLateBannerDismissed] = useState(false)
+  const [adherence, setAdherence] = useState<AdherenceData | null>(null)
 
   // Form state
   const [weekScore, setWeekScore] = useState(5)
@@ -249,6 +260,24 @@ export default function CheckInPage() {
           setUnit(me.weight_unit === 'lbs' ? 'lbs' : 'kg')
           setClientName(me.full_name || null)
           setClientStartDate(me.start_date || null)
+
+          // Fetch planner adherence for previous week
+          if (me.id) {
+            const prevMonday = shiftWeek(getWeekMonday(), -1)
+            const adhRes = await fetch(`/api/weekly-plans/${me.id}/adherence?week_start=${prevMonday}`)
+            if (adhRes.ok) {
+              const adhData: AdherenceData = await adhRes.json()
+              setAdherence(adhData)
+              // Pre-fill training_completed from adherence
+              if (adhData.training_total > 0) {
+                const missed = adhData.training_total - adhData.training_done
+                if (missed === 0) setTrainingCompleted('all')
+                else if (missed === 1) setTrainingCompleted('missed_1')
+                else if (adhData.training_done === 0) setTrainingCompleted('none')
+                else setTrainingCompleted('missed_2plus')
+              }
+            }
+          }
         }
       } catch { /* ignore */ }
       setLoading(false)
@@ -505,6 +534,41 @@ export default function CheckInPage() {
           >
             Cancel — submit for this week instead
           </button>
+        </div>
+      )}
+
+      {/* Planner adherence summary */}
+      {adherence && (adherence.training_total > 0 || adherence.steps_total > 0 || adherence.nutrition_total > 0) && (
+        <div className="bg-navy-card border border-gold/20 p-4 mb-2">
+          <p className="text-[10px] text-gold mb-2" style={{ fontFamily: 'var(--font-label)' }}>
+            FROM YOUR PLANNER
+          </p>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            {adherence.training_total > 0 && (
+              <div>
+                <p className="text-lg text-white font-semibold" style={{ fontFamily: 'var(--font-display)' }}>
+                  {adherence.training_done}/{adherence.training_total}
+                </p>
+                <p className="text-[10px] text-white/40">Training</p>
+              </div>
+            )}
+            {adherence.steps_total > 0 && (
+              <div>
+                <p className="text-lg text-white font-semibold" style={{ fontFamily: 'var(--font-display)' }}>
+                  {adherence.steps_done}/{adherence.steps_total}
+                </p>
+                <p className="text-[10px] text-white/40">Steps</p>
+              </div>
+            )}
+            {adherence.nutrition_total > 0 && (
+              <div>
+                <p className="text-lg text-white font-semibold" style={{ fontFamily: 'var(--font-display)' }}>
+                  {adherence.nutrition_done}/{adherence.nutrition_total}
+                </p>
+                <p className="text-[10px] text-white/40">Nutrition</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

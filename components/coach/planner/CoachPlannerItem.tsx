@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Check, GripVertical, Trash2, ArrowRight } from 'lucide-react'
+import { useDraggable } from '@dnd-kit/core'
 import type { WeeklyPlanItem, WeeklyPlanDay } from '@/lib/types'
 import { DAY_LABELS } from '@/lib/planner'
 
@@ -10,10 +11,14 @@ interface CoachPlannerItemProps {
   clientId: string
   planId: string
   days: WeeklyPlanDay[]
+  dayId: string
   onUpdate: () => void
+  onToggle: (itemId: string, completed: boolean) => void
+  onMove: (itemId: string, targetDayId: string, movedBy: 'client' | 'coach') => void
+  onDelete: (itemId: string, dayId: string) => void
 }
 
-export function CoachPlannerItem({ item, clientId, planId, days, onUpdate }: CoachPlannerItemProps) {
+export function CoachPlannerItem({ item, clientId, planId, days, dayId, onUpdate, onToggle, onMove, onDelete }: CoachPlannerItemProps) {
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(item.title)
   const [description, setDescription] = useState(item.description ?? '')
@@ -25,30 +30,6 @@ export function CoachPlannerItem({ item, clientId, planId, days, onUpdate }: Coa
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-    })
-    onUpdate()
-  }
-
-  async function handleDelete() {
-    await fetch(`/api/weekly-plans/${clientId}/${planId}/items/${item.id}`, { method: 'DELETE' })
-    onUpdate()
-  }
-
-  async function handleMove(targetDayId: string) {
-    await fetch(`/api/weekly-plans/${clientId}/${planId}/items/${item.id}/move`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target_day_id: targetDayId, moved_by: 'coach' }),
-    })
-    setMoving(false)
-    onUpdate()
-  }
-
-  async function handleToggleComplete() {
-    await fetch(`/api/weekly-plans/${clientId}/${planId}/items/${item.id}/complete`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ completed: !item.completed }),
     })
     onUpdate()
   }
@@ -67,12 +48,19 @@ export function CoachPlannerItem({ item, clientId, planId, days, onUpdate }: Coa
     custom: 'bg-white/10 text-white/60',
   }
 
-  return (
-    <div className={`group border border-white/6 p-2 text-sm ${item.completed ? 'opacity-50' : ''}`}>
-      <div className="flex items-start gap-2">
-        <GripVertical size={14} className="text-white/20 mt-0.5 flex-shrink-0 cursor-grab" />
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: item.id })
+  const dragStyle = transform ? { transform: `translate(${transform.x}px, ${transform.y}px)` } : undefined
 
-        <button onClick={handleToggleComplete} className="mt-0.5 flex-shrink-0">
+  return (
+    <div
+      ref={setNodeRef}
+      style={dragStyle}
+      className={`group border border-white/6 p-2 text-sm ${item.completed ? 'opacity-50' : ''} ${isDragging ? 'opacity-40 z-50' : ''}`}
+    >
+      <div className="flex items-start gap-2">
+        <GripVertical size={14} className="text-white/20 mt-0.5 flex-shrink-0 cursor-grab" {...listeners} {...attributes} />
+
+        <button onClick={() => onToggle(item.id, !item.completed)} className="mt-0.5 flex-shrink-0">
           <div className={`w-4 h-4 border ${item.completed ? 'bg-gold border-gold' : 'border-white/30'} flex items-center justify-center`}>
             {item.completed && <Check size={10} className="text-navy-deep" />}
           </div>
@@ -128,7 +116,7 @@ export function CoachPlannerItem({ item, clientId, planId, days, onUpdate }: Coa
           <button onClick={() => setMoving(!moving)} className="text-white/30 hover:text-white/60" title="Move">
             <ArrowRight size={12} />
           </button>
-          <button onClick={handleDelete} className="text-white/30 hover:text-red-400" title="Delete">
+          <button onClick={() => onDelete(item.id, dayId)} className="text-white/30 hover:text-red-400" title="Delete">
             <Trash2 size={12} />
           </button>
         </div>
@@ -141,7 +129,7 @@ export function CoachPlannerItem({ item, clientId, planId, days, onUpdate }: Coa
             .map(d => (
               <button
                 key={d.id}
-                onClick={() => handleMove(d.id)}
+                onClick={() => { onMove(item.id, d.id, 'coach'); setMoving(false) }}
                 className="text-[10px] px-2 py-0.5 bg-navy-deep border border-white/10 text-white/60 hover:text-gold hover:border-gold/30"
               >
                 {DAY_LABELS[d.day_of_week]}

@@ -1,14 +1,15 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import { ClientPlannerDayCard } from './ClientPlannerDayCard'
 import { PlannerSummaryBar } from './PlannerSummaryBar'
 import { WeekChangedModal } from './WeekChangedModal'
-import type { WeeklyPlan, WeeklyPlanDay, NutritionTargets } from '@/lib/types'
+import type { NutritionTargets } from '@/lib/types'
 import { getWeekMonday, shiftWeek, formatWeekRange, DAY_LABELS } from '@/lib/planner'
+import { usePlanState } from '@/hooks/usePlanState'
 
 interface ClientPlannerViewProps {
   clientId: string
@@ -17,31 +18,22 @@ interface ClientPlannerViewProps {
 
 export function ClientPlannerView({ clientId, targets }: ClientPlannerViewProps) {
   const [weekStart, setWeekStart] = useState(() => getWeekMonday())
-  const [plan, setPlan] = useState<WeeklyPlan | null>(null)
-  const [days, setDays] = useState<WeeklyPlanDay[]>([])
-  const [loading, setLoading] = useState(true)
   const [weekChangedOpen, setWeekChangedOpen] = useState(false)
+  const todayRef = useRef<HTMLDivElement>(null)
 
-  const fetchPlan = useCallback(async () => {
-    setLoading(true)
-    const res = await fetch(`/api/weekly-plans/${clientId}?week_start=${weekStart}`)
-    if (res.ok) {
-      const data = await res.json()
-      if (data?.id) {
-        setPlan(data)
-        setDays(data.days ?? [])
-      } else {
-        setPlan(null)
-        setDays([])
-      }
-    } else {
-      setPlan(null)
-      setDays([])
+  const {
+    plan, days, loading, refresh,
+    optimisticToggleItem, optimisticMoveItem,
+  } = usePlanState(clientId, weekStart)
+
+  useEffect(() => { refresh() }, [refresh])
+
+  // Auto-scroll to today's card on mobile after load
+  useEffect(() => {
+    if (!loading && plan && todayRef.current) {
+      todayRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     }
-    setLoading(false)
-  }, [clientId, weekStart])
-
-  useEffect(() => { fetchPlan() }, [fetchPlan])
+  }, [loading, plan])
 
   // Determine today's day_of_week (0=Mon..6=Sun)
   const now = new Date()
@@ -147,18 +139,24 @@ export function ClientPlannerView({ clientId, targets }: ClientPlannerViewProps)
 
           {/* Day cards */}
           <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
-            {sortedDays.map(day => (
-              <ClientPlannerDayCard
-                key={day.id}
-                day={day}
-                allDays={days}
-                clientId={clientId}
-                planId={plan.id}
-                isToday={isThisWeek && todayDow === day.day_of_week}
-                targets={targets}
-                onUpdate={fetchPlan}
-              />
-            ))}
+            {sortedDays.map(day => {
+              const isDayToday = isThisWeek && todayDow === day.day_of_week
+              return (
+                <div key={day.id} ref={isDayToday ? todayRef : undefined}>
+                  <ClientPlannerDayCard
+                    day={day}
+                    allDays={days}
+                    clientId={clientId}
+                    planId={plan.id}
+                    isToday={isDayToday}
+                    targets={targets}
+                    onToggle={optimisticToggleItem}
+                    onMove={optimisticMoveItem}
+                    onUpdate={refresh}
+                  />
+                </div>
+              )
+            })}
           </div>
 
           {/* My Week Changed button */}
@@ -178,7 +176,7 @@ export function ClientPlannerView({ clientId, targets }: ClientPlannerViewProps)
             days={days}
             clientId={clientId}
             planId={plan.id}
-            onUpdate={fetchPlan}
+            onUpdate={refresh}
           />
         </>
       )}

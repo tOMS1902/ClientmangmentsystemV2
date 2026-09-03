@@ -1,14 +1,16 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight, Save, Copy, Wand2 } from 'lucide-react'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { Button } from '@/components/ui/Button'
 import { CoachPlannerDayColumn } from './CoachPlannerDayColumn'
 import { PlanTemplateModal } from './PlanTemplateModal'
 import { PlanChangeLog } from './PlanChangeLog'
-import type { WeeklyPlan, WeeklyPlanDay, WeeklyPlanTemplate, PlanStatus } from '@/lib/types'
+import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import type { WeeklyPlanDay, WeeklyPlanTemplate, PlanStatus } from '@/lib/types'
 import { getWeekMonday, shiftWeek, formatWeekRange } from '@/lib/planner'
+import { usePlanState } from '@/hooks/usePlanState'
 
 interface CoachPlannerTabProps {
   clientId: string
@@ -17,37 +19,43 @@ interface CoachPlannerTabProps {
 
 export function CoachPlannerTab({ clientId }: CoachPlannerTabProps) {
   const [weekStart, setWeekStart] = useState(() => getWeekMonday())
-  const [plan, setPlan] = useState<WeeklyPlan | null>(null)
-  const [days, setDays] = useState<WeeklyPlanDay[]>([])
-  const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [templateOpen, setTemplateOpen] = useState(false)
-  const [coachMessage, setCoachMessage] = useState('')
-  const [savingMessage, setSavingMessage] = useState(false)
+  const [messageSaved, setMessageSaved] = useState(false)
+  const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const fetchPlan = useCallback(async () => {
-    setLoading(true)
-    const res = await fetch(`/api/weekly-plans/${clientId}?week_start=${weekStart}`)
-    if (res.ok) {
-      const data = await res.json()
-      if (data?.id) {
-        setPlan(data)
-        setDays(data.days ?? [])
-        setCoachMessage(data.coach_message ?? '')
-      } else {
-        setPlan(null)
-        setDays([])
-        setCoachMessage('')
-      }
-    } else {
-      setPlan(null)
-      setDays([])
-      setCoachMessage('')
-    }
-    setLoading(false)
-  }, [clientId, weekStart])
+  const {
+    plan, days, loading, coachMessage, setCoachMessage, refresh,
+    optimisticToggleItem, optimisticMoveItem, optimisticUpdateDay, optimisticDeleteItem, addItem,
+  } = usePlanState(clientId, weekStart)
 
-  useEffect(() => { fetchPlan() }, [fetchPlan])
+  // DnD sensors — 8px activation to avoid accidental drags
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    // active.id = item id, over.id = target day id
+    optimisticMoveItem(active.id as string, over.id as string, 'coach')
+  }
+
+  useEffect(() => { refresh() }, [refresh])
+
+  // Debounced autosave for coach message (800ms)
+  useEffect(() => {
+    if (!plan) return
+    if (messageTimerRef.current) clearTimeout(messageTimerRef.current)
+    messageTimerRef.current = setTimeout(async () => {
+      await fetch(`/api/weekly-plans/${clientId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: plan.id, coach_message: coachMessage || null }),
+      })
+      setMessageSaved(true)
+      setTimeout(() => setMessageSaved(false), 2000)
+    }, 800)
+    return () => { if (messageTimerRef.current) clearTimeout(messageTimerRef.current) }
+  }, [coachMessage, plan, clientId])
 
   async function handleCreate(method: 'blank' | 'copy' | 'programme') {
     setCreating(true)
@@ -82,7 +90,7 @@ export function CoachPlannerTab({ clientId }: CoachPlannerTabProps) {
       }
     }
     setCreating(false)
-    fetchPlan()
+    refresh()
   }
 
   async function handleApplyTemplate(template: WeeklyPlanTemplate) {
@@ -137,7 +145,7 @@ export function CoachPlannerTab({ clientId }: CoachPlannerTabProps) {
     }
     setCreating(false)
     setTemplateOpen(false)
-    fetchPlan()
+    refresh()
   }
 
   async function handleStatusChange(status: PlanStatus) {
@@ -147,18 +155,20 @@ export function CoachPlannerTab({ clientId }: CoachPlannerTabProps) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: plan.id, status }),
     })
-    fetchPlan()
+    refresh()
   }
 
-  async function handleSaveMessage() {
+  async function handleCopyWeekOverwrite() {
     if (!plan) return
-    setSavingMessage(true)
-    await fetch(`/api/weekly-plans/${clientId}`, {
-      method: 'PATCH',
+    if (!confirm('This will overwrite the current plan with last week\'s plan. Continue?')) return
+    setCreating(true)
+    await fetch(`/api/weekly-plans/${clientId}/copy`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: plan.id, coach_message: coachMessage || null }),
+      body: JSON.stringify({ week_start_date: weekStart }),
     })
-    setSavingMessage(false)
+    setCreating(false)
+    refresh()
   }
 
   const isThisWeek = weekStart === getWeekMonday()
@@ -223,6 +233,15 @@ export function CoachPlannerTab({ clientId }: CoachPlannerTabProps) {
               {plan.status === 'completed' ? 'Completed' : 'Mark Complete'}
             </button>
 
+            {/* Copy previous week (when plan exists) */}
+            <button
+              onClick={handleCopyWeekOverwrite}
+              disabled={creating}
+              className="text-[10px] text-white/40 hover:text-gold border border-white/10 hover:border-gold/30 px-2 py-0.5 flex items-center gap-1"
+            >
+              <Copy size={10} /> Copy Prev Week
+            </button>
+
             {/* Template button */}
             <button
               onClick={() => setTemplateOpen(true)}
@@ -278,42 +297,46 @@ export function CoachPlannerTab({ clientId }: CoachPlannerTabProps) {
         </div>
       ) : (
         <>
-          {/* Coach message */}
+          {/* Coach message (autosaves on 800ms idle) */}
           <div className="bg-navy-card border border-white/8 p-3">
-            <Eyebrow className="mb-2">Coach Message</Eyebrow>
-            <div className="flex gap-2">
-              <textarea
-                value={coachMessage}
-                onChange={e => setCoachMessage(e.target.value)}
-                placeholder="Add a message for your client this week..."
-                className="flex-1 bg-navy-deep border border-white/10 text-white text-xs px-3 py-2 resize-none h-16 focus:outline-none focus:border-gold/40"
-              />
-              <Button
-                onClick={handleSaveMessage}
-                disabled={savingMessage}
-                size="sm"
-                className="self-end"
-              >
-                {savingMessage ? '...' : 'Save'}
-              </Button>
+            <div className="flex items-center justify-between mb-2">
+              <Eyebrow>Coach Message</Eyebrow>
+              {messageSaved && (
+                <span className="text-[10px] text-emerald-400 animate-pulse" style={{ fontFamily: 'var(--font-label)' }}>
+                  Saved
+                </span>
+              )}
             </div>
+            <textarea
+              value={coachMessage}
+              onChange={e => setCoachMessage(e.target.value)}
+              placeholder="Add a message for your client this week..."
+              className="w-full bg-navy-deep border border-white/10 text-white text-xs px-3 py-2 resize-none h-16 focus:outline-none focus:border-gold/40"
+            />
           </div>
 
-          {/* 7-day grid */}
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
-            {days
-              .sort((a, b) => a.day_of_week - b.day_of_week)
-              .map(day => (
-                <CoachPlannerDayColumn
-                  key={day.id}
-                  day={day}
-                  allDays={days}
-                  clientId={clientId}
-                  planId={plan.id}
-                  onUpdate={fetchPlan}
-                />
-              ))}
-          </div>
+          {/* 7-day grid with drag & drop */}
+          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+            <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
+              {[...days]
+                .sort((a, b) => a.day_of_week - b.day_of_week)
+                .map(day => (
+                  <CoachPlannerDayColumn
+                    key={day.id}
+                    day={day}
+                    allDays={days}
+                    clientId={clientId}
+                    planId={plan.id}
+                    onUpdate={refresh}
+                    onToggle={optimisticToggleItem}
+                    onMove={optimisticMoveItem}
+                    onDelete={optimisticDeleteItem}
+                    onDayPatch={optimisticUpdateDay}
+                    onAddItem={addItem}
+                  />
+                ))}
+            </div>
+          </DndContext>
 
           {/* Change log */}
           <PlanChangeLog clientId={clientId} planId={plan.id} />
@@ -326,7 +349,7 @@ export function CoachPlannerTab({ clientId }: CoachPlannerTabProps) {
         onClose={() => setTemplateOpen(false)}
         plan={plan}
         onApply={handleApplyTemplate}
-        onSaved={fetchPlan}
+        onSaved={refresh}
       />
     </div>
   )

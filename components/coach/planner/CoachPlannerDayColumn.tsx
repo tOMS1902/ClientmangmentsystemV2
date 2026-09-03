@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Plus } from 'lucide-react'
+import { useDroppable } from '@dnd-kit/core'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { CoachPlannerItem } from './CoachPlannerItem'
 import type { WeeklyPlanDay, WeeklyPlanItem, PlanDayType, PlanNutritionType, PlanItemType } from '@/lib/types'
@@ -13,44 +14,55 @@ interface CoachPlannerDayColumnProps {
   clientId: string
   planId: string
   onUpdate: () => void
+  onToggle: (itemId: string, completed: boolean) => void
+  onMove: (itemId: string, targetDayId: string, movedBy: 'client' | 'coach') => void
+  onDelete: (itemId: string, dayId: string) => void
+  onDayPatch: (dayId: string, patch: Record<string, unknown>) => void
+  onAddItem: (dayId: string, item: { item_type: string; title: string; sort_order: number }) => Promise<void>
 }
 
 const DAY_TYPE_OPTIONS: PlanDayType[] = ['training', 'rest', 'off']
 const NUTRITION_TYPE_OPTIONS: PlanNutritionType[] = ['training', 'rest']
 const ITEM_TYPE_OPTIONS: PlanItemType[] = ['training', 'cardio', 'steps', 'nutrition', 'habit', 'custom']
 
-export function CoachPlannerDayColumn({ day, allDays, clientId, planId, onUpdate }: CoachPlannerDayColumnProps) {
+export function CoachPlannerDayColumn({ day, allDays, clientId, planId, onUpdate, onToggle, onMove, onDelete, onDayPatch, onAddItem }: CoachPlannerDayColumnProps) {
   const [addingItem, setAddingItem] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newType, setNewType] = useState<PlanItemType>('custom')
 
+  // Debounced step target
+  const [localStepTarget, setLocalStepTarget] = useState<string>(day.step_target?.toString() ?? '')
+  const stepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    setLocalStepTarget(day.step_target?.toString() ?? '')
+  }, [day.step_target])
+
+  function handleStepChange(value: string) {
+    setLocalStepTarget(value)
+    if (stepTimerRef.current) clearTimeout(stepTimerRef.current)
+    stepTimerRef.current = setTimeout(() => {
+      onDayPatch(day.id, { step_target: value ? Number(value) : null })
+    }, 800)
+  }
+
+  function handleStepBlur() {
+    if (stepTimerRef.current) clearTimeout(stepTimerRef.current)
+    onDayPatch(day.id, { step_target: localStepTarget ? Number(localStepTarget) : null })
+  }
+
   const items: WeeklyPlanItem[] = day.items ?? []
   const label = DAY_LABELS[day.day_of_week]
 
-  async function handleDayPatch(data: Record<string, unknown>) {
-    await fetch(`/api/weekly-plans/${clientId}/${planId}/days/${day.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-    onUpdate()
-  }
-
   async function handleAddItem() {
     if (!newTitle.trim()) return
-    await fetch(`/api/weekly-plans/${clientId}/${planId}/items`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        plan_day_id: day.id,
-        item_type: newType,
-        title: newTitle.trim(),
-        sort_order: items.length,
-      }),
+    await onAddItem(day.id, {
+      item_type: newType,
+      title: newTitle.trim(),
+      sort_order: items.length,
     })
     setNewTitle('')
     setAddingItem(false)
-    onUpdate()
   }
 
   const dayTypeColor: Record<string, string> = {
@@ -61,8 +73,16 @@ export function CoachPlannerDayColumn({ day, allDays, clientId, planId, onUpdate
 
   const completedCount = items.filter(i => i.completed).length
 
+  // Droppable zone for drag & drop
+  const { isOver, setNodeRef } = useDroppable({ id: day.id })
+
   return (
-    <div className={`bg-navy-card border ${dayTypeColor[day.day_type] ?? 'border-white/8'} flex flex-col`}>
+    <div
+      ref={setNodeRef}
+      className={`bg-navy-card border ${
+        isOver ? 'border-gold/60 bg-gold/5' : (dayTypeColor[day.day_type] ?? 'border-white/8')
+      } flex flex-col transition-colors`}
+    >
       {/* Header */}
       <div className="p-3 border-b border-white/6">
         <div className="flex items-center justify-between mb-2">
@@ -79,7 +99,7 @@ export function CoachPlannerDayColumn({ day, allDays, clientId, planId, onUpdate
           {DAY_TYPE_OPTIONS.map(t => (
             <button
               key={t}
-              onClick={() => handleDayPatch({ day_type: t })}
+              onClick={() => onDayPatch(day.id, { day_type: t })}
               className={`text-[10px] px-2 py-0.5 border ${
                 day.day_type === t
                   ? 'border-gold/40 text-gold bg-gold/10'
@@ -98,7 +118,7 @@ export function CoachPlannerDayColumn({ day, allDays, clientId, planId, onUpdate
             {NUTRITION_TYPE_OPTIONS.map(t => (
               <button
                 key={t}
-                onClick={() => handleDayPatch({ nutrition_type: t })}
+                onClick={() => onDayPatch(day.id, { nutrition_type: t })}
                 className={`text-[10px] px-1.5 py-0.5 border ${
                   day.nutrition_type === t
                     ? 'border-purple-400/40 text-purple-300'
@@ -111,14 +131,15 @@ export function CoachPlannerDayColumn({ day, allDays, clientId, planId, onUpdate
           </div>
         )}
 
-        {/* Step target */}
+        {/* Step target (debounced) */}
         {day.day_type !== 'off' && (
           <div className="flex items-center gap-1">
             <span className="text-[10px] text-white/30">Steps:</span>
             <input
               type="number"
-              value={day.step_target ?? ''}
-              onChange={e => handleDayPatch({ step_target: e.target.value ? Number(e.target.value) : null })}
+              value={localStepTarget}
+              onChange={e => handleStepChange(e.target.value)}
+              onBlur={handleStepBlur}
               placeholder="—"
               className="w-16 bg-transparent border-b border-white/10 text-[11px] text-white/60 px-1 py-0.5 focus:outline-none focus:border-gold/40"
             />
@@ -135,7 +156,11 @@ export function CoachPlannerDayColumn({ day, allDays, clientId, planId, onUpdate
             clientId={clientId}
             planId={planId}
             days={allDays}
+            dayId={day.id}
             onUpdate={onUpdate}
+            onToggle={onToggle}
+            onMove={onMove}
+            onDelete={onDelete}
           />
         ))}
 
