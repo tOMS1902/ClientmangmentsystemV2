@@ -21,7 +21,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ clie
     .eq('client_id', clientId)
     .eq('week_start_date', weekStart)
 
-  if (isClient) query = query.eq('status', 'published')
+  if (isClient) query = query.in('status', ['published', 'completed'])
 
   const { data: plan } = await query.single()
 
@@ -113,7 +113,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ cl
   if (profile?.role !== 'coach') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await request.json()
-  const { plan_id, ...rest } = body
+  const plan_id = body.plan_id ?? body.id
+  const { plan_id: _pid, id: _id, ...rest } = body
 
   const parsed = parseBody(WeeklyPlanPatchSchema, rest)
   if (!parsed.success) return NextResponse.json({ error: parsed.error }, { status: 400 })

@@ -1,4 +1,4 @@
-import type { ProgrammeDay, PlanDayType, PlanNutritionType, PlanItemType } from './types'
+import type { ProgrammeDay, PlanDayType, PlanNutritionType, PlanItemType, NutritionTargets } from './types'
 
 export const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
@@ -66,13 +66,18 @@ export function buildPlanFromProgramme(
 ): PlanDayFromProgramme[] {
   const plan: PlanDayFromProgramme[] = []
 
-  // If no explicit mapping, assign programme days sequentially starting Monday
+  // Sort programme days by sort_order (or day_number fallback) before mapping
+  const sorted = [...programmeDays].sort((a, b) =>
+    (a.sort_order ?? a.day_number ?? 0) - (b.sort_order ?? b.day_number ?? 0)
+  )
+
+  // If no explicit mapping, assign sorted programme days sequentially starting Monday
   const mapping = dayMapping ?? Object.fromEntries(
-    programmeDays.map((pd, i) => [i, pd.id])
+    sorted.map((pd, i) => [i, pd.id])
   )
 
   for (let dow = 0; dow < 7; dow++) {
-    const progDay = programmeDays.find(pd => {
+    const progDay = sorted.find(pd => {
       const mappedId = Object.entries(mapping).find(([k]) => Number(k) === dow)?.[1]
       return mappedId === pd.id
     })
@@ -106,4 +111,19 @@ export function buildPlanFromProgramme(
   }
 
   return plan
+}
+
+/**
+ * Formats macro targets for display based on nutrition day type.
+ * Returns a string like "2,500 kcal | P 180 | C 300 | F 65"
+ */
+export function formatMacros(targets: NutritionTargets | null, nutritionType: PlanNutritionType): string | null {
+  if (!targets) return null
+  const isTraining = nutritionType === 'training'
+  const cal = isTraining ? targets.td_calories : targets.ntd_calories
+  const p = isTraining ? targets.td_protein : targets.ntd_protein
+  const c = isTraining ? targets.td_carbs : targets.ntd_carbs
+  const f = isTraining ? targets.td_fat : targets.ntd_fat
+  if (!cal) return null
+  return `${cal.toLocaleString()} kcal | P ${p} | C ${c} | F ${f}`
 }

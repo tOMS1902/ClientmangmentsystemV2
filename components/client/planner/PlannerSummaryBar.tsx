@@ -9,6 +9,8 @@ interface PlannerSummaryBarProps {
   stepsTotal: number
   nutritionDone: number
   nutritionTotal: number
+  habitsDone: number
+  habitsTotal: number
   overallDone: number
   overallTotal: number
 }
@@ -20,6 +22,8 @@ export function PlannerSummaryBar({
   stepsTotal,
   nutritionDone,
   nutritionTotal,
+  habitsDone,
+  habitsTotal,
   overallDone,
   overallTotal,
 }: PlannerSummaryBarProps) {
@@ -36,7 +40,7 @@ export function PlannerSummaryBar({
           COMPLETED
         </p>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {trainingTotal > 0 && (
           <MetricBar
             label="Training"
@@ -62,6 +66,15 @@ export function PlannerSummaryBar({
             target={nutritionTotal}
             unit="days"
             color="#a855f7"
+          />
+        )}
+        {habitsTotal > 0 && (
+          <MetricBar
+            label="Habits"
+            value={habitsDone}
+            target={habitsTotal}
+            unit="days"
+            color="#eab308"
           />
         )}
         <MetricBar

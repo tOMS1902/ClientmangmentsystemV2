@@ -18,6 +18,8 @@ interface AdherenceData {
   nutrition_total: number
   steps_done: number
   steps_total: number
+  habits_done: number
+  habits_total: number
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────

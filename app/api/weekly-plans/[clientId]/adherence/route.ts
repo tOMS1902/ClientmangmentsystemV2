@@ -24,6 +24,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ clie
       training_done: 0, training_total: 0,
       nutrition_done: 0, nutrition_total: 0,
       steps_done: 0, steps_total: 0,
+      habits_done: 0, habits_total: 0,
     })
   }
 
@@ -38,6 +39,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ clie
       training_done: 0, training_total: 0,
       nutrition_done: 0, nutrition_total: 0,
       steps_done: 0, steps_total: 0,
+      habits_done: 0, habits_total: 0,
     })
   }
 
@@ -53,6 +55,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ clie
       training_done: 0, training_total: 0,
       nutrition_done: 0, nutrition_total: 0,
       steps_done: 0, steps_total: 0,
+      habits_done: 0, habits_total: 0,
     })
   }
 
@@ -60,6 +63,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ clie
   const training = items.filter(i => i.item_type === 'training' || i.item_type === 'cardio')
   const nutrition = items.filter(i => i.item_type === 'nutrition')
   const steps = items.filter(i => i.item_type === 'steps')
+  const habits = items.filter(i => i.item_type === 'habit')
 
   return NextResponse.json({
     training_done: training.filter(i => i.completed).length,
@@ -68,5 +72,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ clie
     nutrition_total: nutrition.length,
     steps_done: steps.filter(i => i.completed).length,
     steps_total: steps.length,
+    habits_done: habits.filter(i => i.completed).length,
+    habits_total: habits.length,
   })
 }

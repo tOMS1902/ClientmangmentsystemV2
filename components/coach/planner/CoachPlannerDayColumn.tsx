@@ -5,8 +5,8 @@ import { Plus } from 'lucide-react'
 import { useDroppable } from '@dnd-kit/core'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { CoachPlannerItem } from './CoachPlannerItem'
-import type { WeeklyPlanDay, WeeklyPlanItem, PlanDayType, PlanNutritionType, PlanItemType } from '@/lib/types'
-import { DAY_LABELS } from '@/lib/planner'
+import type { WeeklyPlanDay, WeeklyPlanItem, PlanDayType, PlanNutritionType, PlanItemType, NutritionTargets } from '@/lib/types'
+import { DAY_LABELS, formatMacros } from '@/lib/planner'
 
 interface CoachPlannerDayColumnProps {
   day: WeeklyPlanDay
@@ -19,13 +19,14 @@ interface CoachPlannerDayColumnProps {
   onDelete: (itemId: string, dayId: string) => void
   onDayPatch: (dayId: string, patch: Record<string, unknown>) => void
   onAddItem: (dayId: string, item: { item_type: string; title: string; sort_order: number }) => Promise<void>
+  nutritionTargets: NutritionTargets | null
 }
 
 const DAY_TYPE_OPTIONS: PlanDayType[] = ['training', 'rest', 'off']
 const NUTRITION_TYPE_OPTIONS: PlanNutritionType[] = ['training', 'rest']
 const ITEM_TYPE_OPTIONS: PlanItemType[] = ['training', 'cardio', 'steps', 'nutrition', 'habit', 'custom']
 
-export function CoachPlannerDayColumn({ day, allDays, clientId, planId, onUpdate, onToggle, onMove, onDelete, onDayPatch, onAddItem }: CoachPlannerDayColumnProps) {
+export function CoachPlannerDayColumn({ day, allDays, clientId, planId, nutritionTargets, onUpdate, onToggle, onMove, onDelete, onDayPatch, onAddItem }: CoachPlannerDayColumnProps) {
   const [addingItem, setAddingItem] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newType, setNewType] = useState<PlanItemType>('custom')
@@ -145,6 +146,15 @@ export function CoachPlannerDayColumn({ day, allDays, clientId, planId, onUpdate
             />
           </div>
         )}
+
+        {/* Macros display */}
+        {day.day_type !== 'off' && (() => {
+          const macros = formatMacros(nutritionTargets, day.nutrition_type)
+          if (!macros) return null
+          return (
+            <p className="text-[9px] text-purple-300/60 mt-1 leading-tight">{macros}</p>
+          )
+        })()}
       </div>
 
       {/* Items */}

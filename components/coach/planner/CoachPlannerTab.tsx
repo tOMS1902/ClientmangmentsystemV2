@@ -8,9 +8,10 @@ import { CoachPlannerDayColumn } from './CoachPlannerDayColumn'
 import { PlanTemplateModal } from './PlanTemplateModal'
 import { PlanChangeLog } from './PlanChangeLog'
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
-import type { WeeklyPlanDay, WeeklyPlanTemplate, PlanStatus } from '@/lib/types'
+import type { WeeklyPlanDay, WeeklyPlanTemplate, PlanStatus, NutritionTargets } from '@/lib/types'
 import { getWeekMonday, shiftWeek, formatWeekRange } from '@/lib/planner'
 import { usePlanState } from '@/hooks/usePlanState'
+import { SaveIndicator } from '@/components/ui/SaveIndicator'
 
 interface CoachPlannerTabProps {
   clientId: string
@@ -22,11 +23,14 @@ export function CoachPlannerTab({ clientId }: CoachPlannerTabProps) {
   const [creating, setCreating] = useState(false)
   const [templateOpen, setTemplateOpen] = useState(false)
   const [messageSaved, setMessageSaved] = useState(false)
+  const [rolloverDismissed, setRolloverDismissed] = useState(false)
+  const [nutritionTargets, setNutritionTargets] = useState<NutritionTargets | null>(null)
   const messageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const {
-    plan, days, loading, coachMessage, setCoachMessage, refresh,
+    plan, days, loading, saveStatus, coachMessage, setCoachMessage, refresh, setPlanDirectly,
     optimisticToggleItem, optimisticMoveItem, optimisticUpdateDay, optimisticDeleteItem, addItem,
+    autoRolled,
   } = usePlanState(clientId, weekStart)
 
   // DnD sensors — 8px activation to avoid accidental drags
@@ -41,6 +45,14 @@ export function CoachPlannerTab({ clientId }: CoachPlannerTabProps) {
 
   useEffect(() => { refresh() }, [refresh])
 
+  // Fetch nutrition targets once on mount
+  useEffect(() => {
+    fetch(`/api/nutrition-targets?clientId=${clientId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.id) setNutritionTargets(data) })
+      .catch(() => {})
+  }, [clientId])
+
   // Debounced autosave for coach message (800ms)
   useEffect(() => {
     if (!plan) return
@@ -49,7 +61,7 @@ export function CoachPlannerTab({ clientId }: CoachPlannerTabProps) {
       await fetch(`/api/weekly-plans/${clientId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: plan.id, coach_message: coachMessage || null }),
+        body: JSON.stringify({ plan_id: plan.id, coach_message: coachMessage || null }),
       })
       setMessageSaved(true)
       setTimeout(() => setMessageSaved(false), 2000)
@@ -59,20 +71,21 @@ export function CoachPlannerTab({ clientId }: CoachPlannerTabProps) {
 
   async function handleCreate(method: 'blank' | 'copy' | 'programme') {
     setCreating(true)
+    let result: Response | null = null
+
     if (method === 'blank') {
-      await fetch(`/api/weekly-plans/${clientId}`, {
+      result = await fetch(`/api/weekly-plans/${clientId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ week_start_date: weekStart }),
       })
     } else if (method === 'copy') {
-      await fetch(`/api/weekly-plans/${clientId}/copy`, {
+      result = await fetch(`/api/weekly-plans/${clientId}/copy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ week_start_date: weekStart }),
       })
     } else if (method === 'programme') {
-      // Create blank plan first to get the plan ID
       const createRes = await fetch(`/api/weekly-plans/${clientId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -81,7 +94,7 @@ export function CoachPlannerTab({ clientId }: CoachPlannerTabProps) {
       if (createRes.ok) {
         const created = await createRes.json()
         if (created?.id) {
-          await fetch(`/api/weekly-plans/${clientId}/auto-populate`, {
+          result = await fetch(`/api/weekly-plans/${clientId}/auto-populate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ plan_id: created.id }),
@@ -89,7 +102,13 @@ export function CoachPlannerTab({ clientId }: CoachPlannerTabProps) {
         }
       }
     }
+
     setCreating(false)
+    // Use response data directly instead of a separate refresh
+    if (result?.ok) {
+      const data = await result.json()
+      if (data?.id) { setPlanDirectly(data); return }
+    }
     refresh()
   }
 
@@ -145,29 +164,35 @@ export function CoachPlannerTab({ clientId }: CoachPlannerTabProps) {
     }
     setCreating(false)
     setTemplateOpen(false)
+    // Refresh to get the full plan with all template items applied
     refresh()
   }
 
   async function handleStatusChange(status: PlanStatus) {
     if (!plan) return
-    await fetch(`/api/weekly-plans/${clientId}`, {
+    // Optimistic status update
+    setPlanDirectly({ ...plan, status, days })
+    fetch(`/api/weekly-plans/${clientId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: plan.id, status }),
-    })
-    refresh()
+      body: JSON.stringify({ plan_id: plan.id, status }),
+    }).catch(() => refresh())
   }
 
   async function handleCopyWeekOverwrite() {
     if (!plan) return
     if (!confirm('This will overwrite the current plan with last week\'s plan. Continue?')) return
     setCreating(true)
-    await fetch(`/api/weekly-plans/${clientId}/copy`, {
+    const res = await fetch(`/api/weekly-plans/${clientId}/copy`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ week_start_date: weekStart }),
     })
     setCreating(false)
+    if (res.ok) {
+      const data = await res.json()
+      if (data?.id) { setPlanDirectly(data); return }
+    }
     refresh()
   }
 
@@ -202,6 +227,7 @@ export function CoachPlannerTab({ clientId }: CoachPlannerTabProps) {
 
         {plan && (
           <div className="flex items-center gap-3">
+            <SaveIndicator status={saveStatus} onRetry={refresh} />
             {/* Publish / unpublish */}
             {plan.status === 'published' ? (
               <button
@@ -315,6 +341,21 @@ export function CoachPlannerTab({ clientId }: CoachPlannerTabProps) {
             />
           </div>
 
+          {/* Auto-rollover banner */}
+          {autoRolled && !rolloverDismissed && (
+            <div className="bg-gold/10 border border-gold/20 px-4 py-2 flex items-center justify-between">
+              <p className="text-xs text-gold">
+                Auto-created from last week — review and publish when ready
+              </p>
+              <button
+                onClick={() => setRolloverDismissed(true)}
+                className="text-[10px] text-gold/60 hover:text-gold ml-4"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
           {/* 7-day grid with drag & drop */}
           <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
             <div className="grid grid-cols-1 md:grid-cols-7 gap-2">
@@ -327,6 +368,7 @@ export function CoachPlannerTab({ clientId }: CoachPlannerTabProps) {
                     allDays={days}
                     clientId={clientId}
                     planId={plan.id}
+                    nutritionTargets={nutritionTargets}
                     onUpdate={refresh}
                     onToggle={optimisticToggleItem}
                     onMove={optimisticMoveItem}

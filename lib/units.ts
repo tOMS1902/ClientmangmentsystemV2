@@ -10,7 +10,7 @@ export function lbsToKg(lbs: number): number {
 
 /** Convert a stored kg value for display */
 export function displayWeight(kg: number, unit: WeightUnit): number {
-  return unit === 'lbs' ? kgToLbs(kg) : kg
+  return unit === 'lbs' ? kgToLbs(kg) : Math.round(kg * 10) / 10
 }
 
 /** Convert a user-entered value (in their preferred unit) to kg for storage */

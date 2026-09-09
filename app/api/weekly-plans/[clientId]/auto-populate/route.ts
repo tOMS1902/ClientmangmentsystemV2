@@ -27,6 +27,7 @@ export async function POST(
     .eq('client_id', clientId)
     .eq('is_active', true)
     .order('created_at', { ascending: false })
+    .order('sort_order', { referencedTable: 'programme_days' })
     .limit(1)
     .single()
 

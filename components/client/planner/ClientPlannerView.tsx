@@ -10,6 +10,7 @@ import { WeekChangedModal } from './WeekChangedModal'
 import type { NutritionTargets } from '@/lib/types'
 import { getWeekMonday, shiftWeek, formatWeekRange, DAY_LABELS } from '@/lib/planner'
 import { usePlanState } from '@/hooks/usePlanState'
+import { SaveIndicator } from '@/components/ui/SaveIndicator'
 
 interface ClientPlannerViewProps {
   clientId: string
@@ -22,7 +23,7 @@ export function ClientPlannerView({ clientId, targets }: ClientPlannerViewProps)
   const todayRef = useRef<HTMLDivElement>(null)
 
   const {
-    plan, days, loading, refresh,
+    plan, days, loading, saveStatus, refresh,
     optimisticToggleItem, optimisticMoveItem,
   } = usePlanState(clientId, weekStart)
 
@@ -49,15 +50,19 @@ export function ClientPlannerView({ clientId, targets }: ClientPlannerViewProps)
   const trainingItems = allItems.filter(i => i.item_type === 'training')
   const stepsItems = allItems.filter(i => i.item_type === 'steps')
   const nutritionItems = allItems.filter(i => i.item_type === 'nutrition')
+  const habitsItems = allItems.filter(i => i.item_type === 'habit')
 
   const completedCount = (items: typeof allItems) => items.filter(i => i.completed).length
 
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div>
-        <Eyebrow>Weekly Plan</Eyebrow>
-        <GoldRule className="mt-2" />
+      <div className="flex items-center justify-between">
+        <div>
+          <Eyebrow>Weekly Plan</Eyebrow>
+          <GoldRule className="mt-2" />
+        </div>
+        <SaveIndicator status={saveStatus} onRetry={refresh} />
       </div>
 
       {/* Week navigation */}
@@ -116,6 +121,8 @@ export function ClientPlannerView({ clientId, targets }: ClientPlannerViewProps)
             stepsTotal={stepsItems.length}
             nutritionDone={completedCount(nutritionItems)}
             nutritionTotal={nutritionItems.length}
+            habitsDone={completedCount(habitsItems)}
+            habitsTotal={habitsItems.length}
             overallDone={completedCount(allItems)}
             overallTotal={allItems.length}
           />

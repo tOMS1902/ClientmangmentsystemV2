@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Check, ArrowRightLeft } from 'lucide-react'
 import type { WeeklyPlanDay, WeeklyPlanItem, NutritionTargets } from '@/lib/types'
-import { DAY_LABELS } from '@/lib/planner'
+import { DAY_LABELS, formatMacros } from '@/lib/planner'
 
 interface ClientPlannerDayCardProps {
   day: WeeklyPlanDay
@@ -83,6 +83,17 @@ export function ClientPlannerDayCard({ day, allDays, isToday, targets, onToggle,
           </span>
         </div>
       )}
+
+      {/* Macros */}
+      {day.day_type !== 'off' && (() => {
+        const macros = formatMacros(targets, day.nutrition_type)
+        if (!macros) return null
+        return (
+          <div className="px-2 pt-0.5">
+            <p className="text-[9px] text-purple-300/60 leading-tight">{macros}</p>
+          </div>
+        )
+      })()}
 
       {/* Main items */}
       <div className="flex-1 p-2 flex flex-col gap-1 min-h-[60px]">
