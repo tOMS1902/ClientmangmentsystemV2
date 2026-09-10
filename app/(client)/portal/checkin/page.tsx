@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GoldRule } from '@/components/ui/GoldRule'
 import { Button } from '@/components/ui/Button'
@@ -246,6 +246,62 @@ export default function CheckInPage() {
   const [improveNextWeek, setImproveNextWeek] = useState('')
   const [coachSupport, setCoachSupport] = useState('')
   const [anythingElse, setAnythingElse] = useState('')
+  const [draftRestored, setDraftRestored] = useState(false)
+
+  // ─── Draft save/restore (survives app switch & refresh) ──────────────────
+  const DRAFT_KEY = 'checkin-draft'
+
+  // Restore draft on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY)
+      if (!raw) return
+      const d = JSON.parse(raw)
+      if (d.weight) setWeight(d.weight)
+      if (d.weekScore != null) setWeekScore(d.weekScore)
+      if (d.dietRating) setDietRating(d.dietRating)
+      if (d.trainingCompleted) setTrainingCompleted(d.trainingCompleted)
+      if (d.energyScore != null) setEnergyScore(d.energyScore)
+      if (d.sleepScore != null) setSleepScore(d.sleepScore)
+      if (d.hungerScore != null) setHungerScore(d.hungerScore)
+      if (d.cravingsScore != null) setCravingsScore(d.cravingsScore)
+      if (d.avgSteps) setAvgSteps(d.avgSteps)
+      if (d.biggestWin) setBiggestWin(d.biggestWin)
+      if (d.mainChallenge) setMainChallenge(d.mainChallenge)
+      if (d.focusAreas) setFocusAreas(d.focusAreas)
+      if (d.improveNextWeek) setImproveNextWeek(d.improveNextWeek)
+      if (d.coachSupport) setCoachSupport(d.coachSupport)
+      if (d.anythingElse) setAnythingElse(d.anythingElse)
+      setDraftRestored(true)
+    } catch { /* ignore corrupt draft */ }
+  }, [])
+
+  // Save draft on every form change (debounced 500ms)
+  const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const formSnap = useCallback(() => ({
+    weight, weekScore, dietRating, trainingCompleted, energyScore,
+    sleepScore, hungerScore, cravingsScore, avgSteps, biggestWin,
+    mainChallenge, focusAreas, improveNextWeek, coachSupport, anythingElse,
+    savedAt: Date.now(),
+  }), [weight, weekScore, dietRating, trainingCompleted, energyScore,
+    sleepScore, hungerScore, cravingsScore, avgSteps, biggestWin,
+    mainChallenge, focusAreas, improveNextWeek, coachSupport, anythingElse])
+
+  useEffect(() => {
+    if (draftTimer.current) clearTimeout(draftTimer.current)
+    draftTimer.current = setTimeout(() => {
+      try { localStorage.setItem(DRAFT_KEY, JSON.stringify(formSnap())) } catch {}
+    }, 500)
+  }, [formSnap])
+
+  // Warn before leaving with unsaved form data
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (weight && !submitted) e.preventDefault()
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [weight, submitted])
 
   useEffect(() => {
     async function load() {
@@ -353,6 +409,7 @@ export default function CheckInPage() {
       setClientId(newCheckin.client_id)
       setIsLateSubmission(false)
       setSubmitted(true)
+      try { localStorage.removeItem(DRAFT_KEY) } catch {}
     } else {
       const err = await res.json().catch(() => ({}))
       if (res.status === 409) {
@@ -571,6 +628,20 @@ export default function CheckInPage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {draftRestored && !submitted && (
+        <div className="bg-gold/5 border border-gold/20 px-4 py-3 mb-2 flex items-center justify-between">
+          <span className="text-gold text-sm">Your previous answers were restored.</span>
+          <button
+            type="button"
+            onClick={() => { setDraftRestored(false) }}
+            className="text-xs text-white/40 hover:text-white/70 transition-colors"
+            style={{ fontFamily: 'var(--font-label)' }}
+          >
+            Dismiss
+          </button>
         </div>
       )}
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Eyebrow } from '@/components/ui/Eyebrow'
@@ -58,6 +58,52 @@ export function SessionLogger({ day, lastSession, weightUnit = 'kg', onComplete 
   )
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [restoredDraft, setRestoredDraft] = useState(false)
+
+  const draftKey = `session-draft-${day.id}`
+  const entriesRef = useRef(entries)
+  const displayRef = useRef(displayValues)
+  entriesRef.current = entries
+  displayRef.current = displayValues
+
+  // Restore draft from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(draftKey)
+      if (!raw) return
+      const draft = JSON.parse(raw)
+      if (draft.displayValues) setDisplayValues(draft.displayValues)
+      if (draft.entries) setEntries(draft.entries)
+      setRestoredDraft(true)
+    } catch { /* ignore corrupt draft */ }
+  }, [draftKey])
+
+  // Save draft to localStorage on every change (debounced)
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const saveDraft = useCallback(() => {
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => {
+      try {
+        localStorage.setItem(draftKey, JSON.stringify({
+          displayValues: displayRef.current,
+          entries: entriesRef.current,
+          savedAt: Date.now(),
+        }))
+      } catch { /* storage full — ignore */ }
+    }, 500)
+  }, [draftKey])
+
+  useEffect(() => { saveDraft() }, [displayValues, entries, saveDraft])
+
+  // Warn before leaving with unsaved data
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (!done) { e.preventDefault() }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [done])
 
   function dKey(exerciseIdx: number, setIdx: number, field: string) {
     return `${exerciseIdx}-${setIdx}-${field}`
@@ -112,30 +158,44 @@ export function SessionLogger({ day, lastSession, weightUnit = 'kg', onComplete 
 
   async function handleComplete() {
     setSaving(true)
-    const logRes = await fetch('/api/session-logs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        programme_day_id: day.id,
-        day_label: day.day_label,
-        log_date: new Date().toISOString().split('T')[0],
-        exercises_logged: entries,
-        completed: true,
-      }),
-    })
-    // Fire-and-forget: auto-complete matching planner item
-    const logData = logRes.ok ? await logRes.json().catch(() => null) : null
-    fetch('/api/weekly-plans/auto-complete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        programme_day_id: day.id,
-        session_log_id: logData?.id ?? null,
-      }),
-    }).catch(() => {})
-    setSaving(false)
-    setDone(true)
-    onComplete()
+    setSaveError(null)
+    try {
+      const logRes = await fetch('/api/session-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          programme_day_id: day.id,
+          day_label: day.day_label,
+          log_date: new Date().toISOString().split('T')[0],
+          exercises_logged: entries,
+          completed: true,
+        }),
+      })
+      if (!logRes.ok) {
+        const err = await logRes.json().catch(() => ({}))
+        setSaveError(err.error || 'Failed to save session. Please try again.')
+        setSaving(false)
+        return
+      }
+      const logData = await logRes.json().catch(() => null)
+      // Fire-and-forget: auto-complete matching planner item
+      fetch('/api/weekly-plans/auto-complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          programme_day_id: day.id,
+          session_log_id: logData?.id ?? null,
+        }),
+      }).catch(() => {})
+      // Clear draft from localStorage on success
+      try { localStorage.removeItem(`session-draft-${day.id}`) } catch {}
+      setSaving(false)
+      setDone(true)
+      onComplete()
+    } catch {
+      setSaveError('Network error — check your connection and try again.')
+      setSaving(false)
+    }
   }
 
   if (done) {
@@ -151,6 +211,24 @@ export function SessionLogger({ day, lastSession, weightUnit = 'kg', onComplete 
     <div>
       <Eyebrow>{day.day_label}</Eyebrow>
       <GoldRule />
+
+      {restoredDraft && (
+        <div className="bg-gold/5 border border-gold/20 px-4 py-3 mt-2 flex items-center justify-between">
+          <span className="text-gold text-sm">Previous session data restored.</span>
+          <button
+            type="button"
+            onClick={() => {
+              try { localStorage.removeItem(draftKey) } catch {}
+              setRestoredDraft(false)
+            }}
+            className="text-xs text-white/40 hover:text-white/70 transition-colors"
+            style={{ fontFamily: 'var(--font-label)' }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <div className="flex flex-col gap-6 mt-4">
         {day.exercises.map((exercise, exerciseIdx) => {
           const trackingType = exercise.tracking_type ?? 'weight'
@@ -337,8 +415,12 @@ export function SessionLogger({ day, lastSession, weightUnit = 'kg', onComplete 
         })}
       </div>
 
+      {saveError && (
+        <p className="text-red-400 text-sm mt-4">{saveError}</p>
+      )}
+
       <Button variant="primary" size="lg" className="w-full mt-8" onClick={handleComplete} disabled={saving}>
-        {saving ? 'Saving...' : 'Complete Workout'}
+        {saving ? 'Saving...' : saveError ? 'Retry Save' : 'Complete Workout'}
       </Button>
     </div>
   )
